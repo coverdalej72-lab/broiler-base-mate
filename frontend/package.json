@@ -1,0 +1,10 @@
+{
+  "name": "broiler-base-mate-frontend",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "start": "cd /app/silo && BASE_PATH=/ PORT=3000 pnpm --filter @workspace/feed-program run dev",
+    "build": "cd /app/silo && BASE_PATH=/ pnpm --filter @workspace/feed-program run build",
+    "serve": "cd /app/silo && BASE_PATH=/ PORT=3000 pnpm --filter @workspace/feed-program run serve"
+  }
+}
