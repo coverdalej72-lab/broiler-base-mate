@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <meta name="theme-color" content="#1a5c36" />
+  <title>Silo Reader — Broiler Base Mate</title>
+  <style>
+    :root {
+      --green-900: #0f3d24;
+      --green-800: #14492c;
+      --green-700: #1a5c36;
+      --green-600: #1a7a40;
+      --green-500: #2a9b54;
+      --gold: #C9A227;
+      --gold-light: #f5e8b8;
+      --paper: #f7faf6;
+      --ink: #0d1f14;
+      --muted: #4d7060;
+      --line: #c5ddd0;
+      --danger: #b91c1c;
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; background: var(--paper); color: var(--ink);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      font-size: 16px; line-height: 1.4; -webkit-font-smoothing: antialiased; }
+    header {
+      position: sticky; top: 0; z-index: 10;
+      background: linear-gradient(180deg, var(--green-800), var(--green-700));
+      color: #fff; padding: 14px 16px; box-shadow: 0 2px 6px rgba(0,0,0,.15);
+      display: flex; align-items: center; gap: 12px;
+    }
+    header h1 { font-size: 18px; margin: 0; font-weight: 800; letter-spacing: 0.2px; flex: 1; }
+    header .badge { background: var(--gold); color: #000; font-size: 11px; font-weight: 800;
+      padding: 3px 8px; border-radius: 99px; }
+    .container { padding: 12px 14px 100px; max-width: 720px; margin: 0 auto; }
+    .toolbar { display: flex; gap: 8px; margin-bottom: 14px; align-items: center; flex-wrap: wrap; }
+    .pill { display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px;
+      background: #fff; border: 1px solid var(--line); border-radius: 99px; font-size: 13px;
+      color: var(--ink); }
+    .pill strong { color: var(--green-700); }
+    .pill.live { background: var(--green-600); color: #fff; border-color: var(--green-600); }
+    .pill.live::before { content: ""; width: 8px; height: 8px; border-radius: 99px;
+      background: #fff; box-shadow: 0 0 0 0 rgba(255,255,255,.6); animation: pulse 1.8s infinite; }
+    @keyframes pulse {
+      0% { box-shadow: 0 0 0 0 rgba(255,255,255,.7); }
+      70% { box-shadow: 0 0 0 8px rgba(255,255,255,0); }
+      100% { box-shadow: 0 0 0 0 rgba(255,255,255,0); }
+    }
+    .shed-card { background: #fff; border: 1px solid var(--line); border-radius: 14px;
+      margin-bottom: 14px; overflow: hidden; box-shadow: 0 1px 2px rgba(0,0,0,.04); }
+    .shed-head { padding: 12px 14px; background: linear-gradient(180deg, #fafdf9, #f0f5f2);
+      border-bottom: 1px solid var(--line); display: flex; align-items: center; gap: 10px; }
+    .shed-head .shed-name { font-weight: 800; font-size: 15px; flex: 1; }
+    .shed-head .status { font-size: 11px; padding: 3px 8px; border-radius: 99px;
+      background: #ffe7c0; color: #8a5a00; font-weight: 700; letter-spacing: 0.3px; text-transform: uppercase; }
+    .shed-head .status.done { background: #c8efd8; color: var(--green-600); }
+    .silo-row { display: grid; grid-template-columns: 38px 1fr 110px 70px; gap: 8px;
+      align-items: center; padding: 10px 12px; border-top: 1px solid #eef3ee; }
+    .silo-row:first-of-type { border-top: 0; }
+    .silo-badge { width: 38px; height: 38px; border-radius: 10px; display: grid; place-items: center;
+      color: #fff; font-weight: 900; font-size: 17px; }
+    .silo-badge.A { background: var(--green-600); }
+    .silo-badge.B { background: #1f70c4; }
+    .silo-badge.C { background: #c98a07; }
+    .silo-info { display: flex; flex-direction: column; gap: 2px; }
+    .silo-info .name { font-weight: 700; font-size: 14px; }
+    .silo-info .meta { color: var(--muted); font-size: 12px; }
+    .silo-info .meta.saved { color: var(--green-600); font-weight: 700; }
+    .silo-row input[type="number"] {
+      -webkit-appearance: none; appearance: none;
+      width: 100%; padding: 9px 10px; border: 1px solid var(--line); border-radius: 10px;
+      font-size: 15px; font-weight: 700; text-align: right; background: #f7fbf8;
+      color: var(--ink);
+    }
+    .silo-row input[type="number"]:focus { outline: 2px solid var(--green-600); border-color: var(--green-600); background: #fff; }
+    .silo-row select {
+      width: 100%; padding: 9px 6px; border: 1px solid var(--line); border-radius: 10px;
+      font-size: 13px; font-weight: 700; background: #f7fbf8; color: var(--ink);
+    }
+    .feed-type-row { padding: 0 12px 10px; display: flex; gap: 8px; align-items: center; }
+    .feed-type-row label { font-size: 12px; color: var(--muted); font-weight: 600; }
+    .feed-type-row select { padding: 7px 10px; border: 1px solid var(--line); border-radius: 8px;
+      background: #fff; font-size: 13px; font-weight: 600; color: var(--ink); flex: 1; }
+    .save-btn { width: 100%; margin-top: 6px; padding: 12px; background: var(--green-600);
+      color: #fff; border: 0; border-radius: 10px; font-weight: 800; font-size: 15px;
+      cursor: pointer; letter-spacing: 0.3px; }
+    .save-btn:disabled { background: #b6cdbf; cursor: not-allowed; }
+    .save-btn.saved { background: var(--green-500); }
+    .toast { position: fixed; left: 50%; bottom: 22px; transform: translateX(-50%);
+      background: var(--ink); color: #fff; padding: 10px 16px; border-radius: 99px;
+      font-size: 13px; font-weight: 700; box-shadow: 0 6px 20px rgba(0,0,0,.25); z-index: 20;
+      opacity: 0; transition: opacity .2s; pointer-events: none; }
+    .toast.show { opacity: 1; }
+    .toast.err { background: var(--danger); }
+    .empty { text-align: center; color: var(--muted); padding: 40px 16px; font-size: 14px; }
+    footer { text-align: center; color: var(--muted); font-size: 12px; padding: 16px;
+      border-top: 1px solid var(--line); margin-top: 30px; }
+    footer a { color: var(--green-600); text-decoration: none; font-weight: 700; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>📡 Silo Reader</h1>
+    <span class="badge">FIELD</span>
+  </header>
+  <div class="container">
+    <div class="toolbar">
+      <span class="pill"><span>Date</span><strong id="today-date">—</strong></span>
+      <span class="pill"><span>Saved</span><strong id="saved-count">0/0</strong></span>
+      <span class="pill live" id="sync-pill">Auto-sync ON</span>
+    </div>
+    <div id="shed-list">
+      <div class="empty">Loading shed groups…</div>
+    </div>
+    <footer>
+      Open the Feed Program on your computer at the home URL — readings entered here flow
+      into the spreadsheet automatically. <br><br>
+      <a href="/">← Go to Feed Program</a>
+    </footer>
+  </div>
+  <div id="toast" class="toast">Saved</div>
+
+  <script>
+    const FEED_TYPES = ["Starter", "Grower", "Finisher", "Withdrawal"];
+    const $list = document.getElementById("shed-list");
+    const $toast = document.getElementById("toast");
+    const $todayDate = document.getElementById("today-date");
+    const $savedCount = document.getElementById("saved-count");
+
+    let groupsCache = [];
+    let progressCache = null;
+
+    function showToast(msg, err = false) {
+      $toast.textContent = msg;
+      $toast.className = "toast show" + (err ? " err" : "");
+      setTimeout(() => { $toast.className = "toast"; }, 1800);
+    }
+
+    function formatDate(iso) {
+      try {
+        const d = new Date(iso + "T00:00:00");
+        return d.toLocaleDateString("en-AU", { weekday: "short", day: "numeric", month: "short" });
+      } catch { return iso; }
+    }
+
+    async function loadGroupsAndProgress() {
+      const [gRes, pRes] = await Promise.all([
+        fetch("/api/shed-groups"),
+        fetch("/api/readings/today"),
+      ]);
+      groupsCache = await gRes.json();
+      progressCache = await pRes.json();
+      render();
+    }
+
+    function siloProgress(shedGroupId, siloId) {
+      const shed = progressCache?.sheds?.find((s) => s.shedGroupId === shedGroupId);
+      return shed?.silos?.find((s) => s.siloId === siloId);
+    }
+
+    function render() {
+      $todayDate.textContent = progressCache?.date ? formatDate(progressCache.date) : "—";
+      $savedCount.textContent = `${progressCache?.savedCount ?? 0}/${progressCache?.totalCount ?? 0}`;
+      if (!groupsCache.length) {
+        $list.innerHTML = '<div class="empty">No shed groups configured.</div>';
+        return;
+      }
+      $list.innerHTML = "";
+      for (const g of groupsCache) {
+        const card = document.createElement("div");
+        card.className = "shed-card";
+        const allSaved = g.silos.length > 0 && g.silos.every((s) => siloProgress(g.id, s.id)?.saved);
+        const someSaved = g.silos.some((s) => siloProgress(g.id, s.id)?.saved);
+        const status = allSaved ? "Done" : someSaved ? "Part" : "Pending";
+        card.innerHTML = `
+          <div class="shed-head">
+            <div class="shed-name">${g.name}</div>
+            <div class="status ${allSaved ? "done" : ""}">${status}</div>
+          </div>
+          <div class="feed-type-row">
+            <label for="feed-${g.id}">Feed type</label>
+            <select id="feed-${g.id}" data-feed="${g.id}">
+              ${FEED_TYPES.map((f) => `<option value="${f}">${f}</option>`).join("")}
+            </select>
+          </div>
+          ${g.silos.map((s) => {
+            const p = siloProgress(g.id, s.id);
+            const val = p?.amountRemaining ?? "";
+            const unit = p?.unit ?? "t";
+            return `
+            <div class="silo-row">
+              <div class="silo-badge ${s.letter}">${s.letter}</div>
+              <div class="silo-info">
+                <div class="name">${s.name}</div>
+                <div class="meta ${p?.saved ? "saved" : ""}">${p?.saved ? "✓ Saved · " + p.feedType : "Not yet recorded"}</div>
+              </div>
+              <input type="number" inputmode="decimal" step="0.1" placeholder="0.0"
+                value="${val}" data-silo="${s.id}" data-shed="${g.id}" />
+              <select data-unit="${s.id}">
+                <option value="t" ${unit === "t" ? "selected" : ""}>tonnes</option>
+                <option value="kg" ${unit === "kg" ? "selected" : ""}>kg</option>
+              </select>
+            </div>`;
+          }).join("")}
+          <div style="padding: 0 12px 12px;">
+            <button class="save-btn ${allSaved ? "saved" : ""}" data-save="${g.id}">
+              ${allSaved ? "✓ Saved — Re-save (correct)" : "Save Readings"}
+            </button>
+          </div>
+        `;
+        $list.appendChild(card);
+      }
+      // Wire save buttons
+      $list.querySelectorAll("[data-save]").forEach((btn) => {
+        btn.addEventListener("click", () => onSave(btn.getAttribute("data-save"), btn));
+      });
+    }
+
+    async function onSave(shedGroupId, btn) {
+      const group = groupsCache.find((g) => g.id === shedGroupId);
+      if (!group) return;
+      const feedType = document.getElementById(`feed-${shedGroupId}`).value;
+      const readings = [];
+      for (const s of group.silos) {
+        const input = document.querySelector(`input[data-silo="${s.id}"]`);
+        const unitSel = document.querySelector(`select[data-unit="${s.id}"]`);
+        const raw = input.value.trim();
+        if (raw === "") continue;
+        const amt = parseFloat(raw);
+        if (Number.isNaN(amt)) continue;
+        readings.push({
+          siloId: s.id,
+          feedType,
+          amountRemaining: amt,
+          unit: unitSel.value,
+        });
+      }
+      if (readings.length === 0) {
+        showToast("Enter at least one silo amount", true);
+        return;
+      }
+      btn.disabled = true;
+      btn.textContent = "Saving…";
+      try {
+        const res = await fetch("/api/readings/batch", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ readings, readingDate: new Date().toISOString() }),
+        });
+        if (!res.ok) throw new Error(await res.text());
+        showToast(`✓ ${readings.length} silo${readings.length > 1 ? "s" : ""} saved — auto-syncs to Feed Program`);
+        await loadGroupsAndProgress();
+      } catch (e) {
+        console.error(e);
+        showToast("Save failed", true);
+        btn.disabled = false;
+        btn.textContent = "Save Readings";
+      }
+    }
+
+    // Initial + periodic refresh
+    loadGroupsAndProgress().catch((e) => {
+      console.error(e);
+      $list.innerHTML = '<div class="empty">Failed to load. Check your connection.</div>';
+    });
+    setInterval(() => loadGroupsAndProgress().catch(() => {}), 30_000);
+  </script>
+</body>
+</html>
