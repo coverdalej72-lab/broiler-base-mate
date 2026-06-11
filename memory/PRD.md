@@ -1,36 +1,62 @@
-# Broiler Base Mate™ — Off-Replit Migration + Auto-Sync
+# Broiler Base Mate™ — Off-Replit Migration + Auto-Sync + AI Docket Scanner
 
 ## Original Problem Statement
 > https://silo-sync-excel.replit.app/feed-program/ I need off replit
+> "do what best as i need to auto sync to the program"
+> "do them all"
+>
 > GitHub: https://github.com/coverdalej72-lab/Silo-Sync-Excel
-> Follow-up: "do what best as i need to auto sync to the program"
 
 ## Architecture
-- **Source monorepo**: `/app/silo/` (full pnpm workspace cloned from GitHub).
-- **Frontend** (`/app/frontend` → port 3000): wrapper that runs `pnpm --filter @workspace/feed-program run dev` (Vite dev server) with `BASE_PATH=/`.
-- **Backend** (`/app/backend` → port 8001): FastAPI + MongoDB. Implements the real OpenAPI surface (shed-groups, silos, readings, deliveries, onedrive/status, bootstrap, batch). Auto-seeds 10 shed groups × 3 silos on first run.
-- **Field Reader** (`/reader`): mobile-friendly HTML/JS UI served by FastAPI for entering silo readings in the field.
-- **Vite proxy**: `/api`, `/reader`, `/reader-assets` → `localhost:8001`.
+- **Source monorepo**: `/app/silo/` (pnpm workspace cloned from GitHub).
+- **Frontend** (`/app/frontend` → port 3000): Vite dev server for `@workspace/feed-program` (`BASE_PATH=/`).
+- **Backend** (`/app/backend` → port 8001): FastAPI + MongoDB + Gemini 2.5 Flash via emergentintegrations universal key.
+- **Field Reader** at `/reader`: 3-tab mobile PWA-style UI served from FastAPI.
+- **Vite proxy**: `/api`, `/reader`, `/reader-assets` → port 8001.
 
-## Auto-Sync Flow (working end-to-end)
-1. User opens `https://harvest-hub-634.preview.emergentagent.com/reader` on phone in the field.
-2. Picks shed group, picks feed type (Starter/Grower/Finisher/Withdrawal), enters silo A/B/C tonnes, taps **Save Readings**.
-3. POST `/api/readings/batch` → stored in MongoDB `readings` collection.
-4. Feed Program (open on PC at `/`) auto-polls `/api/readings/today` **every 2 minutes** (existing behaviour in `App.tsx`).
-5. New readings are detected via sync-hash diff and applied to the spreadsheet's `SILO A/B/C` columns at the correct day row.
-6. Re-saving the same shed today overwrites (acts as a "correction" — same behaviour as the original Replit app).
+## Field Reader (`/reader`) — Three Tabs
+### 1. 📋 Readings (auto-sync)
+- Pending sheds bubble to the **top**, partial sheds in the middle, DONE sheds at the bottom — workers can knock off the next pending shed in one tap.
+- Each silo shows **"Last: Xt (Mon, 2 Jun) [Use ↑]"** — one-tap copies the previous reading into the input so users only type the change.
+- Feed type picker per shed (Starter/Grower/Finisher/Withdrawal) + tonnes/kg unit toggle per silo.
+- Save → POST `/api/readings/batch` → MongoDB → Feed Program auto-poll (2-min) picks it up. Same-day re-save = correction.
 
-## Verified
-- 18.5 t reading saved to Sheds 3 & 4 Silo A → Feed Program syncHash localStorage = `|A:18.5:t||||||||` confirmed pulled.
-- Silo Reader UI saves A/B/C in one tap, badge turns DONE, "Saved" counter updates.
-- API: `/api/shed-groups`, `/api/readings/today`, `/api/readings/batch`, `/api/deliveries`, `/api/silos*`, `/api/bootstrap`, `/api/batch/version`, `/api/batch/reset`, `/api/onedrive/status`, `/api/weigh-bird` all responding.
+### 2. 🚚 Deliveries
+- Form: shed group, optional silo, feed type, amount in tonnes, free-text notes.
+- Recent Deliveries list with one-tap delete.
+- Posts to `/api/deliveries` → reflected in End-of-Batch summary.
 
-## Backlog
-- **P2**: Restore demo spreadsheet placement date or let user reset it from Settings so today's reading visually lands on a row (today the demo's batch ends 18 May 2026 — pre-built data).
-- **P2**: Wire deliveries to the End-of-Batch summary (`/api/deliveries` is read but only stub-saved from the reader UI).
-- **P3**: Build a QR-scan flow into `/reader` for Ingham/Baiada delivery dockets (silo-tracker had `Html5Qrcode` integration).
-- **P3**: Cloud sync to Google Drive / OneDrive (requires user-provided OAuth tokens).
-- **P3**: Restore the full `/silo-tracker/` companion app (requires Clerk publishable key from user).
+### 3. 📷 Scan Docket (AI)
+- Vendor toggle: **Ingham's** / **Baiada** (two tailored prompts).
+- "Tap to take a photo" → mobile camera capture → in-browser resize to ≤1400px JPEG.
+- **Gemini 2.5 Flash** via `emergentintegrations` extracts: feedType, productCode, amount, deliveryDate, orderNumber, customerName, siteCode, deliveryInstructions, truckRego, outloadingBin.
+- "Use as Delivery" pre-fills the Deliveries form and switches tabs — review, then save.
 
-## Test Data
-None (MongoDB auto-seeds 10 shed groups × 3 silos on first startup; readings collection starts empty).
+## Backend API (MongoDB-backed)
+- `GET /api/shed-groups` — auto-seeds 10 groups × 3 silos on first run
+- `GET /api/silos`, `POST /api/silos`, `PATCH /api/silos/:id`, `DELETE /api/silos/:id`
+- `GET /api/readings/today` (Feed Program polls every 2 min)
+- `GET /api/readings/previous?siloId=…` — last reading per silo
+- `POST /api/readings/batch`, `GET /api/readings`, `DELETE /api/readings/:id`
+- `GET /api/deliveries`, `POST /api/deliveries`, `DELETE /api/deliveries/:id`
+- `POST /api/scan-docket/ingham`, `POST /api/scan-docket/baiada` (Gemini 2.5 Flash)
+- `GET /api/bootstrap`, `GET /api/batch/version`, `DELETE /api/batch/reset`, `GET /api/onedrive/status`, `POST /api/weigh-bird`
+
+## What's Verified
+- ✅ End-to-end save: 18.5t saved on `/reader` → Feed Program syncHash `|A:18.5:t||||||||` confirmed.
+- ✅ Pending-first ordering on Readings tab.
+- ✅ Previous-reading "Use ↑" button populates input + unit.
+- ✅ Delivery save round-trip (24.5t Starter / Sheds 3 & 4 / Test docket #123).
+- ✅ AI scanner: synthetic Ingham docket → all 11 fields extracted correctly (28.16t Gourmet Broiler Grower F116, Order ORD-77821, Date 2026-06-11, etc.).
+- ✅ Scanner → Deliveries pre-fill flow.
+
+## Integrations
+- **Emergent Universal LLM Key** (`EMERGENT_LLM_KEY`) → Gemini 2.5 Flash for docket OCR.
+- (Stripe / Clerk / Google Drive / OneDrive intentionally not wired — not needed for stated requirements.)
+
+## Backlog (future, optional)
+- P2: Auto-detect batch placement so today's reading lands on the correct demo-row visually (currently March 2026 placement, today is June).
+- P2: Pre-populate `feedType` in Readings tab using last delivery's feed type for the shed.
+- P3: Add CSV / xlsx export of all readings + deliveries from `/reader`.
+- P3: Google Drive / OneDrive cloud sync (needs user OAuth tokens).
+- P3: Restore companion Silo Tracker PWA (needs Clerk publishable key).

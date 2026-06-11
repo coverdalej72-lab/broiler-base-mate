@@ -12,6 +12,7 @@
       --green-700: #1a5c36;
       --green-600: #1a7a40;
       --green-500: #2a9b54;
+      --green-50: #eaf5ee;
       --gold: #C9A227;
       --gold-light: #f5e8b8;
       --paper: #f7faf6;
@@ -19,6 +20,8 @@
       --muted: #4d7060;
       --line: #c5ddd0;
       --danger: #b91c1c;
+      --warn-bg: #ffe7c0;
+      --warn-ink: #8a5a00;
     }
     * { box-sizing: border-box; }
     html, body { margin: 0; padding: 0; background: var(--paper); color: var(--ink);
@@ -33,6 +36,17 @@
     header h1 { font-size: 18px; margin: 0; font-weight: 800; letter-spacing: 0.2px; flex: 1; }
     header .badge { background: var(--gold); color: #000; font-size: 11px; font-weight: 800;
       padding: 3px 8px; border-radius: 99px; }
+    .tabs {
+      position: sticky; top: 50px; z-index: 9; background: #fff; border-bottom: 1px solid var(--line);
+      display: grid; grid-template-columns: 1fr 1fr 1fr; padding: 0;
+    }
+    .tab {
+      padding: 12px 6px; text-align: center; font-size: 13px; font-weight: 700; color: var(--muted);
+      cursor: pointer; user-select: none; border-bottom: 3px solid transparent; transition: all .12s;
+      letter-spacing: 0.3px;
+    }
+    .tab.active { color: var(--green-700); border-bottom-color: var(--green-600); background: #fafdf9; }
+    .tab .ico { display: block; font-size: 18px; margin-bottom: 2px; }
     .container { padding: 12px 14px 100px; max-width: 720px; margin: 0 auto; }
     .toolbar { display: flex; gap: 8px; margin-bottom: 14px; align-items: center; flex-wrap: wrap; }
     .pill { display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px;
@@ -49,12 +63,14 @@
     }
     .shed-card { background: #fff; border: 1px solid var(--line); border-radius: 14px;
       margin-bottom: 14px; overflow: hidden; box-shadow: 0 1px 2px rgba(0,0,0,.04); }
+    .shed-card.done { border-color: var(--green-500); }
     .shed-head { padding: 12px 14px; background: linear-gradient(180deg, #fafdf9, #f0f5f2);
       border-bottom: 1px solid var(--line); display: flex; align-items: center; gap: 10px; }
     .shed-head .shed-name { font-weight: 800; font-size: 15px; flex: 1; }
-    .shed-head .status { font-size: 11px; padding: 3px 8px; border-radius: 99px;
-      background: #ffe7c0; color: #8a5a00; font-weight: 700; letter-spacing: 0.3px; text-transform: uppercase; }
-    .shed-head .status.done { background: #c8efd8; color: var(--green-600); }
+    .status { font-size: 11px; padding: 3px 8px; border-radius: 99px;
+      background: var(--warn-bg); color: var(--warn-ink); font-weight: 700; letter-spacing: 0.3px; text-transform: uppercase; }
+    .status.done { background: #c8efd8; color: var(--green-600); }
+    .status.part { background: #cfe6ff; color: #1f70c4; }
     .silo-row { display: grid; grid-template-columns: 38px 1fr 110px 70px; gap: 8px;
       align-items: center; padding: 10px 12px; border-top: 1px solid #eef3ee; }
     .silo-row:first-of-type { border-top: 0; }
@@ -63,10 +79,15 @@
     .silo-badge.A { background: var(--green-600); }
     .silo-badge.B { background: #1f70c4; }
     .silo-badge.C { background: #c98a07; }
-    .silo-info { display: flex; flex-direction: column; gap: 2px; }
+    .silo-badge.D { background: #7a3eaa; }
+    .silo-info { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
     .silo-info .name { font-weight: 700; font-size: 14px; }
     .silo-info .meta { color: var(--muted); font-size: 12px; }
     .silo-info .meta.saved { color: var(--green-600); font-weight: 700; }
+    .silo-info .meta.prev { color: var(--muted); }
+    .silo-info .meta.prev .copy-prev { background: var(--green-50); color: var(--green-700);
+      border: 1px solid var(--line); border-radius: 6px; padding: 2px 7px; margin-left: 4px;
+      font-size: 11px; font-weight: 800; cursor: pointer; }
     .silo-row input[type="number"] {
       -webkit-appearance: none; appearance: none;
       width: 100%; padding: 9px 10px; border: 1px solid var(--line); border-radius: 10px;
@@ -90,13 +111,71 @@
     .toast { position: fixed; left: 50%; bottom: 22px; transform: translateX(-50%);
       background: var(--ink); color: #fff; padding: 10px 16px; border-radius: 99px;
       font-size: 13px; font-weight: 700; box-shadow: 0 6px 20px rgba(0,0,0,.25); z-index: 20;
-      opacity: 0; transition: opacity .2s; pointer-events: none; }
+      opacity: 0; transition: opacity .2s; pointer-events: none; max-width: 92vw; }
     .toast.show { opacity: 1; }
     .toast.err { background: var(--danger); }
     .empty { text-align: center; color: var(--muted); padding: 40px 16px; font-size: 14px; }
     footer { text-align: center; color: var(--muted); font-size: 12px; padding: 16px;
       border-top: 1px solid var(--line); margin-top: 30px; }
     footer a { color: var(--green-600); text-decoration: none; font-weight: 700; }
+
+    /* Deliveries tab */
+    .form-card { background: #fff; border: 1px solid var(--line); border-radius: 14px;
+      padding: 14px; margin-bottom: 14px; box-shadow: 0 1px 2px rgba(0,0,0,.04); }
+    .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 12px; }
+    .form-row.full { grid-template-columns: 1fr; }
+    .form-row label { display: block; font-size: 12px; color: var(--muted); font-weight: 700;
+      letter-spacing: 0.3px; text-transform: uppercase; margin-bottom: 4px; }
+    .form-row input, .form-row select, .form-row textarea {
+      width: 100%; padding: 10px 12px; border: 1px solid var(--line); border-radius: 10px;
+      background: #f7fbf8; font-size: 15px; font-weight: 600; color: var(--ink);
+      -webkit-appearance: none; appearance: none;
+    }
+    .form-row input:focus, .form-row select:focus, .form-row textarea:focus {
+      outline: 2px solid var(--green-600); border-color: var(--green-600); background: #fff;
+    }
+    .form-row textarea { min-height: 60px; resize: vertical; font-family: inherit; }
+    .delivery-list { display: flex; flex-direction: column; gap: 10px; }
+    .delivery-item { background: #fff; border: 1px solid var(--line); border-radius: 12px;
+      padding: 12px; display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+    .delivery-item .dx-info .feed { font-weight: 800; font-size: 14px; }
+    .delivery-item .dx-info .meta { font-size: 12px; color: var(--muted); margin-top: 3px; }
+    .delivery-item .dx-amt { font-weight: 900; color: var(--green-700); font-size: 16px; }
+    .delivery-item button.del { background: transparent; border: 0; color: var(--danger);
+      font-size: 18px; cursor: pointer; padding: 4px 6px; }
+
+    /* Scanner tab */
+    .scan-card { background: #fff; border: 1px solid var(--line); border-radius: 14px;
+      padding: 16px; margin-bottom: 14px; box-shadow: 0 1px 2px rgba(0,0,0,.04); text-align: center; }
+    .vendor-toggle { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 14px; }
+    .vendor-toggle button { padding: 10px; border: 1px solid var(--line); border-radius: 10px;
+      background: #fff; font-weight: 800; color: var(--muted); cursor: pointer; font-size: 14px; }
+    .vendor-toggle button.active { background: var(--green-600); color: #fff; border-color: var(--green-600); }
+    .scan-upload {
+      display: flex; flex-direction: column; align-items: center; padding: 30px 16px;
+      border: 2px dashed var(--line); border-radius: 12px; background: #fafdf9; cursor: pointer;
+      color: var(--muted); font-weight: 700;
+    }
+    .scan-upload:hover { border-color: var(--green-600); color: var(--green-700); background: #f0f8f3; }
+    .scan-upload .ico { font-size: 36px; margin-bottom: 8px; }
+    #scan-preview { max-width: 100%; max-height: 240px; border-radius: 10px; margin: 14px 0;
+      box-shadow: 0 4px 12px rgba(0,0,0,.12); }
+    .scan-result { text-align: left; background: var(--green-50); border: 1px solid var(--green-500);
+      border-radius: 12px; padding: 12px; margin-top: 12px; }
+    .scan-result .field { display: flex; justify-content: space-between; padding: 6px 0;
+      border-bottom: 1px solid #d1e8da; gap: 10px; font-size: 13px; }
+    .scan-result .field:last-child { border-bottom: 0; }
+    .scan-result .field .k { color: var(--muted); font-weight: 700; }
+    .scan-result .field .v { color: var(--ink); font-weight: 800; text-align: right; }
+    .scan-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 12px; }
+    .scan-actions button { padding: 11px; border-radius: 10px; border: 0; font-weight: 800;
+      font-size: 14px; cursor: pointer; }
+    .scan-actions button.primary { background: var(--green-600); color: #fff; }
+    .scan-actions button.secondary { background: #fff; color: var(--green-700); border: 1px solid var(--line); }
+    .spinner { display: inline-block; width: 16px; height: 16px; border-radius: 99px;
+      border: 2px solid #fff; border-top-color: transparent; animation: spin .8s linear infinite;
+      vertical-align: middle; margin-right: 6px; }
+    @keyframes spin { to { transform: rotate(360deg); } }
   </style>
 </head>
 <body>
@@ -104,46 +183,150 @@
     <h1>📡 Silo Reader</h1>
     <span class="badge">FIELD</span>
   </header>
-  <div class="container">
+  <div class="tabs">
+    <div class="tab active" data-tab="readings"><span class="ico">📋</span>Readings</div>
+    <div class="tab" data-tab="deliveries"><span class="ico">🚚</span>Deliveries</div>
+    <div class="tab" data-tab="scanner"><span class="ico">📷</span>Scan Docket</div>
+  </div>
+
+  <!-- READINGS TAB -->
+  <div class="container" id="tab-readings">
     <div class="toolbar">
       <span class="pill"><span>Date</span><strong id="today-date">—</strong></span>
-      <span class="pill"><span>Saved</span><strong id="saved-count">0/0</strong></span>
+      <span class="pill"><span>Done</span><strong id="saved-count">0/0</strong></span>
       <span class="pill live" id="sync-pill">Auto-sync ON</span>
     </div>
     <div id="shed-list">
       <div class="empty">Loading shed groups…</div>
     </div>
     <footer>
-      Open the Feed Program on your computer at the home URL — readings entered here flow
-      into the spreadsheet automatically. <br><br>
       <a href="/">← Go to Feed Program</a>
     </footer>
   </div>
+
+  <!-- DELIVERIES TAB -->
+  <div class="container" id="tab-deliveries" style="display:none">
+    <div class="form-card">
+      <div style="font-weight: 800; font-size: 16px; margin-bottom: 12px; color: var(--green-700);">Record a Delivery</div>
+      <div class="form-row">
+        <div>
+          <label>Shed Group</label>
+          <select id="dx-shed"></select>
+        </div>
+        <div>
+          <label>Silo</label>
+          <select id="dx-silo"></select>
+        </div>
+      </div>
+      <div class="form-row">
+        <div>
+          <label>Feed Type</label>
+          <select id="dx-feed">
+            <option value="Starter">Starter</option>
+            <option value="Grower">Grower</option>
+            <option value="Finisher">Finisher</option>
+            <option value="Withdrawal">Withdrawal</option>
+          </select>
+        </div>
+        <div>
+          <label>Amount (tonnes)</label>
+          <input id="dx-amount" type="number" inputmode="decimal" step="0.01" placeholder="0.0" />
+        </div>
+      </div>
+      <div class="form-row full">
+        <div>
+          <label>Notes (optional)</label>
+          <textarea id="dx-notes" placeholder="Docket #, truck rego, etc."></textarea>
+        </div>
+      </div>
+      <button class="save-btn" id="dx-save">Save Delivery</button>
+    </div>
+
+    <div style="font-weight: 800; font-size: 14px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; margin: 16px 4px 8px;">Recent Deliveries</div>
+    <div class="delivery-list" id="dx-list">
+      <div class="empty">No deliveries recorded yet.</div>
+    </div>
+  </div>
+
+  <!-- SCANNER TAB -->
+  <div class="container" id="tab-scanner" style="display:none">
+    <div class="scan-card">
+      <div class="vendor-toggle">
+        <button id="vendor-ingham" class="active" data-vendor="ingham">🐔 Ingham's</button>
+        <button id="vendor-baiada" data-vendor="baiada">🐓 Baiada</button>
+      </div>
+      <label class="scan-upload" id="scan-upload-label">
+        <span class="ico">📸</span>
+        <span>Tap to take a photo of the docket</span>
+        <input id="scan-file" type="file" accept="image/jpeg,image/png,image/webp" capture="environment" style="display:none" />
+      </label>
+      <img id="scan-preview" style="display:none" />
+      <div class="scan-actions" id="scan-actions" style="display:none">
+        <button class="secondary" id="scan-retake">↻ Retake</button>
+        <button class="primary" id="scan-go">✨ Extract Fields</button>
+      </div>
+      <div class="scan-result" id="scan-result" style="display:none"></div>
+      <div class="scan-actions" id="scan-use-actions" style="display:none">
+        <button class="secondary" id="scan-discard">Discard</button>
+        <button class="primary" id="scan-use">→ Use as Delivery</button>
+      </div>
+    </div>
+    <div style="text-align: center; color: var(--muted); font-size: 12px; padding: 8px;">
+      AI extraction uses Gemini Vision via your Emergent universal key.
+    </div>
+  </div>
+
   <div id="toast" class="toast">Saved</div>
 
   <script>
+    // ── State ───────────────────────────────────────────────────────────
     const FEED_TYPES = ["Starter", "Grower", "Finisher", "Withdrawal"];
-    const $list = document.getElementById("shed-list");
-    const $toast = document.getElementById("toast");
-    const $todayDate = document.getElementById("today-date");
-    const $savedCount = document.getElementById("saved-count");
-
     let groupsCache = [];
     let progressCache = null;
+    let deliveriesCache = [];
+    let prevReadingCache = {}; // siloId -> {amountRemaining, feedType, unit}
+    let scanState = { file: null, dataUrl: null, vendor: "ingham", fields: null };
+    let currentTab = "readings";
 
+    // ── DOM refs ───────────────────────────────────────────────────────
+    const $ = (s) => document.querySelector(s);
+    const $$ = (s) => Array.from(document.querySelectorAll(s));
+    const $list = $("#shed-list");
+    const $toast = $("#toast");
+    const $todayDate = $("#today-date");
+    const $savedCount = $("#saved-count");
+    const $dxList = $("#dx-list");
+    const $dxShed = $("#dx-shed");
+    const $dxSilo = $("#dx-silo");
+
+    // ── Helpers ────────────────────────────────────────────────────────
     function showToast(msg, err = false) {
       $toast.textContent = msg;
       $toast.className = "toast show" + (err ? " err" : "");
-      setTimeout(() => { $toast.className = "toast"; }, 1800);
+      clearTimeout(showToast._t);
+      showToast._t = setTimeout(() => { $toast.className = "toast"; }, 2200);
     }
-
     function formatDate(iso) {
       try {
-        const d = new Date(iso + "T00:00:00");
+        const d = new Date((iso || "").length === 10 ? iso + "T00:00:00" : iso);
         return d.toLocaleDateString("en-AU", { weekday: "short", day: "numeric", month: "short" });
       } catch { return iso; }
     }
+    function siloProgress(shedGroupId, siloId) {
+      const shed = progressCache?.sheds?.find((s) => s.shedGroupId === shedGroupId);
+      return shed?.silos?.find((s) => s.siloId === siloId);
+    }
+    function setActiveTab(name) {
+      currentTab = name;
+      $$(".tab").forEach((t) => t.classList.toggle("active", t.dataset.tab === name));
+      ["readings", "deliveries", "scanner"].forEach((n) => {
+        document.getElementById("tab-" + n).style.display = (n === name) ? "" : "none";
+      });
+      if (name === "deliveries") loadDeliveries();
+    }
+    $$(".tab").forEach((t) => t.addEventListener("click", () => setActiveTab(t.dataset.tab)));
 
+    // ── Readings tab ───────────────────────────────────────────────────
     async function loadGroupsAndProgress() {
       const [gRes, pRes] = await Promise.all([
         fetch("/api/shed-groups"),
@@ -151,32 +334,42 @@
       ]);
       groupsCache = await gRes.json();
       progressCache = await pRes.json();
-      render();
+      // Fetch previous-reading for every silo (parallel)
+      const allSilos = groupsCache.flatMap((g) => g.silos.map((s) => s.id));
+      const prevs = await Promise.all(allSilos.map((id) =>
+        fetch(`/api/readings/previous?siloId=${encodeURIComponent(id)}`).then((r) => r.json()).catch(() => null)
+      ));
+      prevReadingCache = {};
+      prevs.forEach((p) => { if (p && p.amountRemaining != null) prevReadingCache[p.siloId] = p; });
+      renderReadings();
+      populateDeliveryPickers();
     }
 
-    function siloProgress(shedGroupId, siloId) {
-      const shed = progressCache?.sheds?.find((s) => s.shedGroupId === shedGroupId);
-      return shed?.silos?.find((s) => s.siloId === siloId);
-    }
-
-    function render() {
+    function renderReadings() {
       $todayDate.textContent = progressCache?.date ? formatDate(progressCache.date) : "—";
       $savedCount.textContent = `${progressCache?.savedCount ?? 0}/${progressCache?.totalCount ?? 0}`;
       if (!groupsCache.length) {
         $list.innerHTML = '<div class="empty">No shed groups configured.</div>';
         return;
       }
-      $list.innerHTML = "";
-      for (const g of groupsCache) {
-        const card = document.createElement("div");
-        card.className = "shed-card";
+      // Sort: pending first, partial next, done last
+      const decorated = groupsCache.map((g) => {
         const allSaved = g.silos.length > 0 && g.silos.every((s) => siloProgress(g.id, s.id)?.saved);
         const someSaved = g.silos.some((s) => siloProgress(g.id, s.id)?.saved);
+        const sortKey = allSaved ? 2 : someSaved ? 1 : 0;
+        return { g, allSaved, someSaved, sortKey };
+      }).sort((a, b) => a.sortKey - b.sortKey || a.g.displayOrder - b.g.displayOrder);
+
+      $list.innerHTML = "";
+      for (const { g, allSaved, someSaved } of decorated) {
+        const card = document.createElement("div");
+        card.className = "shed-card" + (allSaved ? " done" : "");
         const status = allSaved ? "Done" : someSaved ? "Part" : "Pending";
+        const statusClass = allSaved ? "done" : (someSaved ? "part" : "");
         card.innerHTML = `
           <div class="shed-head">
             <div class="shed-name">${g.name}</div>
-            <div class="status ${allSaved ? "done" : ""}">${status}</div>
+            <div class="status ${statusClass}">${status}</div>
           </div>
           <div class="feed-type-row">
             <label for="feed-${g.id}">Feed type</label>
@@ -188,12 +381,23 @@
             const p = siloProgress(g.id, s.id);
             const val = p?.amountRemaining ?? "";
             const unit = p?.unit ?? "t";
+            const prev = prevReadingCache[s.id];
+            let meta = "";
+            if (p?.saved) {
+              meta = `<div class="meta saved">✓ Saved · ${p.feedType} · ${p.amountRemaining}${p.unit}</div>`;
+            } else if (prev) {
+              const ago = formatDate(prev.readingDate);
+              meta = `<div class="meta prev">Last: ${prev.amountRemaining}${prev.unit} (${ago})
+                <button class="copy-prev" data-copyto="${s.id}" data-amt="${prev.amountRemaining}" data-unit="${prev.unit}">Use ↑</button></div>`;
+            } else {
+              meta = '<div class="meta">Not yet recorded</div>';
+            }
             return `
             <div class="silo-row">
               <div class="silo-badge ${s.letter}">${s.letter}</div>
               <div class="silo-info">
                 <div class="name">${s.name}</div>
-                <div class="meta ${p?.saved ? "saved" : ""}">${p?.saved ? "✓ Saved · " + p.feedType : "Not yet recorded"}</div>
+                ${meta}
               </div>
               <input type="number" inputmode="decimal" step="0.1" placeholder="0.0"
                 value="${val}" data-silo="${s.id}" data-shed="${g.id}" />
@@ -213,11 +417,24 @@
       }
       // Wire save buttons
       $list.querySelectorAll("[data-save]").forEach((btn) => {
-        btn.addEventListener("click", () => onSave(btn.getAttribute("data-save"), btn));
+        btn.addEventListener("click", () => onSaveReadings(btn.getAttribute("data-save"), btn));
+      });
+      // Wire copy-previous buttons
+      $list.querySelectorAll(".copy-prev").forEach((btn) => {
+        btn.addEventListener("click", (e) => {
+          e.stopPropagation();
+          const siloId = btn.getAttribute("data-copyto");
+          const amt = btn.getAttribute("data-amt");
+          const unit = btn.getAttribute("data-unit");
+          const input = document.querySelector(`input[data-silo="${siloId}"]`);
+          const unitSel = document.querySelector(`select[data-unit="${siloId}"]`);
+          if (input) { input.value = amt; input.focus(); }
+          if (unitSel) unitSel.value = unit;
+        });
       });
     }
 
-    async function onSave(shedGroupId, btn) {
+    async function onSaveReadings(shedGroupId, btn) {
       const group = groupsCache.find((g) => g.id === shedGroupId);
       if (!group) return;
       const feedType = document.getElementById(`feed-${shedGroupId}`).value;
@@ -229,19 +446,13 @@
         if (raw === "") continue;
         const amt = parseFloat(raw);
         if (Number.isNaN(amt)) continue;
-        readings.push({
-          siloId: s.id,
-          feedType,
-          amountRemaining: amt,
-          unit: unitSel.value,
-        });
+        readings.push({ siloId: s.id, feedType, amountRemaining: amt, unit: unitSel.value });
       }
       if (readings.length === 0) {
         showToast("Enter at least one silo amount", true);
         return;
       }
-      btn.disabled = true;
-      btn.textContent = "Saving…";
+      btn.disabled = true; btn.textContent = "Saving…";
       try {
         const res = await fetch("/api/readings/batch", {
           method: "POST",
@@ -249,7 +460,7 @@
           body: JSON.stringify({ readings, readingDate: new Date().toISOString() }),
         });
         if (!res.ok) throw new Error(await res.text());
-        showToast(`✓ ${readings.length} silo${readings.length > 1 ? "s" : ""} saved — auto-syncs to Feed Program`);
+        showToast(`✓ ${readings.length} silo${readings.length > 1 ? "s" : ""} saved — flowing to Feed Program`);
         await loadGroupsAndProgress();
       } catch (e) {
         console.error(e);
@@ -259,12 +470,197 @@
       }
     }
 
-    // Initial + periodic refresh
+    // ── Deliveries tab ─────────────────────────────────────────────────
+    function populateDeliveryPickers() {
+      $dxShed.innerHTML = '<option value="">(no shed)</option>' +
+        groupsCache.map((g) => `<option value="${g.id}">${g.name}</option>`).join("");
+      $dxShed.dispatchEvent(new Event("change"));
+    }
+    $dxShed.addEventListener("change", () => {
+      const g = groupsCache.find((x) => x.id === $dxShed.value);
+      $dxSilo.innerHTML = '<option value="">(no specific silo)</option>' +
+        (g ? g.silos.map((s) => `<option value="${s.id}">Silo ${s.letter}</option>`).join("") : "");
+    });
+    async function loadDeliveries() {
+      try {
+        const res = await fetch("/api/deliveries?limit=20");
+        deliveriesCache = await res.json();
+        renderDeliveries();
+      } catch (e) { console.error(e); }
+    }
+    function renderDeliveries() {
+      if (!deliveriesCache.length) {
+        $dxList.innerHTML = '<div class="empty">No deliveries recorded yet.</div>';
+        return;
+      }
+      $dxList.innerHTML = deliveriesCache.map((d) => `
+        <div class="delivery-item">
+          <div class="dx-info">
+            <div class="feed">${d.feedType}</div>
+            <div class="meta">${d.shedGroupName || "—"}${d.siloLetter ? " · Silo " + d.siloLetter : ""} · ${formatDate(d.deliveryDate)}</div>
+            ${d.notes ? `<div class="meta">${d.notes}</div>` : ""}
+          </div>
+          <div class="dx-amt">${d.amount}${d.unit}</div>
+          <button class="del" data-del="${d.id}" title="Delete">✕</button>
+        </div>
+      `).join("");
+      $dxList.querySelectorAll("[data-del]").forEach((b) => {
+        b.addEventListener("click", async () => {
+          if (!confirm("Delete this delivery?")) return;
+          await fetch(`/api/deliveries/${b.dataset.del}`, { method: "DELETE" });
+          loadDeliveries();
+        });
+      });
+    }
+    $("#dx-save").addEventListener("click", async () => {
+      const amt = parseFloat($("#dx-amount").value);
+      if (!amt || amt <= 0) { showToast("Enter an amount", true); return; }
+      const body = {
+        shedGroupId: $dxShed.value || null,
+        siloId: $dxSilo.value || null,
+        feedType: $("#dx-feed").value,
+        amount: amt,
+        unit: "t",
+        notes: $("#dx-notes").value.trim() || null,
+        deliveryDate: new Date().toISOString(),
+      };
+      $("#dx-save").disabled = true; $("#dx-save").textContent = "Saving…";
+      try {
+        const res = await fetch("/api/deliveries", {
+          method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body),
+        });
+        if (!res.ok) throw new Error(await res.text());
+        showToast("✓ Delivery saved");
+        $("#dx-amount").value = ""; $("#dx-notes").value = "";
+        loadDeliveries();
+      } catch (e) { showToast("Save failed", true); }
+      finally { $("#dx-save").disabled = false; $("#dx-save").textContent = "Save Delivery"; }
+    });
+
+    // ── Scanner tab ────────────────────────────────────────────────────
+    $$("#vendor-ingham, #vendor-baiada").forEach((b) => b.addEventListener("click", () => {
+      scanState.vendor = b.dataset.vendor;
+      $("#vendor-ingham").classList.toggle("active", scanState.vendor === "ingham");
+      $("#vendor-baiada").classList.toggle("active", scanState.vendor === "baiada");
+    }));
+
+    $("#scan-file").addEventListener("change", async (e) => {
+      const file = e.target.files?.[0]; if (!file) return;
+      // Resize down for upload
+      const dataUrl = await resizeImage(file, 1400);
+      scanState.file = file;
+      scanState.dataUrl = dataUrl;
+      const $img = $("#scan-preview");
+      $img.src = dataUrl;
+      $img.style.display = "block";
+      $("#scan-actions").style.display = "grid";
+      $("#scan-upload-label").style.display = "none";
+      $("#scan-result").style.display = "none";
+      $("#scan-use-actions").style.display = "none";
+    });
+    $("#scan-retake").addEventListener("click", () => resetScanner());
+
+    $("#scan-go").addEventListener("click", async () => {
+      if (!scanState.dataUrl) return;
+      const goBtn = $("#scan-go");
+      goBtn.disabled = true;
+      goBtn.innerHTML = '<span class="spinner"></span>Reading…';
+      try {
+        const base64 = scanState.dataUrl.split(",")[1];
+        const mimeType = scanState.dataUrl.substring(scanState.dataUrl.indexOf(":") + 1, scanState.dataUrl.indexOf(";"));
+        const res = await fetch(`/api/scan-docket/${scanState.vendor}`, {
+          method: "POST", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ imageData: base64, mimeType, docketType: scanState.vendor }),
+        });
+        if (!res.ok) throw new Error(await res.text());
+        const json = await res.json();
+        scanState.fields = json.fields || {};
+        renderScanResult();
+      } catch (e) {
+        console.error(e); showToast("Scan failed: " + e.message, true);
+      } finally {
+        goBtn.disabled = false; goBtn.innerHTML = "✨ Extract Fields";
+      }
+    });
+
+    function renderScanResult() {
+      const f = scanState.fields || {};
+      const rows = [
+        ["Feed Type", f.feedType],
+        ["Product Code", f.productCode],
+        ["Amount", f.amount != null ? `${f.amount} ${f.unit || "t"}` : null],
+        ["Delivery Date", f.deliveryDate],
+        ["Order #", f.orderNumber],
+        ["Customer", f.customerName],
+        ["Site", f.siteCode],
+        ["Delivery Instructions", f.deliveryInstructions],
+        ["Truck Rego", f.truckRego],
+        ["Outloading Bin", f.outloadingBin],
+      ].filter(([_, v]) => v != null && v !== "");
+      $("#scan-result").innerHTML = rows.length
+        ? rows.map(([k, v]) => `<div class="field"><span class="k">${k}</span><span class="v">${v}</span></div>`).join("")
+        : '<div class="empty">No fields detected. Try a clearer photo.</div>';
+      $("#scan-result").style.display = "block";
+      $("#scan-use-actions").style.display = "grid";
+    }
+
+    $("#scan-discard").addEventListener("click", () => resetScanner());
+    $("#scan-use").addEventListener("click", () => {
+      const f = scanState.fields || {};
+      // Pre-fill the delivery form on the Deliveries tab
+      if (f.feedType) {
+        const opt = Array.from($("#dx-feed").options).find((o) => o.value.toLowerCase() === String(f.feedType).toLowerCase());
+        if (opt) $("#dx-feed").value = opt.value;
+      }
+      if (f.amount != null) $("#dx-amount").value = f.amount;
+      const noteParts = [];
+      if (f.orderNumber) noteParts.push(`Order ${f.orderNumber}`);
+      if (f.truckRego) noteParts.push(`Truck ${f.truckRego}`);
+      if (f.deliveryInstructions) noteParts.push(f.deliveryInstructions);
+      $("#dx-notes").value = noteParts.join(" · ");
+      resetScanner();
+      setActiveTab("deliveries");
+      showToast("Fields applied — review & save");
+    });
+
+    function resetScanner() {
+      scanState = { file: null, dataUrl: null, vendor: scanState.vendor, fields: null };
+      $("#scan-file").value = "";
+      $("#scan-preview").style.display = "none";
+      $("#scan-actions").style.display = "none";
+      $("#scan-result").style.display = "none";
+      $("#scan-use-actions").style.display = "none";
+      $("#scan-upload-label").style.display = "flex";
+    }
+
+    function resizeImage(file, maxPx) {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => {
+          const img = new Image();
+          img.onload = () => {
+            const scale = Math.min(1, maxPx / Math.max(img.width, img.height));
+            const w = Math.round(img.width * scale);
+            const h = Math.round(img.height * scale);
+            const canvas = document.createElement("canvas");
+            canvas.width = w; canvas.height = h;
+            canvas.getContext("2d").drawImage(img, 0, 0, w, h);
+            resolve(canvas.toDataURL("image/jpeg", 0.85));
+          };
+          img.onerror = reject;
+          img.src = reader.result;
+        };
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
+    }
+
+    // ── Boot ──────────────────────────────────────────────────────────
     loadGroupsAndProgress().catch((e) => {
       console.error(e);
       $list.innerHTML = '<div class="empty">Failed to load. Check your connection.</div>';
     });
-    setInterval(() => loadGroupsAndProgress().catch(() => {}), 30_000);
+    setInterval(() => { if (currentTab === "readings") loadGroupsAndProgress().catch(() => {}); }, 30_000);
   </script>
 </body>
 </html>

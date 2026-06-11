@@ -21,7 +21,6 @@ from motor.motor_asyncio import AsyncIOMotorClient
 from pydantic import BaseModel, Field
 
 load_dotenv()
-
 # ─── DB ────────────────────────────────────────────────────────────────────
 MONGO_URL = os.environ["MONGO_URL"]
 DB_NAME = os.environ["DB_NAME"]
@@ -460,6 +459,130 @@ async def weigh_bird(payload: dict):
 @api.post("/bootstrap/first-operator")
 async def first_operator():
     return {"ok": True}
+
+
+# ── Previous reading lookup (per silo) ───────────────────────────────────
+@api.get("/readings/previous")
+async def previous_reading(siloId: str = Query(...)):
+    """Most recent reading for a given silo (excludes today)."""
+    today_start, _ = aest_today_range()
+    row = await readings_col.find_one(
+        {"siloId": siloId, "readingDate": {"$lt": today_start}},
+        sort=[("readingDate", -1)],
+    )
+    if row is None:
+        return {"siloId": siloId, "amountRemaining": None, "feedType": None, "unit": None, "readingDate": None}
+    return {
+        "siloId": siloId,
+        "amountRemaining": float(row["amountRemaining"]),
+        "feedType": row["feedType"],
+        "unit": row["unit"],
+        "readingDate": row["readingDate"].isoformat(),
+    }
+
+
+# ── Docket scanner (Ingham/Baiada) ───────────────────────────────────────
+class ScanDocketBody(BaseModel):
+    imageData: str
+    mimeType: str
+    docketType: Optional[str] = "ingham"  # "ingham" | "baiada"
+
+
+INGHAM_PROMPT = """You are reading an Ingham's Despatch Docket — an Australian poultry feed delivery document.
+
+Extract these fields and return ONLY a valid JSON object (no markdown, no explanation):
+
+{
+  "feedType": "Product name only, without product code — e.g. 'Gourmet Broiler Grower' from 'F116 GOURMET BROILER GROWER'. Capitalise properly.",
+  "productCode": "The product code, e.g. 'F116'",
+  "amount": <Net Weight in tonnes as a number, e.g. 28.16>,
+  "unit": "t",
+  "deliveryDate": "The 'Date Req' field as YYYY-MM-DD, e.g. '2026-05-18'",
+  "orderNumber": "The Order No value",
+  "customerName": "The Customer Name",
+  "siteCode": "The Site code",
+  "deliveryInstructions": "The Delivery Instructions text exactly as printed, e.g. '5 B 10, 6 B 5, 7 B 13'",
+  "truckRego": "The Truck Rego value",
+  "outloadingBin": "The Outloading Bin value"
+}
+
+Use null for any field you cannot read clearly."""
+
+
+BAIADA_PROMPT = """You are reading a Baiada feed delivery docket — an Australian poultry feed delivery document.
+
+Extract these fields and return ONLY a valid JSON object (no markdown, no explanation):
+
+{
+  "feedType": "Product name (e.g. 'Starter', 'Grower', 'Finisher', 'Withdrawal')",
+  "productCode": "Product code if shown, else null",
+  "amount": <Net Weight in tonnes as a number>,
+  "unit": "t",
+  "deliveryDate": "Delivery date as YYYY-MM-DD",
+  "orderNumber": "The order/docket number",
+  "customerName": "Farm/customer name",
+  "siteCode": "Site code if shown, else null",
+  "deliveryInstructions": "Shed/silo allocation text, e.g. '3A 12t, 3B 16t'",
+  "truckRego": "Truck registration if shown",
+  "outloadingBin": "Outloading bin if shown"
+}
+
+Use null for any field you cannot read clearly."""
+
+
+import base64
+import json
+import re
+import uuid as _uuid
+
+
+@api.post("/scan-docket/ingham")
+async def scan_docket(body: ScanDocketBody):
+    """Extract structured fields from a docket photo using Gemini multimodal."""
+    try:
+        from emergentintegrations.llm.chat import LlmChat, UserMessage, ImageContent
+    except Exception as e:
+        raise HTTPException(503, f"AI integration not installed: {e}")
+
+    api_key = os.environ.get("EMERGENT_LLM_KEY")
+    if not api_key:
+        raise HTTPException(503, "EMERGENT_LLM_KEY not configured")
+
+    prompt = BAIADA_PROMPT if body.docketType == "baiada" else INGHAM_PROMPT
+
+    chat = LlmChat(
+        api_key=api_key,
+        session_id=f"docket-{_uuid.uuid4().hex}",
+        system_message="You are an OCR + extraction assistant. Return ONLY a JSON object — no markdown, no commentary.",
+    ).with_model("gemini", "gemini-2.5-flash")
+
+    image = ImageContent(image_base64=body.imageData)
+    user_msg = UserMessage(text=prompt, file_contents=[image])
+
+    try:
+        raw = await chat.send_message(user_msg)
+    except Exception as e:
+        raise HTTPException(500, f"AI call failed: {e}")
+
+    text = raw if isinstance(raw, str) else getattr(raw, "text", str(raw))
+    cleaned = re.sub(r"```json\s*", "", text, flags=re.IGNORECASE)
+    cleaned = re.sub(r"```\s*", "", cleaned).strip()
+    try:
+        parsed = json.loads(cleaned)
+    except Exception:
+        # Attempt to recover the first JSON object in the response
+        m = re.search(r"\{[\s\S]*\}", cleaned)
+        if not m:
+            raise HTTPException(422, "Could not parse AI response")
+        parsed = json.loads(m.group(0))
+
+    return {"ok": True, "fields": parsed}
+
+
+@api.post("/scan-docket/baiada")
+async def scan_docket_baiada(body: ScanDocketBody):
+    body.docketType = "baiada"
+    return await scan_docket(body)
 
 
 app.include_router(api)
