@@ -31,6 +31,8 @@ shed_groups_col = db["shed_groups"]
 silos_col = db["silos"]
 readings_col = db["readings"]
 deliveries_col = db["deliveries"]
+photos_col = db["photos"]
+farm_config_col = db["farm_config"]
 
 # ─── App ───────────────────────────────────────────────────────────────────
 app = FastAPI(title="Broiler Base Mate API")
@@ -192,10 +194,11 @@ async def batch_version():
 
 @api.delete("/batch/reset")
 async def batch_reset():
-    """New Batch: wipe all readings AND all deliveries so EOB starts empty."""
+    """New Batch: wipe all readings, deliveries, and photos so app starts empty."""
     r = await readings_col.delete_many({})
     d = await deliveries_col.delete_many({})
-    return {"ok": True, "readingsDeleted": r.deleted_count, "deliveriesDeleted": d.deleted_count}
+    p = await photos_col.delete_many({})
+    return {"ok": True, "readingsDeleted": r.deleted_count, "deliveriesDeleted": d.deleted_count, "photosDeleted": p.deleted_count}
 
 
 @api.get("/onedrive/status")
@@ -632,6 +635,87 @@ async def scan_docket_ingham(body: ScanDocketBody):
 @api.post("/scan-docket/baiada")
 async def scan_docket_baiada(body: ScanDocketBody):
     return await _scan_docket(body, BAIADA_PROMPT)
+
+
+# ── Farm Config ──────────────────────────────────────────────────────────
+class FarmConfigBody(BaseModel):
+    farmName: Optional[str] = None
+    totalSheds: Optional[int] = None
+    enabledGroupIds: Optional[List[str]] = None
+
+
+@api.get("/farm-config")
+async def get_farm_config():
+    doc = await farm_config_col.find_one({"id": "default"})
+    if not doc:
+        all_groups = await shed_groups_col.find().to_list(length=200)
+        doc = {
+            "id": "default",
+            "farmName": "Double B Farm",
+            "totalSheds": 20,
+            "enabledGroupIds": [g["id"] for g in all_groups],
+        }
+        await farm_config_col.insert_one(doc)
+    return clean(doc)
+
+
+@api.patch("/farm-config")
+async def patch_farm_config(body: FarmConfigBody):
+    patch = {k: v for k, v in body.model_dump(exclude_none=True).items()}
+    if not patch:
+        raise HTTPException(400, "Nothing to update")
+    await farm_config_col.update_one(
+        {"id": "default"},
+        {"$set": patch, "$setOnInsert": {"id": "default"}},
+        upsert=True,
+    )
+    doc = await farm_config_col.find_one({"id": "default"})
+    return clean(doc)
+
+
+# ── Photos (Mort Sheet + Bird Weight) ────────────────────────────────────
+class CreatePhotoBody(BaseModel):
+    category: str  # "mort_sheet" | "bird_weight"
+    shedNumber: Optional[int] = None  # for bird_weight only
+    imageData: str  # base64 jpeg
+    notes: Optional[str] = None
+
+
+@api.get("/photos")
+async def list_photos(category: Optional[str] = None, shedNumber: Optional[int] = None):
+    q: dict = {}
+    if category:
+        q["category"] = category
+    if shedNumber is not None:
+        q["shedNumber"] = shedNumber
+    rows = await photos_col.find(q).sort("createdAt", -1).limit(200).to_list(length=200)
+    return [clean(r) for r in rows]
+
+
+@api.post("/photos", status_code=201)
+async def create_photo(body: CreatePhotoBody):
+    if body.category not in ("mort_sheet", "bird_weight"):
+        raise HTTPException(400, "Invalid category")
+    if body.category == "bird_weight" and body.shedNumber is None:
+        raise HTTPException(400, "shedNumber required for bird_weight")
+    doc = {
+        "id": str(uuid.uuid4()),
+        "category": body.category,
+        "shedNumber": body.shedNumber,
+        "imageData": body.imageData,
+        "notes": body.notes,
+        "createdAt": datetime.now(timezone.utc),
+    }
+    await photos_col.insert_one(doc)
+    return clean(doc)
+
+
+@api.delete("/photos/{photo_id}", status_code=204)
+async def delete_photo(photo_id: str):
+    res = await photos_col.delete_one({"id": photo_id})
+    if res.deleted_count == 0:
+        raise HTTPException(404, "Photo not found")
+    return JSONResponse(content=None, status_code=204)
 
 
 @api.post("/scan-docket/auto")
