@@ -192,8 +192,10 @@ async def batch_version():
 
 @api.delete("/batch/reset")
 async def batch_reset():
-    await readings_col.delete_many({})
-    return {"ok": True}
+    """New Batch: wipe all readings AND all deliveries so EOB starts empty."""
+    r = await readings_col.delete_many({})
+    d = await deliveries_col.delete_many({})
+    return {"ok": True, "readingsDeleted": r.deleted_count, "deliveriesDeleted": d.deleted_count}
 
 
 @api.get("/onedrive/status")
