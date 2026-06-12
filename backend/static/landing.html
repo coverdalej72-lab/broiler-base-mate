@@ -120,12 +120,13 @@
   <div class="hero">
     <div style="position:absolute;top:18px;left:24px;z-index:5;display:flex;align-items:center;gap:10px;background:rgba(0,0,0,0.4);padding:8px 14px 8px 8px;border-radius:99px;border:1px solid rgba(201,162,39,0.3);backdrop-filter:blur(6px);">
       <img src="/reader-assets/company-logo.png" alt="Company logo" style="height:36px;width:36px;object-fit:contain;border-radius:8px;background:#0a1410;" />
-      <span style="font-size:11px;letter-spacing:2px;color:#C9A227;font-weight:800;text-transform:uppercase;" id="hero-company-name">Your Company</span>
+      <span style="font-size:11px;letter-spacing:2px;color:#C9A227;font-weight:800;text-transform:uppercase;" id="hero-company-name">APPCOVI</span>
     </div>
     <nav class="nav" style="padding-left:240px;">
       <div class="logo"><img src="/reader-assets/logo.svg" /> BROILER BASE MATE</div>
       <div class="links">
         <a href="#plans">Plans</a>
+        <a href="#ops">Ops Pack</a>
         <a href="#sponsor">Sponsor</a>
         <a href="#build">Back the Build</a>
         <a href="/" style="color:var(--gold)">Open App</a>
@@ -256,6 +257,40 @@
     </div>
   </section>
 
+  <!-- OPERATION MANAGER PACK -->
+  <section style="background:linear-gradient(180deg,#fff,#f7fbf4);" id="ops">
+    <div class="wrap">
+      <h2>🏢 Operation Manager <span class="accent">Pack.</span></h2>
+      <p class="sub">Running multiple farms? Build a bundle: name each farm, pick the tier, and see the total before you commit. Manage them all from one dashboard.</p>
+
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:16px;margin-top:40px;max-width:760px;margin-left:auto;margin-right:auto;">
+        <div class="sponsor-card" style="text-align:left;"><div class="amt" style="font-size:28px;">🥉 $50<span style="font-size:13px;color:var(--muted);">/farm/mo</span></div><div class="split">Bronze — for farms with up to <b>6 sheds</b></div></div>
+        <div class="sponsor-card" style="text-align:left;border-color:var(--green-500);"><div class="amt" style="font-size:28px;color:var(--green-700);">🥈 $90<span style="font-size:13px;color:var(--muted);">/farm/mo</span></div><div class="split">Silver — for farms with <b>7–12 sheds</b></div></div>
+        <div class="sponsor-card" style="text-align:left;"><div class="amt" style="font-size:28px;">🥇 $150<span style="font-size:13px;color:var(--muted);">/farm/mo</span></div><div class="split">Gold — farms with <b>12+ sheds</b></div></div>
+      </div>
+
+      <div style="margin-top:36px;background:#fff;border:1px solid var(--line);border-radius:20px;padding:28px;max-width:760px;margin-left:auto;margin-right:auto;box-shadow:0 4px 20px rgba(0,0,0,.04);">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px;">
+          <div style="font-weight:800;font-size:17px;">Build your bundle</div>
+          <div style="display:flex;gap:6px;background:var(--paper);padding:4px;border-radius:99px;">
+            <button class="bill-toggle active" data-bill="monthly" style="padding:6px 14px;border:0;border-radius:99px;font-weight:700;font-size:13px;cursor:pointer;background:var(--green-700);color:#fff;">Monthly</button>
+            <button class="bill-toggle" data-bill="annual" style="padding:6px 14px;border:0;border-radius:99px;font-weight:700;font-size:13px;cursor:pointer;background:transparent;color:var(--muted);">Annual (save 15%)</button>
+          </div>
+        </div>
+        <div id="ops-farms"></div>
+        <button id="ops-add" style="width:100%;padding:11px;background:transparent;border:2px dashed var(--line);border-radius:10px;color:var(--green-700);font-weight:800;font-size:13px;cursor:pointer;margin-top:10px;">+ Add another farm</button>
+
+        <div style="margin-top:22px;padding-top:18px;border-top:1px solid var(--line);display:flex;justify-content:space-between;align-items:center;">
+          <div>
+            <div style="font-size:11px;letter-spacing:1.5px;color:var(--muted);font-weight:700;">TOTAL</div>
+            <div style="font-size:34px;font-weight:900;letter-spacing:-1px;color:var(--green-700);"><span id="ops-total">0</span><span style="font-size:14px;color:var(--muted);font-weight:600;letter-spacing:0;"> /<span id="ops-period">month</span></span></div>
+          </div>
+          <button id="ops-checkout" class="btn btn-gold">Subscribe Bundle →</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
   <!-- SPONSOR -->
   <section class="sponsor" id="sponsor">
     <div class="wrap">
@@ -316,7 +351,7 @@
       <div style="display:flex;align-items:center;gap:14px;padding:14px 24px;background:rgba(201,162,39,.06);border:1px solid rgba(201,162,39,.25);border-radius:14px;margin-top:8px;">
         <span style="font-size:11px;letter-spacing:2px;color:#8aa094;font-weight:700;">CRAFTED BY</span>
         <img src="/reader-assets/company-logo.png" alt="Company logo" style="height:48px;width:48px;object-fit:contain;border-radius:8px;background:#0a1410;padding:4px;" />
-        <span style="font-size:14px;color:#C9A227;font-weight:800;letter-spacing:0.5px;" id="company-name">Your Company</span>
+        <span style="font-size:14px;color:#C9A227;font-weight:800;letter-spacing:0.5px;" id="company-name">APPCOVI</span>
       </div>
     </div>
   </footer>
@@ -347,6 +382,66 @@
         btn.disabled = false; btn.textContent = orig;
       }
     }));
+
+    // ── Operation Manager Pack bundle builder ──
+    const TIERS = { bronze: 50, silver: 90, gold: 150 };
+    let opsBilling = "monthly";
+    let opsFarms = [{ name: "Farm 1", tier: "bronze" }];
+
+    function renderOps() {
+      const wrap = document.getElementById("ops-farms");
+      wrap.innerHTML = opsFarms.map((f, i) => `
+        <div style="display:grid;grid-template-columns:1fr 140px 36px;gap:10px;margin-bottom:10px;align-items:center;">
+          <input data-ops-name="${i}" type="text" placeholder="Farm name" value="${f.name}"
+                 style="padding:11px 14px;border:1px solid var(--line);border-radius:10px;background:var(--paper);font-size:14px;font-weight:600;-webkit-appearance:none;" />
+          <select data-ops-tier="${i}" style="padding:11px 10px;border:1px solid var(--line);border-radius:10px;background:var(--paper);font-size:14px;font-weight:700;-webkit-appearance:none;">
+            <option value="bronze" ${f.tier==="bronze"?"selected":""}>🥉 Bronze $50</option>
+            <option value="silver" ${f.tier==="silver"?"selected":""}>🥈 Silver $90</option>
+            <option value="gold"   ${f.tier==="gold"  ?"selected":""}>🥇 Gold $150</option>
+          </select>
+          <button data-ops-del="${i}" style="border:0;background:transparent;color:#b91c1c;font-size:18px;cursor:pointer;${opsFarms.length<=1?"opacity:0.3;pointer-events:none;":""}">✕</button>
+        </div>`).join("");
+      wrap.querySelectorAll("[data-ops-name]").forEach(inp => inp.oninput = (e) => { opsFarms[+inp.dataset.opsName].name = e.target.value; computeTotal(); });
+      wrap.querySelectorAll("[data-ops-tier]").forEach(sel => sel.onchange = (e) => { opsFarms[+sel.dataset.opsTier].tier = e.target.value; computeTotal(); });
+      wrap.querySelectorAll("[data-ops-del]").forEach(b => b.onclick = () => { opsFarms.splice(+b.dataset.opsDel, 1); renderOps(); });
+      computeTotal();
+    }
+    function computeTotal() {
+      const monthly = opsFarms.reduce((sum, f) => sum + TIERS[f.tier], 0);
+      const total = opsBilling === "annual" ? Math.round(monthly * 12 * 0.85) : monthly;
+      document.getElementById("ops-total").textContent = "$" + total.toLocaleString();
+      document.getElementById("ops-period").textContent = opsBilling === "annual" ? "year" : "month";
+    }
+    document.getElementById("ops-add").onclick = () => { opsFarms.push({ name: `Farm ${opsFarms.length + 1}`, tier: "bronze" }); renderOps(); };
+    document.querySelectorAll(".bill-toggle").forEach(b => b.onclick = () => {
+      opsBilling = b.dataset.bill;
+      document.querySelectorAll(".bill-toggle").forEach(x => {
+        x.classList.toggle("active", x === b);
+        x.style.background = x === b ? "#1a5c36" : "transparent";
+        x.style.color = x === b ? "#fff" : "#5a7268";
+      });
+      computeTotal();
+    });
+    document.getElementById("ops-checkout").onclick = async () => {
+      // Use the highest tier in the bundle as the Stripe package; in production
+      // you'd create one subscription per farm via the Stripe API.
+      const tierOrder = ["bronze", "silver", "gold"];
+      const highest = opsFarms.reduce((best, f) =>
+        tierOrder.indexOf(f.tier) > tierOrder.indexOf(best) ? f.tier : best, "bronze");
+      const pkg = `ops_${highest}`;
+      const btn = document.getElementById("ops-checkout");
+      btn.disabled = true; btn.textContent = "Loading…";
+      try {
+        const res = await fetch("/api/checkout", {
+          method: "POST", headers: {"Content-Type":"application/json"},
+          body: JSON.stringify({ packageId: pkg, originUrl: window.location.origin })
+        });
+        const data = await res.json();
+        if (data.url) window.location.href = data.url;
+        else throw new Error("No URL");
+      } catch (e) { toast("Bundle checkout failed: " + e.message, true); btn.disabled = false; btn.textContent = "Subscribe Bundle →"; }
+    };
+    renderOps();
   </script>
 </body>
 </html>

@@ -785,6 +785,10 @@ PACKAGES = {
     "bronze_annual":       {"label": "Bronze Annual",   "amount": 510.0,   "kind": "subscription"},
     "silver_annual":       {"label": "Silver Annual",   "amount": 1020.0,  "kind": "subscription"},
     "gold_annual":         {"label": "Gold Annual",     "amount": 1530.0,  "kind": "subscription"},
+    # Operation Manager Pack — multi-farm bundles for ops managers
+    "ops_bronze":          {"label": "Ops Manager — Bronze (≤6 sheds/farm)",  "amount": 50.0,  "kind": "ops_bundle"},
+    "ops_silver":          {"label": "Ops Manager — Silver (7-12 sheds/farm)", "amount": 90.0, "kind": "ops_bundle"},
+    "ops_gold":            {"label": "Ops Manager — Gold (12+ sheds/farm)",   "amount": 150.0, "kind": "ops_bundle"},
     # Sponsor tiers
     "sponsor_10":          {"label": "Sponsor — $10/mo",  "amount": 10.0,  "kind": "sponsor"},
     "sponsor_25":          {"label": "Sponsor — $25/mo",  "amount": 25.0,  "kind": "sponsor"},
