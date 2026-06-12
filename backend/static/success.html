@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Thank you — Farm Buddy</title>
+<link rel="icon" href="/reader-assets/favicon.png" />
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;
+    background:linear-gradient(180deg,#0a1410,#0f3d24); color:#fff; min-height:100vh;
+    display:flex; align-items:center; justify-content:center; padding:24px;}
+  .card{background:rgba(255,255,255,.05); border:1px solid rgba(201,162,39,.4); border-radius:24px;
+    padding:50px 40px; max-width:520px; width:100%; text-align:center;}
+  .card img { width:80px; height:80px; border-radius:16px; margin-bottom:20px;}
+  h1{font-size:34px; font-weight:900; margin-bottom:10px; letter-spacing:-1px;}
+  .status{font-size:14px; font-weight:700; color:#C9A227; letter-spacing:2px; text-transform:uppercase; margin-bottom:24px;}
+  .details{background:rgba(0,0,0,.3); border-radius:12px; padding:18px; margin:20px 0; font-size:14px;}
+  .details .row{display:flex; justify-content:space-between; padding:4px 0; color:#cbd5d0;}
+  .details .row b{color:#fff;}
+  .btns{display:flex; gap:10px; justify-content:center; flex-wrap:wrap; margin-top:24px;}
+  .btn{padding:13px 26px; border-radius:99px; border:0; font-weight:800; font-size:14px;
+    text-decoration:none; cursor:pointer;}
+  .btn-gold{background:#C9A227; color:#000;}
+  .btn-ghost{background:rgba(255,255,255,.08); color:#fff; border:1px solid rgba(255,255,255,.2);}
+  .spinner{display:inline-block; width:18px; height:18px; border-radius:99px;
+    border:2.5px solid #C9A227; border-top-color:transparent; animation:spin .8s linear infinite;
+    vertical-align:middle; margin-right:8px;}
+  @keyframes spin{to{transform:rotate(360deg)}}
+</style>
+</head>
+<body>
+  <div class="card">
+    <img src="/reader-assets/icon-192.png" alt="" />
+    <div id="status-line" class="status"><span class="spinner"></span>Checking payment…</div>
+    <h1 id="title">Thank you!</h1>
+    <p id="message" style="color:#bdd3c4">Confirming your payment with Stripe…</p>
+    <div class="details" id="details" style="display:none">
+      <div class="row"><span>Plan</span><b id="d-pkg">—</b></div>
+      <div class="row"><span>Amount</span><b id="d-amt">—</b></div>
+      <div class="row"><span>Status</span><b id="d-status">—</b></div>
+    </div>
+    <div class="btns">
+      <a class="btn btn-gold" href="/">Open the App</a>
+      <a class="btn btn-ghost" href="/landing">Back to Plans</a>
+    </div>
+  </div>
+  <script>
+    const params = new URLSearchParams(location.search);
+    const sid = params.get("session_id");
+    if (!sid) {
+      document.getElementById("status-line").textContent = "No session id found";
+      document.getElementById("message").textContent = "If you completed payment, your subscription is active. Otherwise return to the plans page.";
+    } else poll(sid, 0);
+
+    async function poll(sid, attempt){
+      if (attempt > 10) {
+        document.getElementById("status-line").textContent = "Status check timed out";
+        document.getElementById("message").textContent = "Check your email — you'll receive a Stripe confirmation when the payment clears.";
+        return;
+      }
+      try {
+        const r = await fetch(`/api/checkout/status/${sid}`);
+        const d = await r.json();
+        document.getElementById("details").style.display = "block";
+        document.getElementById("d-pkg").textContent = d.metadata?.label || d.metadata?.package_id || "—";
+        document.getElementById("d-amt").textContent = `$${(d.amount_total/100).toFixed(2)} ${d.currency?.toUpperCase()}`;
+        document.getElementById("d-status").textContent = d.payment_status || d.status;
+        if (d.payment_status === "paid") {
+          document.getElementById("status-line").innerHTML = "✓ Payment confirmed";
+          document.getElementById("status-line").style.color = "#2dbd5e";
+          document.getElementById("title").textContent = "You're all set! 🎉";
+          document.getElementById("message").textContent = `Welcome aboard. Your ${d.metadata?.label || "subscription"} is now active.`;
+          return;
+        }
+        if (d.status === "expired") {
+          document.getElementById("status-line").textContent = "Payment session expired";
+          document.getElementById("message").textContent = "You can try again from the plans page.";
+          return;
+        }
+        setTimeout(()=>poll(sid, attempt+1), 2000);
+      } catch (e) {
+        setTimeout(()=>poll(sid, attempt+1), 2000);
+      }
+    }
+  </script>
+</body>
+</html>

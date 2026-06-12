@@ -13,7 +13,7 @@ from datetime import datetime, timedelta, timezone
 from typing import Annotated, List, Optional
 
 from dotenv import load_dotenv
-from fastapi import APIRouter, FastAPI, HTTPException, Query
+from fastapi import APIRouter, FastAPI, HTTPException, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
@@ -33,6 +33,7 @@ readings_col = db["readings"]
 deliveries_col = db["deliveries"]
 photos_col = db["photos"]
 farm_config_col = db["farm_config"]
+payments_col = db["payment_transactions"]
 
 # ─── App ───────────────────────────────────────────────────────────────────
 app = FastAPI(title="Broiler Base Mate API")
@@ -769,6 +770,128 @@ async def _scan_docket(body: "ScanDocketBody", prompt: str):
 
 
 app.include_router(api)
+
+
+# ─── Stripe Checkout ─────────────────────────────────────────────────────
+# Server-side fixed packages — frontend must NEVER send amounts.
+PACKAGES = {
+    # Subscription plans (charged as one-off first-month for v1; user upgrades to recurring in Stripe dashboard)
+    "bronze_monthly":      {"label": "Bronze",   "amount": 50.0,   "kind": "subscription"},
+    "silver_monthly":      {"label": "Silver",   "amount": 100.0,  "kind": "subscription"},
+    "gold_monthly":        {"label": "Gold",     "amount": 150.0,  "kind": "subscription"},
+    "platinum_monthly":    {"label": "Platinum", "amount": 200.0,  "kind": "subscription"},
+    "integrator_monthly":  {"label": "Integrator (per farm)", "amount": 60.0, "kind": "subscription"},
+    # Annual variants (~15% off)
+    "bronze_annual":       {"label": "Bronze Annual",   "amount": 510.0,   "kind": "subscription"},
+    "silver_annual":       {"label": "Silver Annual",   "amount": 1020.0,  "kind": "subscription"},
+    "gold_annual":         {"label": "Gold Annual",     "amount": 1530.0,  "kind": "subscription"},
+    # Sponsor tiers
+    "sponsor_10":          {"label": "Sponsor — $10/mo",  "amount": 10.0,  "kind": "sponsor"},
+    "sponsor_25":          {"label": "Sponsor — $25/mo",  "amount": 25.0,  "kind": "sponsor"},
+    "sponsor_50":          {"label": "Sponsor — $50/mo",  "amount": 50.0,  "kind": "sponsor"},
+    # One-off donations
+    "back_seed":           {"label": "Seed Supporter",       "amount": 100.0,  "kind": "donation"},
+    "back_project":        {"label": "Project Backer",       "amount": 500.0,  "kind": "donation"},
+    "back_foundation":     {"label": "Foundation Partner",   "amount": 1000.0, "kind": "donation"},
+}
+
+
+class CheckoutRequest(BaseModel):
+    packageId: str
+    originUrl: str
+    email: Optional[str] = None
+
+
+@app.post("/api/checkout")
+async def create_checkout(body: CheckoutRequest):
+    if body.packageId not in PACKAGES:
+        raise HTTPException(400, "Invalid package")
+    pkg = PACKAGES[body.packageId]
+    try:
+        from emergentintegrations.payments.stripe.checkout import StripeCheckout, CheckoutSessionRequest
+    except Exception as e:
+        raise HTTPException(503, f"Stripe lib missing: {e}")
+
+    api_key = os.environ.get("STRIPE_API_KEY")
+    if not api_key:
+        raise HTTPException(503, "STRIPE_API_KEY not configured")
+
+    origin = body.originUrl.rstrip("/")
+    webhook_url = f"{origin}/api/webhook/stripe"
+    checkout = StripeCheckout(api_key=api_key, webhook_url=webhook_url)
+
+    success_url = f"{origin}/landing/success?session_id={{CHECKOUT_SESSION_ID}}"
+    cancel_url = f"{origin}/landing"
+
+    meta = {"package_id": body.packageId, "kind": pkg["kind"], "label": pkg["label"]}
+    if body.email: meta["email"] = body.email
+
+    req = CheckoutSessionRequest(
+        amount=float(pkg["amount"]), currency="usd",
+        success_url=success_url, cancel_url=cancel_url, metadata=meta,
+    )
+    session = await checkout.create_checkout_session(req)
+
+    await payments_col.insert_one({
+        "id": str(uuid.uuid4()),
+        "session_id": session.session_id,
+        "package_id": body.packageId,
+        "amount": float(pkg["amount"]),
+        "currency": "usd",
+        "kind": pkg["kind"],
+        "email": body.email,
+        "payment_status": "initiated",
+        "status": "open",
+        "createdAt": datetime.now(timezone.utc),
+    })
+    return {"url": session.url, "session_id": session.session_id}
+
+
+@app.get("/api/checkout/status/{session_id}")
+async def checkout_status(session_id: str):
+    try:
+        from emergentintegrations.payments.stripe.checkout import StripeCheckout
+    except Exception as e:
+        raise HTTPException(503, f"Stripe lib missing: {e}")
+    api_key = os.environ.get("STRIPE_API_KEY")
+    checkout = StripeCheckout(api_key=api_key, webhook_url="")
+    s = await checkout.get_checkout_status(session_id)
+    # Update DB only if status changed (idempotent)
+    cur = await payments_col.find_one({"session_id": session_id})
+    if cur and cur.get("payment_status") != s.payment_status:
+        await payments_col.update_one({"session_id": session_id},
+            {"$set": {"payment_status": s.payment_status, "status": s.status,
+                      "updatedAt": datetime.now(timezone.utc)}})
+    return {"status": s.status, "payment_status": s.payment_status, "amount_total": s.amount_total,
+            "currency": s.currency, "metadata": s.metadata}
+
+
+@app.post("/api/webhook/stripe")
+async def stripe_webhook(request: Request):
+    raw = await request.body() if hasattr(request, "body") else b""
+    sig = request.headers.get("Stripe-Signature", "") if hasattr(request, "headers") else ""
+    try:
+        from emergentintegrations.payments.stripe.checkout import StripeCheckout
+        api_key = os.environ.get("STRIPE_API_KEY")
+        checkout = StripeCheckout(api_key=api_key, webhook_url="")
+        evt = await checkout.handle_webhook(raw, sig)
+        await payments_col.update_one({"session_id": evt.session_id},
+            {"$set": {"payment_status": evt.payment_status, "webhook_event": evt.event_type,
+                      "updatedAt": datetime.now(timezone.utc)}})
+    except Exception as e:
+        return JSONResponse({"ok": False, "error": str(e)}, status_code=200)
+    return {"ok": True}
+
+
+# ─── Landing page (static) ────────────────────────────────────────────────
+@app.get("/landing")
+async def landing():
+    return FileResponse(os.path.join(STATIC_DIR, "landing.html"))
+
+
+@app.get("/landing/success")
+async def landing_success():
+    return FileResponse(os.path.join(STATIC_DIR, "success.html"))
 
 
 # ─── Static field reader ─────────────────────────────────────────────────
