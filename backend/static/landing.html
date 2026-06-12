@@ -13,18 +13,12 @@
   /* Hero */
   .hero { position:relative; min-height:88vh; color:#fff; overflow:hidden;
     background:
-      radial-gradient(ellipse 80% 60% at 50% 0%, rgba(45,189,94,.18) 0%, transparent 60%),
-      linear-gradient(180deg, #0a1f12 0%, #0f3d24 60%, #0a1410 100%);
+      linear-gradient(180deg, rgba(10,20,16,.45) 0%, rgba(10,20,16,.55) 40%, rgba(10,20,16,.88) 100%),
+      url("/reader-assets/hero-poultry.jpg") center/cover no-repeat,
+      linear-gradient(180deg, #0a1f12, #0f3d24);
     display:flex; flex-direction:column; }
-  .hero::before { /* Abstract poultry-shed silhouette band */
-    content:""; position:absolute; left:0; right:0; bottom:0; height:38%;
-    background:
-      linear-gradient(180deg, transparent 0%, rgba(0,0,0,.35) 100%),
-      url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1600 400' preserveAspectRatio='xMidYMax slice'><g fill='%230a1410' opacity='0.85'><polygon points='0,400 0,250 80,200 80,400'/><polygon points='80,400 80,200 320,140 320,400'/><polygon points='320,400 320,180 640,180 640,400'/><polygon points='640,400 640,160 1000,160 1000,400'/><polygon points='1000,400 1000,200 1280,200 1280,400'/><polygon points='1280,400 1280,180 1600,140 1600,400'/></g><g fill='%23C9A227' opacity='0.18'><circle cx='1450' cy='110' r='60'/></g></svg>");
-    background-size:cover; background-position:bottom; opacity:0.9; pointer-events:none;}
-  .hero::after { /* faint silo + barn icons floating */
-    content:"🌾 🐔 🌾 🏠 🐔 🌾"; position:absolute; top:6%; left:50%; transform:translateX(-50%);
-    font-size:28px; letter-spacing:30px; opacity:0.08; white-space:nowrap; pointer-events:none;}
+  .hero::before { content:""; position:absolute; left:0; right:0; bottom:0; height:14%;
+    background:linear-gradient(180deg, transparent, rgba(0,0,0,.5)); pointer-events:none;}
   .nav { display:flex; align-items:center; padding:18px 32px; gap:14px; max-width:1200px; margin:0 auto; width:100%; }
   .nav .logo { display:flex; align-items:center; gap:10px; font-weight:800; letter-spacing:.5px; }
   .nav .logo img { width:34px; height:34px; border-radius:7px; }
@@ -312,8 +306,15 @@
   </section>
 
   <footer>
-    <p><b>Broiler Base Mate</b> · Built for Australian poultry producers · <a href="/">Open the App</a> · <a href="/reader">Mobile Reader</a></p>
-    <p style="margin-top:8px;opacity:.6;">© 2026 · Payments processed securely by Stripe.</p>
+    <div style="max-width:1100px;margin:0 auto;display:flex;flex-direction:column;align-items:center;gap:20px;">
+      <p><b>Broiler Base Mate</b> · Built for Australian poultry producers · <a href="/">Open the App</a> · <a href="/reader">Mobile Reader</a></p>
+      <p style="margin-top:8px;opacity:.6;">© 2026 · Payments processed securely by Stripe.</p>
+      <div style="display:flex;align-items:center;gap:14px;padding:14px 24px;background:rgba(201,162,39,.06);border:1px solid rgba(201,162,39,.25);border-radius:14px;margin-top:8px;">
+        <span style="font-size:11px;letter-spacing:2px;color:#8aa094;font-weight:700;">CRAFTED BY</span>
+        <img src="/reader-assets/company-logo.png" alt="Company logo" style="height:48px;width:48px;object-fit:contain;border-radius:8px;background:#0a1410;padding:4px;" />
+        <span style="font-size:14px;color:#C9A227;font-weight:800;letter-spacing:0.5px;" id="company-name">Your Company</span>
+      </div>
+    </div>
   </footer>
 
   <div class="toast" id="toast"></div>
