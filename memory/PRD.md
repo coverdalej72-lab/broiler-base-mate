@@ -1,62 +1,61 @@
-# Broiler Base Mate™ — Off-Replit Migration + Auto-Sync + AI Docket Scanner
+# Broiler Base Mate™ — Off-Replit Migration + Auto-Sync + AI Docket Scanner + History
 
 ## Original Problem Statement
 > https://silo-sync-excel.replit.app/feed-program/ I need off replit
 > "do what best as i need to auto sync to the program"
 > "do them all"
+> "[uploaded BPL Adelaide + Ingham's dockets] this should fill the end of batch and should be in history on the app"
 >
 > GitHub: https://github.com/coverdalej72-lab/Silo-Sync-Excel
 
 ## Architecture
 - **Source monorepo**: `/app/silo/` (pnpm workspace cloned from GitHub).
-- **Frontend** (`/app/frontend` → port 3000): Vite dev server for `@workspace/feed-program` (`BASE_PATH=/`).
-- **Backend** (`/app/backend` → port 8001): FastAPI + MongoDB + Gemini 2.5 Flash via emergentintegrations universal key.
-- **Field Reader** at `/reader`: 3-tab mobile PWA-style UI served from FastAPI.
+- **Frontend** (`/app/frontend` → port 3000): wrapper script that auto-installs pnpm if missing, then runs the feed-program Vite dev server with `BASE_PATH=/`.
+- **Backend** (`/app/backend` → port 8001): FastAPI + MongoDB + Gemini 2.5 Flash via emergentintegrations.
+- **Field Reader** at `/reader`: 4-tab mobile UI served by FastAPI.
 - **Vite proxy**: `/api`, `/reader`, `/reader-assets` → port 8001.
 
-## Field Reader (`/reader`) — Three Tabs
-### 1. 📋 Readings (auto-sync)
-- Pending sheds bubble to the **top**, partial sheds in the middle, DONE sheds at the bottom — workers can knock off the next pending shed in one tap.
-- Each silo shows **"Last: Xt (Mon, 2 Jun) [Use ↑]"** — one-tap copies the previous reading into the input so users only type the change.
-- Feed type picker per shed (Starter/Grower/Finisher/Withdrawal) + tonnes/kg unit toggle per silo.
-- Save → POST `/api/readings/batch` → MongoDB → Feed Program auto-poll (2-min) picks it up. Same-day re-save = correction.
+## Field Reader — 4 Tabs
+### 📋 Readings (auto-sync)
+- Pending sheds at the top, partial in the middle, DONE at the bottom.
+- Per-silo "Last: 22.3t (Wed, 3 Jun) [Use ↑]" — one-tap previous-reading recall.
+- Posts to `/api/readings/batch` → Feed Program polls `/api/readings/today` every 2 min.
 
-### 2. 🚚 Deliveries
-- Form: shed group, optional silo, feed type, amount in tonnes, free-text notes.
-- Recent Deliveries list with one-tap delete.
-- Posts to `/api/deliveries` → reflected in End-of-Batch summary.
+### 📷 Scan (AI auto-detect)
+- Single "Tap to photograph" button — no vendor toggle.
+- Auto-detects supplier from docket header (Ingham's / Baiada / BPL Adelaide / etc).
+- **Gemini 2.5 Flash** extracts: supplier, feedType, productCode, amount (auto-converts Kg→tonnes), deliveryDate (DD/MM/YY → YYYY-MM-DD), orderNumber/ticketNo, customerName, siteCode, deliveryInstructions, truckRego, outloadingBin.
+- One-tap **"Save to History & End-of-Batch"** — creates a delivery with a base64 thumbnail.
 
-### 3. 📷 Scan Docket (AI)
-- Vendor toggle: **Ingham's** / **Baiada** (two tailored prompts).
-- "Tap to take a photo" → mobile camera capture → in-browser resize to ≤1400px JPEG.
-- **Gemini 2.5 Flash** via `emergentintegrations` extracts: feedType, productCode, amount, deliveryDate, orderNumber, customerName, siteCode, deliveryInstructions, truckRego, outloadingBin.
-- "Use as Delivery" pre-fills the Deliveries form and switches tabs — review, then save.
+### 🚚 Add (manual)
+- Form with shed group, silo, feed type, amount, docket #, truck rego, notes.
 
-## Backend API (MongoDB-backed)
-- `GET /api/shed-groups` — auto-seeds 10 groups × 3 silos on first run
-- `GET /api/silos`, `POST /api/silos`, `PATCH /api/silos/:id`, `DELETE /api/silos/:id`
-- `GET /api/readings/today` (Feed Program polls every 2 min)
-- `GET /api/readings/previous?siloId=…` — last reading per silo
-- `POST /api/readings/batch`, `GET /api/readings`, `DELETE /api/readings/:id`
-- `GET /api/deliveries`, `POST /api/deliveries`, `DELETE /api/deliveries/:id`
-- `POST /api/scan-docket/ingham`, `POST /api/scan-docket/baiada` (Gemini 2.5 Flash)
-- `GET /api/bootstrap`, `GET /api/batch/version`, `DELETE /api/batch/reset`, `GET /api/onedrive/status`, `POST /api/weigh-bird`
+### 📜 History
+- Chronological list of every delivery (manual + scanned).
+- Each item shows: supplier pill, feed type (original product name) + code, date, docket #, truck rego, customer, delivery instructions, outloading bin, amount.
+- Thumbnail click → lightbox.
+- Delete also removes from End-of-Batch.
 
-## What's Verified
-- ✅ End-to-end save: 18.5t saved on `/reader` → Feed Program syncHash `|A:18.5:t||||||||` confirmed.
-- ✅ Pending-first ordering on Readings tab.
-- ✅ Previous-reading "Use ↑" button populates input + unit.
-- ✅ Delivery save round-trip (24.5t Starter / Sheds 3 & 4 / Test docket #123).
-- ✅ AI scanner: synthetic Ingham docket → all 11 fields extracted correctly (28.16t Gourmet Broiler Grower F116, Order ORD-77821, Date 2026-06-11, etc.).
-- ✅ Scanner → Deliveries pre-fill flow.
+## End-of-Batch Auto-Fill
+- On Feed Program load, EndOfBatchContent polls `/api/deliveries`.
+- Backend **normalises feed type** (e.g. "Broiler Grower" → "Grower", "Gourmet Broiler Grower" → "Grower") so the deliveries land in the correct column (Starter/Grower/Finisher/Withdrawal) — `feedTypeOriginal` is preserved separately for display.
+- Each delivery becomes a row: DATE (DD/MM/YYYY) · DOCKET # (from notes/`docketNumber`) · KG (auto t→kg conversion).
+- Idempotent via `eob-synced-delivery-ids` localStorage set.
+
+## Verified Real Dockets ✅
+- **BPL Adelaide** Ticket 55104, S110 Broiler Grower, 43,740 Kg → 43.74t, 02/04/2026, Double B Farm, Truck XS07IQ.
+- **Ingham's** Order 125865, F116 Gourmet Broiler Grower, 28.16t, 18/05/2026, GP Farms, Truck SB84EF, Instructions "5 B 10, 6 B 5, 7 B 13", Bin BN8103.
+- End-of-Batch shows DELIVERED 71,900 kg = 28.16t + 43.74t, both rows in Grower section with correct dates + docket #s.
+
+## Backend API
+`/api/shed-groups`, `/api/silos*`, `/api/readings/today`, `/api/readings/previous?siloId=`, `/api/readings/batch`, `/api/readings`, `/api/deliveries` (with rich docket fields + imageThumb + feedTypeOriginal), `/api/scan-docket/auto` (recommended), `/api/scan-docket/ingham`, `/api/scan-docket/baiada`, `/api/bootstrap`, `/api/batch/version`, `/api/batch/reset`, `/api/onedrive/status`.
 
 ## Integrations
-- **Emergent Universal LLM Key** (`EMERGENT_LLM_KEY`) → Gemini 2.5 Flash for docket OCR.
-- (Stripe / Clerk / Google Drive / OneDrive intentionally not wired — not needed for stated requirements.)
+- **Emergent Universal LLM Key** → Gemini 2.5 Flash for OCR + structured extraction.
 
-## Backlog (future, optional)
-- P2: Auto-detect batch placement so today's reading lands on the correct demo-row visually (currently March 2026 placement, today is June).
-- P2: Pre-populate `feedType` in Readings tab using last delivery's feed type for the shed.
-- P3: Add CSV / xlsx export of all readings + deliveries from `/reader`.
+## Future / Backlog
+- P2: Auto-allocation — parse `deliveryInstructions` "5 B 10, 6 B 5, 7 B 13" → create one delivery row per shed-silo automatically.
+- P2: PDF / CSV export of full history.
+- P2: Search / filter in History (by supplier, date range, feed type, docket #).
 - P3: Google Drive / OneDrive cloud sync (needs user OAuth tokens).
 - P3: Restore companion Silo Tracker PWA (needs Clerk publishable key).

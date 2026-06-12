@@ -116,6 +116,16 @@ class CreateDeliveryBody(BaseModel):
     unit: str
     notes: Optional[str] = None
     deliveryDate: Optional[str] = None
+    # Rich docket fields (optional — populated when saved from the AI scanner)
+    docketNumber: Optional[str] = None
+    productCode: Optional[str] = None
+    customerName: Optional[str] = None
+    siteCode: Optional[str] = None
+    truckRego: Optional[str] = None
+    outloadingBin: Optional[str] = None
+    deliveryInstructions: Optional[str] = None
+    supplier: Optional[str] = None  # "Ingham's" | "Baiada" | "BPL Adelaide" etc
+    imageThumb: Optional[str] = None  # base64 jpeg (small)
 
 
 # ─── Seed default farm (10 shed groups × 3 silos) ──────────────────────────
@@ -413,11 +423,21 @@ async def list_deliveries(limit: int = Query(default=100, le=1000)):
             "siloId": r.get("siloId"),
             "siloLetter": silo.get("letter") if silo else None,
             "feedType": r["feedType"],
+            "feedTypeOriginal": r.get("feedTypeOriginal"),
             "amount": float(r["amount"]),
             "unit": r["unit"],
             "notes": r.get("notes"),
             "deliveryDate": r["deliveryDate"].isoformat(),
             "createdAt": r["createdAt"].isoformat(),
+            "docketNumber": r.get("docketNumber"),
+            "productCode": r.get("productCode"),
+            "customerName": r.get("customerName"),
+            "siteCode": r.get("siteCode"),
+            "truckRego": r.get("truckRego"),
+            "outloadingBin": r.get("outloadingBin"),
+            "deliveryInstructions": r.get("deliveryInstructions"),
+            "supplier": r.get("supplier"),
+            "imageThumb": r.get("imageThumb"),
         })
     return out
 
@@ -427,19 +447,53 @@ async def create_delivery(body: CreateDeliveryBody):
     date = datetime.fromisoformat(body.deliveryDate.replace("Z", "+00:00")) if body.deliveryDate else datetime.now(timezone.utc)
     if date.tzinfo is None:
         date = date.replace(tzinfo=timezone.utc)
+    # Normalise feed type so the Feed Program's End-of-Batch matcher always finds a column
+    # ("Broiler Grower" → "Grower", "Gourmet Broiler Starter" → "Starter", etc.)
+    normalised_feed = _normalise_feed_type(body.feedType)
     doc = {
         "id": str(uuid.uuid4()),
         "shedGroupId": body.shedGroupId,
         "siloId": body.siloId,
-        "feedType": body.feedType,
+        "feedType": normalised_feed,
+        "feedTypeOriginal": body.feedType if normalised_feed != body.feedType else None,
         "amount": float(body.amount),
         "unit": body.unit,
         "notes": body.notes,
         "deliveryDate": date,
         "createdAt": datetime.now(timezone.utc),
+        "docketNumber": body.docketNumber,
+        "productCode": body.productCode,
+        "customerName": body.customerName,
+        "siteCode": body.siteCode,
+        "truckRego": body.truckRego,
+        "outloadingBin": body.outloadingBin,
+        "deliveryInstructions": body.deliveryInstructions,
+        "supplier": body.supplier,
+        "imageThumb": body.imageThumb,
     }
     await deliveries_col.insert_one(doc)
     return clean(doc)
+
+
+def _normalise_feed_type(raw: str) -> str:
+    """Map any feed-type label to canonical 'Starter' / 'Grower' / 'Finisher' / 'Withdrawal'.
+
+    The Feed Program's End-of-Batch matcher does prefix-matching only, so labels
+    like 'Broiler Grower' or 'Gourmet Broiler Finisher' need to be normalised
+    so they land in the right column.
+    """
+    if not raw:
+        return raw
+    lo = raw.lower()
+    if "withdraw" in lo:
+        return "Withdrawal"
+    if "finisher" in lo or "finish" in lo:
+        return "Finisher"
+    if "grower" in lo or "grow" in lo:
+        return "Grower"
+    if "starter" in lo or "start" in lo:
+        return "Starter"
+    return raw
 
 
 @api.delete("/deliveries/{delivery_id}", status_code=204)
@@ -493,12 +547,13 @@ INGHAM_PROMPT = """You are reading an Ingham's Despatch Docket — an Australian
 Extract these fields and return ONLY a valid JSON object (no markdown, no explanation):
 
 {
+  "supplier": "Ingham's",
   "feedType": "Product name only, without product code — e.g. 'Gourmet Broiler Grower' from 'F116 GOURMET BROILER GROWER'. Capitalise properly.",
   "productCode": "The product code, e.g. 'F116'",
   "amount": <Net Weight in tonnes as a number, e.g. 28.16>,
   "unit": "t",
   "deliveryDate": "The 'Date Req' field as YYYY-MM-DD, e.g. '2026-05-18'",
-  "orderNumber": "The Order No value",
+  "orderNumber": "The Order No / Dispatch No / Ticket No value",
   "customerName": "The Customer Name",
   "siteCode": "The Site code",
   "deliveryInstructions": "The Delivery Instructions text exactly as printed, e.g. '5 B 10, 6 B 5, 7 B 13'",
@@ -514,6 +569,7 @@ BAIADA_PROMPT = """You are reading a Baiada feed delivery docket — an Australi
 Extract these fields and return ONLY a valid JSON object (no markdown, no explanation):
 
 {
+  "supplier": "Baiada",
   "feedType": "Product name (e.g. 'Starter', 'Grower', 'Finisher', 'Withdrawal')",
   "productCode": "Product code if shown, else null",
   "amount": <Net Weight in tonnes as a number>,
@@ -530,6 +586,36 @@ Extract these fields and return ONLY a valid JSON object (no markdown, no explan
 Use null for any field you cannot read clearly."""
 
 
+AUTO_PROMPT = """You are reading an Australian poultry feed delivery docket. The docket may come from any of these suppliers:
+- Ingham's ("Despatch Docket")
+- Baiada
+- BPL Adelaide Pty Ltd
+- Multiquip / other feed mills
+
+Identify the supplier from the heading, then extract these fields. Return ONLY a valid JSON object (no markdown, no commentary):
+
+{
+  "supplier": "Best-fit supplier name from the docket header. Use 'Ingham\\'s' / 'Baiada' / 'BPL Adelaide' or whatever brand is printed at the top.",
+  "feedType": "Product / Formula Name only, properly capitalised (e.g. 'Broiler Grower', 'Gourmet Broiler Grower', 'Starter', 'Finisher'). Strip product codes from the name.",
+  "productCode": "Product code or Feed Formula No (e.g. 'F116', 'S110')",
+  "amount": <Net Weight as a number IN TONNES. If the docket shows kilograms (e.g. '43,740 Kg'), divide by 1000 to convert to tonnes (43.74). If already in tonnes (e.g. '28.16 tonnes'), use as-is.>,
+  "unit": "t",
+  "deliveryDate": "Delivery / Date Req / Ticket date as YYYY-MM-DD. Australian dates are DD/MM/YYYY (or DD/MM/YY where YY is 20YY). e.g. '02/04/26' = '2026-04-02', '18/05/2026' = '2026-05-18'.",
+  "orderNumber": "Best single identifier — prefer 'Ticket No' if present, else 'Dispatch No', else 'Order No', else 'Despatch No'.",
+  "customerName": "Customer / Farm Name (e.g. 'Double B Farm', 'GP FARMS PTY LIMITED')",
+  "siteCode": "Site code / Destination Flock / Account number",
+  "deliveryInstructions": "Shed-silo allocation text exactly as written (e.g. '5 B 10, 6 B 5, 7 B 13'). If absent, use null.",
+  "truckRego": "Truck Rego / Vehicle No (the registration plate, e.g. 'SB84EF', 'XS07IQ')",
+  "outloadingBin": "Outloading Bin value (e.g. 'BN8103'). If absent, use null."
+}
+
+Important conversion rules:
+- WEIGHT: If the docket shows 'Net' or 'Net Weight' in Kg (e.g. '43,740 Kg'), convert to tonnes by dividing by 1000.
+- WEIGHT: If shown in tonnes (e.g. '28.16 tonnes'), use the number directly.
+- DATE: Australian docket dates are DD/MM/YYYY. 2-digit years (DD/MM/YY) are 20YY.
+- Use null for any field you genuinely cannot read."""
+
+
 import base64
 import json
 import re
@@ -537,7 +623,22 @@ import uuid as _uuid
 
 
 @api.post("/scan-docket/ingham")
-async def scan_docket(body: ScanDocketBody):
+async def scan_docket_ingham(body: ScanDocketBody):
+    return await _scan_docket(body, INGHAM_PROMPT)
+
+
+@api.post("/scan-docket/baiada")
+async def scan_docket_baiada(body: ScanDocketBody):
+    return await _scan_docket(body, BAIADA_PROMPT)
+
+
+@api.post("/scan-docket/auto")
+async def scan_docket_auto(body: ScanDocketBody):
+    """Auto-detect supplier (Ingham's, Baiada, BPL Adelaide, etc.) and extract."""
+    return await _scan_docket(body, AUTO_PROMPT)
+
+
+async def _scan_docket(body: "ScanDocketBody", prompt: str):
     """Extract structured fields from a docket photo using Gemini multimodal."""
     try:
         from emergentintegrations.llm.chat import LlmChat, UserMessage, ImageContent
@@ -547,8 +648,6 @@ async def scan_docket(body: ScanDocketBody):
     api_key = os.environ.get("EMERGENT_LLM_KEY")
     if not api_key:
         raise HTTPException(503, "EMERGENT_LLM_KEY not configured")
-
-    prompt = BAIADA_PROMPT if body.docketType == "baiada" else INGHAM_PROMPT
 
     chat = LlmChat(
         api_key=api_key,
@@ -570,19 +669,12 @@ async def scan_docket(body: ScanDocketBody):
     try:
         parsed = json.loads(cleaned)
     except Exception:
-        # Attempt to recover the first JSON object in the response
         m = re.search(r"\{[\s\S]*\}", cleaned)
         if not m:
             raise HTTPException(422, "Could not parse AI response")
         parsed = json.loads(m.group(0))
 
     return {"ok": True, "fields": parsed}
-
-
-@api.post("/scan-docket/baiada")
-async def scan_docket_baiada(body: ScanDocketBody):
-    body.docketType = "baiada"
-    return await scan_docket(body)
 
 
 app.include_router(api)
