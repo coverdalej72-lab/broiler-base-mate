@@ -43,11 +43,24 @@
   .btn-ghost { background:rgba(255,255,255,.08); color:#fff; border:1px solid rgba(255,255,255,.25); }
   .btn-ghost:hover { background:rgba(255,255,255,.18); }
   /* Features strip */
-  .features-strip { background:#fff; padding:50px 24px; border-bottom:1px solid var(--line); }
+  .features-strip { background:linear-gradient(180deg,#fff 0%, #fbfaf4 100%); padding:60px 24px;
+    border-bottom:1px solid var(--line); }
   .features-grid { max-width:1100px; margin:0 auto; display:grid;
-    grid-template-columns: repeat(auto-fit,minmax(140px,1fr)); gap:24px; text-align:center; }
-  .feature { display:flex; flex-direction:column; align-items:center; gap:6px; font-size:13px; font-weight:700; color:var(--ink); }
-  .feature .ico { font-size:30px; }
+    grid-template-columns: repeat(auto-fit,minmax(150px,1fr)); gap:16px; text-align:center; }
+  .feature { display:flex; flex-direction:column; align-items:center; gap:10px;
+    background:#fff; border:1px solid var(--line); border-radius:16px; padding:18px 10px;
+    transition:all .15s; cursor:default; }
+  .feature:hover { transform:translateY(-3px); box-shadow:0 8px 20px rgba(0,0,0,.08); }
+  .feature .badge-ico { width:48px; height:48px; border-radius:14px; display:grid; place-items:center;
+    font-size:24px; color:#fff; box-shadow:0 4px 10px rgba(0,0,0,.12); }
+  .feature .label { font-size:12px; font-weight:800; color:var(--ink); letter-spacing:.3px; }
+  .badge-ico.c1 { background:linear-gradient(135deg,#2dbd5e,#0f3d24);}
+  .badge-ico.c2 { background:linear-gradient(135deg,#ff7a1a,#c94e07);}
+  .badge-ico.c3 { background:linear-gradient(135deg,#C9A227,#8b6f0c);}
+  .badge-ico.c4 { background:linear-gradient(135deg,#1f70c4,#0c3b6f);}
+  .badge-ico.c5 { background:linear-gradient(135deg,#d44530,#7a1a0e);}
+  .badge-ico.c6 { background:linear-gradient(135deg,#7a3eaa,#3e1f6e);}
+  .badge-ico.c7 { background:linear-gradient(135deg,#0d9488,#054944);}
   /* Section */
   section { padding:90px 24px; }
   section .wrap { max-width:1100px; margin:0 auto; }
@@ -138,28 +151,28 @@
       <p class="lede">Broiler Base Mate is a complete farm management platform for <b>broiler</b> and <b>breeder</b> farms — replacing paper &amp; Excel with live silo tracking, batch results, egg production logs, body weight curves, and real-time feed alerts across every device on your farm.</p>
       <div class="hero-btns">
         <a href="#plans" class="btn btn-gold">See Plans &amp; Pricing →</a>
-        <a href="#how" class="btn btn-ghost">▶ Watch Demo</a>
+        <button class="btn btn-ghost" id="open-demo">▶ Watch Demo</button>
       </div>
     </div>
   </div>
 
   <!-- FEATURES STRIP -->
-  <section class="features-strip" style="padding-top:36px;padding-bottom:36px;">
+  <section class="features-strip" style="padding-top:50px;padding-bottom:50px;">
     <div class="features-grid">
-      <div class="feature"><span class="ico">📱</span>No App Install</div>
-      <div class="feature"><span class="ico">🔔</span>Feed Alerts</div>
-      <div class="feature"><span class="ico">🌾</span>Silo Tracker</div>
-      <div class="feature"><span class="ico">📊</span>Batch Results &amp; FCR</div>
-      <div class="feature"><span class="ico">📈</span>Morts Tracking</div>
-      <div class="feature"><span class="ico">📜</span>Batch History</div>
-      <div class="feature"><span class="ico">🔮</span>Flock Forecast</div>
-      <div class="feature"><span class="ico">🥚</span>Egg Production</div>
-      <div class="feature"><span class="ico">⚖️</span>Body Weight Curves</div>
-      <div class="feature"><span class="ico">🏠</span>Up to 30 Sheds</div>
-      <div class="feature"><span class="ico">📷</span>QR Scanning</div>
-      <div class="feature"><span class="ico">🔄</span>Cross-device Sync</div>
-      <div class="feature"><span class="ico">📥</span>CSV / Excel Export</div>
-      <div class="feature"><span class="ico">🔒</span>Secure Data</div>
+      <div class="feature"><div class="badge-ico c1">📱</div><div class="label">No App Install</div></div>
+      <div class="feature"><div class="badge-ico c2">🔔</div><div class="label">Feed Alerts</div></div>
+      <div class="feature"><div class="badge-ico c3">🌾</div><div class="label">Silo Tracker</div></div>
+      <div class="feature"><div class="badge-ico c4">📊</div><div class="label">Batch Results &amp; FCR</div></div>
+      <div class="feature"><div class="badge-ico c5">📈</div><div class="label">Morts Tracking</div></div>
+      <div class="feature"><div class="badge-ico c6">📜</div><div class="label">Batch History</div></div>
+      <div class="feature"><div class="badge-ico c7">🔮</div><div class="label">Flock Forecast</div></div>
+      <div class="feature"><div class="badge-ico c1">🥚</div><div class="label">Egg Production</div></div>
+      <div class="feature"><div class="badge-ico c2">⚖️</div><div class="label">Body Weight Curves</div></div>
+      <div class="feature"><div class="badge-ico c3">🏠</div><div class="label">Up to 30 Sheds</div></div>
+      <div class="feature"><div class="badge-ico c4">📷</div><div class="label">QR Scanning</div></div>
+      <div class="feature"><div class="badge-ico c5">🔄</div><div class="label">Cross-device Sync</div></div>
+      <div class="feature"><div class="badge-ico c6">📥</div><div class="label">CSV / Excel Export</div></div>
+      <div class="feature"><div class="badge-ico c7">🔒</div><div class="label">Secure Data</div></div>
     </div>
   </section>
 
@@ -358,6 +371,19 @@
 
   <div class="toast" id="toast"></div>
 
+  <!-- ── HOW IT WORKS DEMO MODAL ── -->
+  <div id="demo-modal" style="display:none;position:fixed;inset:0;background:rgba(5,15,10,0.92);z-index:100;align-items:center;justify-content:center;padding:24px;backdrop-filter:blur(8px);">
+    <div style="background:#0f3d24;border:1px solid #C9A227;border-radius:24px;max-width:780px;width:100%;padding:32px;color:#fff;position:relative;max-height:90vh;overflow-y:auto;">
+      <button id="demo-close" style="position:absolute;top:14px;right:18px;background:rgba(255,255,255,.1);border:0;color:#fff;width:36px;height:36px;border-radius:99px;cursor:pointer;font-size:18px;">✕</button>
+      <div id="demo-stage" style="min-height:380px;display:flex;flex-direction:column;justify-content:center;align-items:center;text-align:center;gap:18px;"></div>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-top:24px;border-top:1px solid rgba(201,162,39,.3);padding-top:18px;">
+        <button id="demo-prev" style="background:transparent;border:1px solid rgba(255,255,255,.2);color:#fff;padding:10px 18px;border-radius:99px;cursor:pointer;font-weight:700;font-size:13px;">← Back</button>
+        <div id="demo-dots" style="display:flex;gap:6px;"></div>
+        <button id="demo-next" style="background:#C9A227;border:0;color:#000;padding:10px 22px;border-radius:99px;cursor:pointer;font-weight:800;font-size:13px;">Next →</button>
+      </div>
+    </div>
+  </div>
+
   <script>
     const toast = (m, err) => {
       const t = document.getElementById("toast");
@@ -442,6 +468,43 @@
       } catch (e) { toast("Bundle checkout failed: " + e.message, true); btn.disabled = false; btn.textContent = "Subscribe Bundle →"; }
     };
     renderOps();
+
+    // ── How To Demo modal ──
+    const DEMO_STEPS = [
+      { ico:"📲", title:"1. Scan to open on your phone", body:"From the Feed Program on your PC, open Settings and scan the QR code with your phone camera. The mobile Silo Reader opens instantly — no app store install. Tap 'Add to Home Screen' and it lives on your phone like a real app." },
+      { ico:"📋", title:"2. Tap silo readings in the field", body:"Walk the sheds. Each shed group shows three silos (A, B, C). Type the tonnes remaining and hit Save. The previous reading auto-fills with one tap so you only type the change." },
+      { ico:"📷", title:"3. Photograph a delivery docket", body:"When a feed truck arrives, snap the docket. Gemini Vision AI auto-detects Ingham's / Baiada / BPL Adelaide and pulls out feed type, kg, docket number, truck rego — all the right fields in 2 seconds. Save → done." },
+      { ico:"📊", title:"4. Spreadsheet auto-updates", body:"Within 2 minutes the Feed Program on your computer reflects every silo reading and every delivery in the End-of-Batch section. No retyping, no copying. Open it Monday morning and everything from the weekend is already there." },
+      { ico:"🚚", title:"5. End of batch — instant FCR", body:"When the catchers come, enter the catch numbers + bird weights. FCR (Feed Conversion Ratio), morts, kg/bird and net consumed all calculate automatically. Export to CSV or Excel and email to your integrator." },
+      { ico:"🎉", title:"That's it — ready to start your free trial?", body:"14 days free, no card if you cancel in time. Bronze for small farms, Silver for most, Gold for big ops. Pick a plan below — we'll have you up and running in under 5 minutes.", cta:true },
+    ];
+    let demoStep = 0;
+    function renderDemoStep(){
+      const s = DEMO_STEPS[demoStep];
+      document.getElementById("demo-stage").innerHTML = `
+        <div style="font-size:72px;line-height:1;">${s.ico}</div>
+        <h2 style="margin:0;font-size:26px;font-weight:900;letter-spacing:-0.5px;">${s.title}</h2>
+        <p style="color:#bdd3c4;max-width:560px;font-size:15px;line-height:1.6;margin:0;">${s.body}</p>
+        ${s.cta ? '<a href="#plans" onclick="document.getElementById(\'demo-modal\').style.display=\'none\'" class="btn btn-gold" style="margin-top:8px;">See Plans →</a>' : ""}`;
+      document.getElementById("demo-dots").innerHTML = DEMO_STEPS.map((_,i) =>
+        `<div style="width:8px;height:8px;border-radius:99px;background:${i===demoStep?'#C9A227':'rgba(255,255,255,.2)'}"></div>`).join("");
+      document.getElementById("demo-prev").disabled = demoStep === 0;
+      document.getElementById("demo-prev").style.opacity = demoStep === 0 ? 0.3 : 1;
+      document.getElementById("demo-next").textContent = demoStep === DEMO_STEPS.length-1 ? "Close ✓" : "Next →";
+    }
+    document.getElementById("open-demo").onclick = () => {
+      demoStep = 0; renderDemoStep();
+      document.getElementById("demo-modal").style.display = "flex";
+    };
+    document.getElementById("demo-close").onclick = () => document.getElementById("demo-modal").style.display = "none";
+    document.getElementById("demo-prev").onclick = () => { if (demoStep > 0) { demoStep--; renderDemoStep(); } };
+    document.getElementById("demo-next").onclick = () => {
+      if (demoStep < DEMO_STEPS.length-1) { demoStep++; renderDemoStep(); }
+      else document.getElementById("demo-modal").style.display = "none";
+    };
+    document.getElementById("demo-modal").addEventListener("click", (e) => {
+      if (e.target.id === "demo-modal") document.getElementById("demo-modal").style.display = "none";
+    });
   </script>
 </body>
 </html>
