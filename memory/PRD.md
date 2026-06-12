@@ -52,8 +52,21 @@
 
 ## Integrations
 - **Emergent Universal LLM Key** → Gemini 2.5 Flash for OCR + structured extraction.
+- **Stripe** — 14 pricing/sponsorship tiers wired via `/api/checkout` (currently `sk_test_` keys; awaiting user live keys + Price IDs).
+
+## Landing Page (`/landing`)
+- Hero with AI aerial broiler farm image, charities strip, Ops Manager bundle builder, stats counter, **testimonials (3)**, **FAQ (8 accordions)**, **Book-a-Demo form → POST `/api/demo-request`**, trust badges, Back-the-Build sponsorships, How-It-Works modal walk-through, **mobile sticky CTA bar** (≤768px).
+- Demo requests stored in MongoDB `demo_requests` collection; readable via GET `/api/demo-request`.
+
+## Changelog
+- **2026-06-12 (fork-resume)**: Fixed broken FAQ section (raw JS template-literal was leaking into HTML), wired Book-a-Demo form to `/api/demo-request` with toast feedback, added mobile-only sticky "Start free trial" CTA bar.
 
 ## Future / Backlog
+- P1: Multi-farm `farmId` data layer — scope `readings`, `deliveries`, `photos` by farm + URL-slug isolation (`/reader?farm=double-b`).
+- P1: Ops Dashboard `/ops-dashboard` for multi-farm Ops Managers + SendGrid/Resend email invites to operators.
+- P1: Stripe LIVE mode — swap `sk_test_` for user's `sk_live_…` + real Price IDs.
+- P2: Auth — Emergent Google Auth or JWT to lock down farm data.
+- P2: Sora 2 social-marketing video clips (awaiting credit top-up).
 - P2: Auto-allocation — parse `deliveryInstructions` "5 B 10, 6 B 5, 7 B 13" → create one delivery row per shed-silo automatically.
 - P2: PDF / CSV export of full history.
 - P2: Search / filter in History (by supplier, date range, feed type, docket #).

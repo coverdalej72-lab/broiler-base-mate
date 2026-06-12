@@ -397,8 +397,15 @@
   <section style="background:linear-gradient(180deg,#fbfaf4,#fff);" id="faq">
     <div class="wrap" style="max-width:760px;">
       <h2>Common <span class="accent">questions.</span></h2>
-      <div style="margin-top:40px;display:flex;flex-direction:column;gap:10px;">
-        ${["How long is the free trial?|14 days, full access to every feature in your chosen tier. No credit card needed at signup — we only ask for payment if you decide to stay.","Can I cancel anytime?|Yes. One-click cancel from your account page. Your data stays accessible for 90 days afterwards so you can export it.","Does it work on iPhone AND Android?|Yes. Both work the same way — no app store install needed. Open the link in any browser, tap 'Add to Home Screen', and it lives on your phone like a real app.","Is my data secure?|Yes. All data is encrypted in transit (HTTPS) and at rest in MongoDB Atlas. Payments are processed entirely by Stripe — we never see your card details.","What if I have more than 30 sheds?|Talk to us! The Integrator plan is $60/farm/month with volume pricing for 5+ farms. We've already wired multi-farm support into the codebase.","Do you support Ingham's, Baiada, AND BPL Adelaide dockets?|Yes — all three. The AI auto-detects the supplier from the docket header. If you've got a docket from a smaller mill, send us a photo and we'll add it.","Can my workers use it without an account?|Yes. They scan a QR code that opens the field reader. No login needed on the phone — just open and tap silo readings.","Do I keep my data if I cancel?|Always. Export to CSV/Excel anytime. After cancelling, your data stays exportable for 90 days."].map(f=>{const [q,a]=f.split("|");return `<details style="background:#fff;border:1px solid var(--line);border-radius:12px;padding:0;"><summary style="padding:18px 22px;cursor:pointer;font-weight:800;font-size:15px;list-style:none;display:flex;justify-content:space-between;align-items:center;">${q}<span style="color:var(--green-700);font-size:20px;">+</span></summary><div style="padding:0 22px 18px;color:var(--muted);font-size:14px;line-height:1.7;">${a}</div></details>`;}).join("")}
+      <div id="faq-list" style="margin-top:40px;display:flex;flex-direction:column;gap:10px;">
+        <details style="background:#fff;border:1px solid var(--line);border-radius:12px;"><summary style="padding:18px 22px;cursor:pointer;font-weight:800;font-size:15px;list-style:none;display:flex;justify-content:space-between;align-items:center;">How long is the free trial?<span style="color:var(--green-700);font-size:20px;">+</span></summary><div style="padding:0 22px 18px;color:var(--muted);font-size:14px;line-height:1.7;">14 days, full access to every feature in your chosen tier. No credit card needed at signup — we only ask for payment if you decide to stay.</div></details>
+        <details style="background:#fff;border:1px solid var(--line);border-radius:12px;"><summary style="padding:18px 22px;cursor:pointer;font-weight:800;font-size:15px;list-style:none;display:flex;justify-content:space-between;align-items:center;">Can I cancel anytime?<span style="color:var(--green-700);font-size:20px;">+</span></summary><div style="padding:0 22px 18px;color:var(--muted);font-size:14px;line-height:1.7;">Yes. One-click cancel from your account page. Your data stays accessible for 90 days afterwards so you can export it.</div></details>
+        <details style="background:#fff;border:1px solid var(--line);border-radius:12px;"><summary style="padding:18px 22px;cursor:pointer;font-weight:800;font-size:15px;list-style:none;display:flex;justify-content:space-between;align-items:center;">Does it work on iPhone AND Android?<span style="color:var(--green-700);font-size:20px;">+</span></summary><div style="padding:0 22px 18px;color:var(--muted);font-size:14px;line-height:1.7;">Yes. Both work the same way — no app store install needed. Open the link in any browser, tap 'Add to Home Screen', and it lives on your phone like a real app.</div></details>
+        <details style="background:#fff;border:1px solid var(--line);border-radius:12px;"><summary style="padding:18px 22px;cursor:pointer;font-weight:800;font-size:15px;list-style:none;display:flex;justify-content:space-between;align-items:center;">Is my data secure?<span style="color:var(--green-700);font-size:20px;">+</span></summary><div style="padding:0 22px 18px;color:var(--muted);font-size:14px;line-height:1.7;">Yes. All data is encrypted in transit (HTTPS) and at rest in MongoDB Atlas. Payments are processed entirely by Stripe — we never see your card details.</div></details>
+        <details style="background:#fff;border:1px solid var(--line);border-radius:12px;"><summary style="padding:18px 22px;cursor:pointer;font-weight:800;font-size:15px;list-style:none;display:flex;justify-content:space-between;align-items:center;">What if I have more than 30 sheds?<span style="color:var(--green-700);font-size:20px;">+</span></summary><div style="padding:0 22px 18px;color:var(--muted);font-size:14px;line-height:1.7;">Talk to us! The Integrator plan is $60/farm/month with volume pricing for 5+ farms. We've already wired multi-farm support into the codebase.</div></details>
+        <details style="background:#fff;border:1px solid var(--line);border-radius:12px;"><summary style="padding:18px 22px;cursor:pointer;font-weight:800;font-size:15px;list-style:none;display:flex;justify-content:space-between;align-items:center;">Do you support Ingham's, Baiada, AND BPL Adelaide dockets?<span style="color:var(--green-700);font-size:20px;">+</span></summary><div style="padding:0 22px 18px;color:var(--muted);font-size:14px;line-height:1.7;">Yes — all three. The AI auto-detects the supplier from the docket header. If you've got a docket from a smaller mill, send us a photo and we'll add it.</div></details>
+        <details style="background:#fff;border:1px solid var(--line);border-radius:12px;"><summary style="padding:18px 22px;cursor:pointer;font-weight:800;font-size:15px;list-style:none;display:flex;justify-content:space-between;align-items:center;">Can my workers use it without an account?<span style="color:var(--green-700);font-size:20px;">+</span></summary><div style="padding:0 22px 18px;color:var(--muted);font-size:14px;line-height:1.7;">Yes. They scan a QR code that opens the field reader. No login needed on the phone — just open and tap silo readings.</div></details>
+        <details style="background:#fff;border:1px solid var(--line);border-radius:12px;"><summary style="padding:18px 22px;cursor:pointer;font-weight:800;font-size:15px;list-style:none;display:flex;justify-content:space-between;align-items:center;">Do I keep my data if I cancel?<span style="color:var(--green-700);font-size:20px;">+</span></summary><div style="padding:0 22px 18px;color:var(--muted);font-size:14px;line-height:1.7;">Always. Export to CSV/Excel anytime. After cancelling, your data stays exportable for 90 days.</div></details>
       </div>
     </div>
   </section>
@@ -471,6 +478,20 @@
   </footer>
 
   <div class="toast" id="toast"></div>
+
+  <!-- ── MOBILE STICKY CTA BAR ── -->
+  <div id="sticky-cta" style="position:fixed;bottom:0;left:0;right:0;background:#0f3d24;border-top:2px solid #C9A227;padding:12px 16px;display:none;z-index:90;box-shadow:0 -8px 24px rgba(0,0,0,.25);">
+    <div style="max-width:760px;margin:0 auto;display:flex;align-items:center;justify-content:space-between;gap:12px;">
+      <div style="color:#fff;font-size:13px;font-weight:800;line-height:1.2;">14-day free trial<br><span style="color:#bdd3c4;font-size:11px;font-weight:600;">No card needed</span></div>
+      <a href="#plans" style="text-decoration:none;background:#C9A227;color:#000;padding:12px 20px;border-radius:99px;font-weight:900;font-size:14px;letter-spacing:0.3px;white-space:nowrap;">Start free trial →</a>
+    </div>
+  </div>
+  <style>
+    @media (max-width: 768px) {
+      #sticky-cta { display: block !important; }
+      body { padding-bottom: 84px; }
+    }
+  </style>
 
   <!-- ── HOW IT WORKS DEMO MODAL ── -->
   <div id="demo-modal" style="display:none;position:fixed;inset:0;background:rgba(5,15,10,0.92);z-index:100;align-items:center;justify-content:center;padding:24px;backdrop-filter:blur(8px);">
@@ -605,6 +626,35 @@
     };
     document.getElementById("demo-modal").addEventListener("click", (e) => {
       if (e.target.id === "demo-modal") document.getElementById("demo-modal").style.display = "none";
+    });
+
+    // ── Book-a-Demo form submission ──
+    document.getElementById("demo-form-el").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const form = e.target;
+      const btn = form.querySelector("button[type=submit]");
+      const orig = btn.textContent;
+      btn.disabled = true; btn.textContent = "Sending…";
+      const fd = new FormData(form);
+      try {
+        const res = await fetch("/api/demo-request", {
+          method: "POST", headers: {"Content-Type": "application/json"},
+          body: JSON.stringify({
+            name: fd.get("name"), email: fd.get("email"),
+            farm: fd.get("farm") || null, sheds: fd.get("sheds") || null,
+            message: fd.get("message") || null,
+          })
+        });
+        if (!res.ok) throw new Error(await res.text());
+        form.reset();
+        toast("✓ Demo request received — we'll be in touch within 24h.");
+        btn.textContent = "✓ Sent!";
+        setTimeout(() => { btn.disabled = false; btn.textContent = orig; }, 3000);
+      } catch (err) {
+        console.error(err);
+        toast("Couldn't send: " + err.message, true);
+        btn.disabled = false; btn.textContent = orig;
+      }
     });
   </script>
 </body>
