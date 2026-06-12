@@ -305,6 +305,19 @@
         <label>Farm Name</label>
         <input id="set-farm-name" type="text" />
       </div>
+      <div class="set-row" style="flex-wrap:wrap;">
+        <div style="flex:1;min-width:140px;">
+          <label>Farm Logo</label>
+          <div class="desc">Shown in both the mobile app and the Feed Program header.</div>
+        </div>
+        <div style="display:flex;gap:8px;align-items:center;">
+          <img id="logo-preview" src="/reader-assets/logo.svg" style="width:44px;height:44px;border-radius:8px;background:#000;object-fit:cover;" />
+          <label class="pill green" style="cursor:pointer;border:1px solid var(--green-600);margin:0;">
+            Upload<input id="logo-file" type="file" accept="image/*" style="display:none;" />
+          </label>
+          <button class="pill" id="logo-reset" style="border:1px solid var(--line);color:var(--muted);">Reset</button>
+        </div>
+      </div>
       <div class="section-label">SHEDS & SILO CAPACITY</div>
       <div class="set-row">
         <div>
@@ -415,6 +428,7 @@
       ]);
       groupsCache=await gRes.json(); progressCache=await pRes.json(); farmConfig=await fcRes.json();
       $("#farm-name").textContent = farmConfig.farmName || "Double B Farm";
+      applyLogo(farmConfig.logoData);
       $("#today-date").textContent = progressCache?.date ? fmtDateShort(progressCache.date) : "—";
       const enabled = (farmConfig.enabledGroupIds || []).length ? new Set(farmConfig.enabledGroupIds) : new Set(groupsCache.map(g=>g.id));
       const activeGroups = groupsCache.filter(g=>enabled.has(g.id));
@@ -711,6 +725,42 @@
       await fetch("/api/batch/reset",{method:"DELETE"});
       toast("✓ Batch reset","ok"); loadAll();
     });
+
+    // ── Logo upload / reset
+    function applyLogo(logoData){
+      const url = logoData ? `data:image/png;base64,${logoData}` : "/reader-assets/logo.svg";
+      const headerImg = document.querySelector(".app-icon img");
+      if (headerImg) headerImg.src = url;
+      const preview = $("#logo-preview"); if (preview) preview.src = url;
+    }
+    $("#logo-file").addEventListener("change", async(e)=>{
+      const f = e.target.files?.[0]; if (!f) return;
+      // Resize to 192x192 cover-fit (square) for storage
+      const dataUrl = await resizeImgSquare(f, 192, .9);
+      const b64 = dataUrl.split(",")[1];
+      farmConfig.logoData = b64;
+      applyLogo(b64);
+      await fetch("/api/farm-config",{method:"PATCH",headers:{"Content-Type":"application/json"},body:JSON.stringify({logoData:b64})});
+      toast("✓ Logo updated — also live in the Feed Program","ok");
+      $("#logo-file").value = "";
+    });
+    $("#logo-reset").addEventListener("click", async()=>{
+      if (!confirm("Reset to default logo?")) return;
+      farmConfig.logoData = null;
+      applyLogo(null);
+      await fetch("/api/farm-config",{method:"PATCH",headers:{"Content-Type":"application/json"},body:JSON.stringify({logoData:""})});
+      toast("✓ Logo reset","ok");
+    });
+    function resizeImgSquare(file, size, q){
+      return new Promise((res,rej)=>{ const r=new FileReader(); r.onload=()=>{ const img=new Image(); img.onload=()=>{
+        const c=document.createElement("canvas"); c.width=size; c.height=size; const ctx=c.getContext("2d");
+        // cover-fit: scale so the shorter side fills, center-crop the longer
+        const s=Math.max(size/img.width, size/img.height);
+        const w=img.width*s, h=img.height*s;
+        ctx.drawImage(img,(size-w)/2,(size-h)/2,w,h);
+        res(c.toDataURL("image/jpeg",q));
+      }; img.onerror=rej; img.src=r.result; }; r.onerror=rej; r.readAsDataURL(file); });
+    }
 
     // ─── Helpers ───────────────────────────────────────────────────────
     function resizeImg(file,maxPx,q){return new Promise((res,rej)=>{const r=new FileReader();r.onload=()=>{const img=new Image();img.onload=()=>{const s=Math.min(1,maxPx/Math.max(img.width,img.height));const w=Math.round(img.width*s),h=Math.round(img.height*s);const c=document.createElement("canvas");c.width=w;c.height=h;c.getContext("2d").drawImage(img,0,0,w,h);res(c.toDataURL("image/jpeg",q));};img.onerror=rej;img.src=r.result;};r.onerror=rej;r.readAsDataURL(file);});}

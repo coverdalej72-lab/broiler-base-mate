@@ -642,6 +642,7 @@ class FarmConfigBody(BaseModel):
     farmName: Optional[str] = None
     totalSheds: Optional[int] = None
     enabledGroupIds: Optional[List[str]] = None
+    logoData: Optional[str] = None  # base64 PNG/JPEG, or empty string to reset
 
 
 @api.get("/farm-config")
@@ -664,11 +665,15 @@ async def patch_farm_config(body: FarmConfigBody):
     patch = {k: v for k, v in body.model_dump(exclude_none=True).items()}
     if not patch:
         raise HTTPException(400, "Nothing to update")
-    await farm_config_col.update_one(
-        {"id": "default"},
-        {"$set": patch, "$setOnInsert": {"id": "default"}},
-        upsert=True,
-    )
+    # Treat empty logoData as "reset to default" (remove the field)
+    unset: dict = {}
+    if "logoData" in patch and patch["logoData"] == "":
+        unset["logoData"] = ""
+        del patch["logoData"]
+    op: dict = {"$setOnInsert": {"id": "default"}}
+    if patch: op["$set"] = patch
+    if unset: op["$unset"] = unset
+    await farm_config_col.update_one({"id": "default"}, op, upsert=True)
     doc = await farm_config_col.find_one({"id": "default"})
     return clean(doc)
 
