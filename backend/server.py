@@ -898,6 +898,32 @@ async def landing_success():
     return FileResponse(os.path.join(STATIC_DIR, "success.html"))
 
 
+class DemoRequest(BaseModel):
+    name: str
+    email: str
+    farm: Optional[str] = None
+    sheds: Optional[str] = None
+    message: Optional[str] = None
+
+
+@app.post("/api/demo-request")
+async def demo_request(body: DemoRequest):
+    doc = {
+        "id": str(uuid.uuid4()),
+        "name": body.name, "email": body.email, "farm": body.farm,
+        "sheds": body.sheds, "message": body.message,
+        "createdAt": datetime.now(timezone.utc),
+    }
+    await db["demo_requests"].insert_one(doc)
+    return {"ok": True}
+
+
+@app.get("/api/demo-request")
+async def list_demo_requests():
+    rows = await db["demo_requests"].find().sort("createdAt", -1).limit(100).to_list(length=100)
+    return [clean(r) for r in rows]
+
+
 # ─── Static field reader ─────────────────────────────────────────────────
 STATIC_DIR = os.path.join(os.path.dirname(__file__), "static")
 if os.path.isdir(STATIC_DIR):
