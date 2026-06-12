@@ -403,6 +403,33 @@
   <div class="toast" id="toast">Saved</div>
 
   <script>
+    // ─── Multi-farm support ────────────────────────────────────────────
+    // Read ?farm=slug from URL and route ALL /api/ calls through that farm.
+    const FARM_SLUG = (() => {
+      try { return new URLSearchParams(window.location.search).get("farm") || "default"; }
+      catch { return "default"; }
+    })();
+    document.title = (FARM_SLUG !== "default" ? `[${FARM_SLUG}] ` : "") + "Broiler Base Mate";
+    // Patch fetch so every /api/* call automatically carries ?farm=<slug>
+    (function patchFetch() {
+      const orig = window.fetch.bind(window);
+      window.fetch = function(input, init) {
+        try {
+          let urlStr = typeof input === "string" ? input : input.url;
+          if (urlStr && urlStr.startsWith("/api/")) {
+            const u = new URL(urlStr, window.location.origin);
+            if (!u.searchParams.has("farm")) {
+              u.searchParams.set("farm", FARM_SLUG);
+              urlStr = u.pathname + (u.search ? u.search : "");
+              if (typeof input === "string") input = urlStr;
+              else input = new Request(urlStr, input);
+            }
+          }
+        } catch (e) { /* fall through to original */ }
+        return orig(input, init);
+      };
+    })();
+
     const FEED_TYPES = ["Starter","Grower","Finisher","Withdrawal"];
     let groupsCache=[], progressCache=null, deliveriesCache=[], readingsHistory=[], photosCache=[], farmConfig={};
     let activeTab="today";

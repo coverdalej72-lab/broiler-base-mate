@@ -60,14 +60,22 @@
 
 ## Changelog
 - **2026-06-12 (fork-resume)**: Fixed broken FAQ section (raw JS template-literal was leaking into HTML), wired Book-a-Demo form to `/api/demo-request` with toast feedback, added mobile-only sticky "Start free trial" CTA bar.
+- **2026-06-12 (multi-farm + ops + email)**:
+  - Added `farmId` scoping to readings/deliveries/photos/shed_groups/silos/farm_config — backward-compatible (untagged data treated as `farmId="default"`).
+  - New `farms` collection + `/api/farms` CRUD endpoints + `/api/farms/{slug}/invite`.
+  - New `/ops-dashboard` page (multi-farm overview, create farm, send invite).
+  - Reader (`/reader?farm=<slug>`) monkey-patches `fetch()` to auto-append `?farm=` to all `/api/*` calls.
+  - Resend email integration (`/app/backend/email_service.py`) with graceful-degrade when `RESEND_API_KEY` is missing.
+  - Demo-request form now emails admin (`appcovi2026@gmail.com`) when key is set; logs+skips when not.
+  - Vite proxy updated to forward `/ops-dashboard` to FastAPI.
 
 ## Future / Backlog
-- P1: Multi-farm `farmId` data layer — scope `readings`, `deliveries`, `photos` by farm + URL-slug isolation (`/reader?farm=double-b`).
-- P1: Ops Dashboard `/ops-dashboard` for multi-farm Ops Managers + SendGrid/Resend email invites to operators.
-- P1: Stripe LIVE mode — swap `sk_test_` for user's `sk_live_…` + real Price IDs.
+- 🟡 P1: Stripe LIVE mode — swap `sk_test_` for user's `sk_live_…` + real Price IDs (next session when user is home).
+- 🟡 P1: Paste real Resend API key + verify live email delivery to `appcovi2026@gmail.com`.
 - P2: Auth — Emergent Google Auth or JWT to lock down farm data.
 - P2: Sora 2 social-marketing video clips (awaiting credit top-up).
 - P2: Auto-allocation — parse `deliveryInstructions` "5 B 10, 6 B 5, 7 B 13" → create one delivery row per shed-silo automatically.
+- P2: Feed Program UI farm-picker (currently always uses `default`; can be added once Ops have farms).
 - P2: PDF / CSV export of full history.
 - P2: Search / filter in History (by supplier, date range, feed type, docket #).
 - P3: Google Drive / OneDrive cloud sync (needs user OAuth tokens).

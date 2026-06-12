@@ -34,6 +34,30 @@ deliveries_col = db["deliveries"]
 photos_col = db["photos"]
 farm_config_col = db["farm_config"]
 payments_col = db["payment_transactions"]
+farms_col = db["farms"]
+
+DEFAULT_FARM_ID = "default"
+
+
+def _farm_filter(farm_id: str) -> dict:
+    """Returns a Mongo filter that matches docs with farmId == farm_id.
+
+    For backward compatibility, when farm_id is 'default' it also matches docs
+    written before the multi-farm migration (no farmId field at all).
+    """
+    if farm_id == DEFAULT_FARM_ID:
+        return {"$or": [{"farmId": DEFAULT_FARM_ID}, {"farmId": {"$exists": False}}]}
+    return {"farmId": farm_id}
+
+
+def _and(*filters: dict) -> dict:
+    """Combine filters with logical AND, skipping empties."""
+    parts = [f for f in filters if f]
+    if not parts:
+        return {}
+    if len(parts) == 1:
+        return parts[0]
+    return {"$and": parts}
 
 # ─── App ───────────────────────────────────────────────────────────────────
 app = FastAPI(title="Broiler Base Mate API")
@@ -132,8 +156,9 @@ class CreateDeliveryBody(BaseModel):
 
 
 # ─── Seed default farm (10 shed groups × 3 silos) ──────────────────────────
-async def seed_if_empty() -> None:
-    if await shed_groups_col.count_documents({}) > 0:
+async def _seed_farm(farm_id: str, name: Optional[str] = None) -> None:
+    """Seed 10 shed-groups × 3 silos for a given farm_id (idempotent)."""
+    if await shed_groups_col.count_documents(_farm_filter(farm_id)) > 0:
         return
     groups = []
     silos = []
@@ -141,12 +166,14 @@ async def seed_if_empty() -> None:
         gid = str(uuid.uuid4())
         groups.append({
             "id": gid,
+            "farmId": farm_id,
             "name": f"Sheds {2 * i - 1} & {2 * i}",
             "displayOrder": i,
         })
         for letter in ("A", "B", "C"):
             silos.append({
                 "id": str(uuid.uuid4()),
+                "farmId": farm_id,
                 "shedGroupId": gid,
                 "letter": letter,
                 "name": f"Silo {letter}",
@@ -156,6 +183,21 @@ async def seed_if_empty() -> None:
         await shed_groups_col.insert_many(groups)
     if silos:
         await silos_col.insert_many(silos)
+
+
+async def seed_if_empty() -> None:
+    # Seed the default farm if nothing exists yet
+    await _seed_farm(DEFAULT_FARM_ID)
+    # Ensure a "default" farm record exists in the farms collection
+    if not await farms_col.find_one({"slug": DEFAULT_FARM_ID}):
+        await farms_col.insert_one({
+            "id": str(uuid.uuid4()),
+            "slug": DEFAULT_FARM_ID,
+            "name": "My Farm",
+            "ownerEmail": os.environ.get("ADMIN_EMAIL"),
+            "createdAt": datetime.now(timezone.utc),
+            "isDefault": True,
+        })
 
 
 @app.on_event("startup")
@@ -194,11 +236,11 @@ async def batch_version():
 
 
 @api.delete("/batch/reset")
-async def batch_reset():
-    """New Batch: wipe all readings, deliveries, and photos so app starts empty."""
-    r = await readings_col.delete_many({})
-    d = await deliveries_col.delete_many({})
-    p = await photos_col.delete_many({})
+async def batch_reset(farm: str = Query(default=DEFAULT_FARM_ID)):
+    """New Batch: wipe this farm's readings, deliveries, and photos so app starts empty."""
+    r = await readings_col.delete_many(_farm_filter(farm))
+    d = await deliveries_col.delete_many(_farm_filter(farm))
+    p = await photos_col.delete_many(_farm_filter(farm))
     return {"ok": True, "readingsDeleted": r.deleted_count, "deliveriesDeleted": d.deleted_count, "photosDeleted": p.deleted_count}
 
 
@@ -216,9 +258,9 @@ async def onedrive_status():
 
 # ── Shed groups ──────────────────────────────────────────────────────────
 @api.get("/shed-groups", response_model=List[ShedGroup])
-async def list_shed_groups():
-    groups = await shed_groups_col.find().sort("displayOrder", 1).to_list(length=200)
-    silos = await silos_col.find().sort("letter", 1).to_list(length=1000)
+async def list_shed_groups(farm: str = Query(default=DEFAULT_FARM_ID)):
+    groups = await shed_groups_col.find(_farm_filter(farm)).sort("displayOrder", 1).to_list(length=200)
+    silos = await silos_col.find(_farm_filter(farm)).sort("letter", 1).to_list(length=1000)
     out: List[ShedGroup] = []
     for g in groups:
         out.append(ShedGroup(
@@ -279,7 +321,7 @@ async def delete_silo(silo_id: str):
 
 # ── Readings ─────────────────────────────────────────────────────────────
 @api.get("/readings/today")
-async def readings_today(localDate: Optional[str] = Query(default=None)):
+async def readings_today(localDate: Optional[str] = Query(default=None), farm: str = Query(default=DEFAULT_FARM_ID)):
     """Today's readings, grouped by shed for the Feed Program auto-sync."""
     if localDate and len(localDate) == 10:
         d = datetime.fromisoformat(localDate)
@@ -290,11 +332,12 @@ async def readings_today(localDate: Optional[str] = Query(default=None)):
         start, end = aest_today_range()
         date_str = aest_today()
 
-    groups = await shed_groups_col.find().sort("displayOrder", 1).to_list(length=200)
-    silos = await silos_col.find().sort("letter", 1).to_list(length=1000)
-    todays = await readings_col.find({
-        "readingDate": {"$gte": start, "$lte": end}
-    }).to_list(length=5000)
+    groups = await shed_groups_col.find(_farm_filter(farm)).sort("displayOrder", 1).to_list(length=200)
+    silos = await silos_col.find(_farm_filter(farm)).sort("letter", 1).to_list(length=1000)
+    todays = await readings_col.find(_and(
+        _farm_filter(farm),
+        {"readingDate": {"$gte": start, "$lte": end}},
+    )).to_list(length=5000)
 
     sheds = []
     for g in groups:
@@ -328,7 +371,7 @@ async def readings_today(localDate: Optional[str] = Query(default=None)):
 
 
 @api.post("/readings/batch", status_code=201)
-async def batch_create_readings(body: BatchCreateReadingsBody):
+async def batch_create_readings(body: BatchCreateReadingsBody, farm: str = Query(default=DEFAULT_FARM_ID)):
     if not body.readings:
         raise HTTPException(400, "No readings provided")
     date = datetime.fromisoformat(body.readingDate.replace("Z", "+00:00")) if body.readingDate else datetime.now(timezone.utc)
@@ -341,12 +384,13 @@ async def batch_create_readings(body: BatchCreateReadingsBody):
     inserted = []
     for r in body.readings:
         if today_start <= date <= today_end:
-            await readings_col.delete_many({
-                "siloId": r.siloId,
-                "readingDate": {"$gte": today_start, "$lte": today_end},
-            })
+            await readings_col.delete_many(_and(
+                _farm_filter(farm),
+                {"siloId": r.siloId, "readingDate": {"$gte": today_start, "$lte": today_end}},
+            ))
         doc = {
             "id": str(uuid.uuid4()),
+            "farmId": farm,
             "siloId": r.siloId,
             "feedType": r.feedType,
             "amountRemaining": float(r.amountRemaining),
@@ -375,10 +419,10 @@ async def batch_create_readings(body: BatchCreateReadingsBody):
 
 
 @api.get("/readings")
-async def list_readings(limit: int = Query(default=100, le=1000), siloId: Optional[str] = None):
-    q = {}
+async def list_readings(limit: int = Query(default=100, le=1000), siloId: Optional[str] = None, farm: str = Query(default=DEFAULT_FARM_ID)):
+    q: dict = dict(_farm_filter(farm))
     if siloId:
-        q["siloId"] = siloId
+        q = _and(q, {"siloId": siloId})
     rows = await readings_col.find(q).sort("readingDate", -1).limit(limit).to_list(length=limit)
     silos = await silos_col.find().to_list(length=1000)
     groups = await shed_groups_col.find().to_list(length=200)
@@ -412,8 +456,8 @@ async def delete_reading(reading_id: str):
 
 # ── Deliveries ───────────────────────────────────────────────────────────
 @api.get("/deliveries")
-async def list_deliveries(limit: int = Query(default=100, le=1000)):
-    rows = await deliveries_col.find().sort("deliveryDate", -1).limit(limit).to_list(length=limit)
+async def list_deliveries(limit: int = Query(default=100, le=1000), farm: str = Query(default=DEFAULT_FARM_ID)):
+    rows = await deliveries_col.find(_farm_filter(farm)).sort("deliveryDate", -1).limit(limit).to_list(length=limit)
     silos = await silos_col.find().to_list(length=1000)
     groups = await shed_groups_col.find().to_list(length=200)
     out = []
@@ -449,7 +493,7 @@ async def list_deliveries(limit: int = Query(default=100, le=1000)):
 
 
 @api.post("/deliveries", status_code=201)
-async def create_delivery(body: CreateDeliveryBody):
+async def create_delivery(body: CreateDeliveryBody, farm: str = Query(default=DEFAULT_FARM_ID)):
     date = datetime.fromisoformat(body.deliveryDate.replace("Z", "+00:00")) if body.deliveryDate else datetime.now(timezone.utc)
     if date.tzinfo is None:
         date = date.replace(tzinfo=timezone.utc)
@@ -458,6 +502,7 @@ async def create_delivery(body: CreateDeliveryBody):
     normalised_feed = _normalise_feed_type(body.feedType)
     doc = {
         "id": str(uuid.uuid4()),
+        "farmId": farm,
         "shedGroupId": body.shedGroupId,
         "siloId": body.siloId,
         "feedType": normalised_feed,
@@ -647,13 +692,19 @@ class FarmConfigBody(BaseModel):
 
 
 @api.get("/farm-config")
-async def get_farm_config():
-    doc = await farm_config_col.find_one({"id": "default"})
+async def get_farm_config(farm: str = Query(default=DEFAULT_FARM_ID)):
+    doc = await farm_config_col.find_one({"id": farm})
     if not doc:
-        all_groups = await shed_groups_col.find().to_list(length=200)
+        # Back-compat: migrate the legacy single-tenant "default" config if it has the old id="default" and no farmId
+        if farm == DEFAULT_FARM_ID:
+            legacy = await farm_config_col.find_one({"id": "default"})
+            if legacy:
+                return clean(legacy)
+        all_groups = await shed_groups_col.find(_farm_filter(farm)).to_list(length=200)
         doc = {
-            "id": "default",
-            "farmName": "Double B Farm",
+            "id": farm,
+            "farmId": farm,
+            "farmName": "My Farm" if farm != DEFAULT_FARM_ID else "Double B Farm",
             "totalSheds": 20,
             "enabledGroupIds": [g["id"] for g in all_groups],
         }
@@ -662,7 +713,7 @@ async def get_farm_config():
 
 
 @api.patch("/farm-config")
-async def patch_farm_config(body: FarmConfigBody):
+async def patch_farm_config(body: FarmConfigBody, farm: str = Query(default=DEFAULT_FARM_ID)):
     patch = {k: v for k, v in body.model_dump(exclude_none=True).items()}
     if not patch:
         raise HTTPException(400, "Nothing to update")
@@ -671,11 +722,11 @@ async def patch_farm_config(body: FarmConfigBody):
     if "logoData" in patch and patch["logoData"] == "":
         unset["logoData"] = ""
         del patch["logoData"]
-    op: dict = {"$setOnInsert": {"id": "default"}}
+    op: dict = {"$setOnInsert": {"id": farm, "farmId": farm}}
     if patch: op["$set"] = patch
     if unset: op["$unset"] = unset
-    await farm_config_col.update_one({"id": "default"}, op, upsert=True)
-    doc = await farm_config_col.find_one({"id": "default"})
+    await farm_config_col.update_one({"id": farm}, op, upsert=True)
+    doc = await farm_config_col.find_one({"id": farm})
     return clean(doc)
 
 
@@ -688,24 +739,25 @@ class CreatePhotoBody(BaseModel):
 
 
 @api.get("/photos")
-async def list_photos(category: Optional[str] = None, shedNumber: Optional[int] = None):
-    q: dict = {}
+async def list_photos(category: Optional[str] = None, shedNumber: Optional[int] = None, farm: str = Query(default=DEFAULT_FARM_ID)):
+    q: dict = dict(_farm_filter(farm))
     if category:
-        q["category"] = category
+        q = _and(q, {"category": category})
     if shedNumber is not None:
-        q["shedNumber"] = shedNumber
+        q = _and(q, {"shedNumber": shedNumber})
     rows = await photos_col.find(q).sort("createdAt", -1).limit(200).to_list(length=200)
     return [clean(r) for r in rows]
 
 
 @api.post("/photos", status_code=201)
-async def create_photo(body: CreatePhotoBody):
+async def create_photo(body: CreatePhotoBody, farm: str = Query(default=DEFAULT_FARM_ID)):
     if body.category not in ("mort_sheet", "bird_weight"):
         raise HTTPException(400, "Invalid category")
     if body.category == "bird_weight" and body.shedNumber is None:
         raise HTTPException(400, "shedNumber required for bird_weight")
     doc = {
         "id": str(uuid.uuid4()),
+        "farmId": farm,
         "category": body.category,
         "shedNumber": body.shedNumber,
         "imageData": body.imageData,
@@ -908,6 +960,7 @@ class DemoRequest(BaseModel):
 
 @app.post("/api/demo-request")
 async def demo_request(body: DemoRequest):
+    from email_service import send_email, render_demo_request_email
     doc = {
         "id": str(uuid.uuid4()),
         "name": body.name, "email": body.email, "farm": body.farm,
@@ -915,6 +968,20 @@ async def demo_request(body: DemoRequest):
         "createdAt": datetime.now(timezone.utc),
     }
     await db["demo_requests"].insert_one(doc)
+    # Fire-and-forget admin notification (graceful-degrade if no Resend key)
+    admin = os.environ.get("ADMIN_EMAIL")
+    if admin:
+        try:
+            await send_email(
+                to=admin,
+                subject=f"📅 New demo request — {body.name} ({body.farm or 'no farm'})",
+                html=render_demo_request_email(
+                    name=body.name, email=body.email, farm=body.farm,
+                    sheds=body.sheds, message=body.message,
+                ),
+            )
+        except Exception:
+            pass  # never block the form on email failures
     return {"ok": True}
 
 
@@ -922,6 +989,126 @@ async def demo_request(body: DemoRequest):
 async def list_demo_requests():
     rows = await db["demo_requests"].find().sort("createdAt", -1).limit(100).to_list(length=100)
     return [clean(r) for r in rows]
+
+
+# ─── Farms (multi-farm Ops layer) ────────────────────────────────────────
+import re as _re_farms
+
+
+def _slugify(name: str) -> str:
+    s = _re_farms.sub(r"[^a-z0-9]+", "-", (name or "").strip().lower()).strip("-")
+    return s or "farm"
+
+
+class CreateFarmBody(BaseModel):
+    name: str
+    slug: Optional[str] = None
+    ownerEmail: Optional[str] = None
+
+
+class InviteOperatorBody(BaseModel):
+    operatorEmail: str
+    operatorName: Optional[str] = None
+    opsManagerName: Optional[str] = None
+
+
+@app.get("/api/farms")
+async def list_farms():
+    rows = await farms_col.find().sort("createdAt", 1).to_list(length=500)
+    out = []
+    for r in rows:
+        slug = r.get("slug")
+        # count rows per farm for stats
+        f_filter = _farm_filter(slug) if slug else {}
+        readings_count = await readings_col.count_documents(f_filter)
+        deliveries_count = await deliveries_col.count_documents(f_filter)
+        out.append({
+            "id": r["id"],
+            "slug": slug,
+            "name": r.get("name"),
+            "ownerEmail": r.get("ownerEmail"),
+            "isDefault": bool(r.get("isDefault")),
+            "createdAt": r["createdAt"].isoformat() if r.get("createdAt") else None,
+            "stats": {"readings": readings_count, "deliveries": deliveries_count},
+        })
+    return out
+
+
+@app.post("/api/farms", status_code=201)
+async def create_farm(body: CreateFarmBody):
+    slug = _slugify(body.slug or body.name)
+    if not slug or slug in {"api", "reader", "landing", "ops-dashboard"}:
+        raise HTTPException(400, "Invalid slug")
+    if await farms_col.find_one({"slug": slug}):
+        raise HTTPException(409, f"Farm '{slug}' already exists")
+    doc = {
+        "id": str(uuid.uuid4()),
+        "slug": slug,
+        "name": body.name,
+        "ownerEmail": body.ownerEmail,
+        "createdAt": datetime.now(timezone.utc),
+        "isDefault": False,
+    }
+    await farms_col.insert_one(doc)
+    await _seed_farm(slug, body.name)
+    return clean(doc)
+
+
+@app.delete("/api/farms/{slug}", status_code=204)
+async def delete_farm(slug: str):
+    if slug == DEFAULT_FARM_ID:
+        raise HTTPException(400, "Cannot delete the default farm")
+    f = await farms_col.find_one({"slug": slug})
+    if not f:
+        raise HTTPException(404, "Farm not found")
+    # Cascade: delete this farm's data (only docs explicitly tagged with this slug — never touches default's untagged legacy data)
+    await readings_col.delete_many({"farmId": slug})
+    await deliveries_col.delete_many({"farmId": slug})
+    await photos_col.delete_many({"farmId": slug})
+    await shed_groups_col.delete_many({"farmId": slug})
+    await silos_col.delete_many({"farmId": slug})
+    await farm_config_col.delete_many({"farmId": slug})
+    await farms_col.delete_one({"slug": slug})
+    return JSONResponse(content=None, status_code=204)
+
+
+@app.post("/api/farms/{slug}/invite")
+async def invite_operator(slug: str, body: InviteOperatorBody):
+    from email_service import send_email, render_farm_invite_email
+    farm = await farms_col.find_one({"slug": slug})
+    if not farm:
+        raise HTTPException(404, "Farm not found")
+    public_url = os.environ.get("APP_PUBLIC_URL", "").rstrip("/")
+    reader_url = f"{public_url}/reader?farm={slug}" if public_url else f"/reader?farm={slug}"
+
+    invite_doc = {
+        "id": str(uuid.uuid4()),
+        "farmSlug": slug,
+        "farmName": farm.get("name"),
+        "operatorEmail": body.operatorEmail,
+        "operatorName": body.operatorName,
+        "opsManagerName": body.opsManagerName,
+        "readerUrl": reader_url,
+        "createdAt": datetime.now(timezone.utc),
+    }
+    await db["farm_invites"].insert_one(invite_doc)
+
+    result = await send_email(
+        to=body.operatorEmail,
+        subject=f"📲 You've been added to {farm.get('name')} on Broiler Base Mate",
+        html=render_farm_invite_email(
+            operator_name=body.operatorName or "",
+            farm_name=farm.get("name") or slug,
+            reader_url=reader_url,
+            ops_manager=body.opsManagerName or "Your Ops Manager",
+        ),
+    )
+    return {"ok": True, "readerUrl": reader_url, "email": result}
+
+
+@app.get("/ops-dashboard")
+async def ops_dashboard():
+    return FileResponse(os.path.join(STATIC_DIR, "ops-dashboard.html"))
 
 
 # ─── Static field reader ─────────────────────────────────────────────────
