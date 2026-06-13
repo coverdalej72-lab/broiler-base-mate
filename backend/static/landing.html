@@ -493,6 +493,23 @@
     }
   </style>
 
+  <!-- ── BUYER DETAILS MODAL ── -->
+  <div id="buyer-modal" style="display:none;position:fixed;inset:0;background:rgba(5,15,10,0.92);z-index:101;align-items:center;justify-content:center;padding:24px;backdrop-filter:blur(8px);">
+    <div style="background:#fff;border-radius:24px;max-width:440px;width:100%;padding:32px;position:relative;">
+      <h2 id="buyer-title" style="font-size:22px;font-weight:900;color:var(--green-800);margin-bottom:6px;letter-spacing:-0.5px;">Almost there</h2>
+      <p id="buyer-subtitle" style="font-size:14px;color:var(--muted);line-height:1.5;margin-bottom:22px;"></p>
+      <form id="buyer-form" style="display:flex;flex-direction:column;gap:12px;">
+        <input required name="name" placeholder="Your name" data-testid="buyer-name" style="padding:14px 18px;border:1px solid var(--line);border-radius:12px;font-size:15px;font-weight:600;background:var(--paper);" />
+        <input required type="email" name="email" placeholder="Email address" data-testid="buyer-email" style="padding:14px 18px;border:1px solid var(--line);border-radius:12px;font-size:15px;font-weight:600;background:var(--paper);" />
+        <div style="display:flex;gap:10px;margin-top:6px;">
+          <button type="button" id="buyer-cancel" style="flex:1;background:transparent;border:1px solid var(--line);color:var(--muted);padding:13px;border-radius:99px;font-weight:800;cursor:pointer;font-size:14px;">Cancel</button>
+          <button type="submit" data-testid="buyer-submit" class="btn btn-gold" style="flex:2;padding:13px;font-size:14px;">Continue to Stripe →</button>
+        </div>
+      </form>
+      <p style="font-size:11px;color:var(--muted);margin-top:14px;text-align:center;line-height:1.5;">🔒 We use this to set up your account &amp; email your dashboard link the moment payment clears. Stripe handles all card details — we never see them.</p>
+    </div>
+  </div>
+
   <!-- ── HOW IT WORKS DEMO MODAL ── -->
   <div id="demo-modal" style="display:none;position:fixed;inset:0;background:rgba(5,15,10,0.92);z-index:100;align-items:center;justify-content:center;padding:24px;backdrop-filter:blur(8px);">
     <div style="background:#0f3d24;border:1px solid #C9A227;border-radius:24px;max-width:780px;width:100%;padding:32px;color:#fff;position:relative;max-height:90vh;overflow-y:auto;">
@@ -512,23 +529,58 @@
       t.textContent = m; t.className = "toast show" + (err ? " err" : "");
       clearTimeout(toast._); toast._ = setTimeout(()=>t.className="toast", 3500);
     };
-    document.querySelectorAll("[data-pkg]").forEach(btn => btn.addEventListener("click", async () => {
+
+    // ── Buyer details modal (captures name + email before checkout) ──
+    function openBuyerModal(opts) {
+      // opts = { title, subtitle, onSubmit(name, email) }
+      const overlay = document.getElementById("buyer-modal");
+      document.getElementById("buyer-title").textContent = opts.title || "Almost there";
+      document.getElementById("buyer-subtitle").textContent = opts.subtitle || "We need a couple of details so we can set up your account the moment payment clears.";
+      const form = document.getElementById("buyer-form");
+      // Pre-fill from localStorage if user came back
+      try {
+        form.name.value = localStorage.getItem("bbm-buyer-name") || "";
+        form.email.value = localStorage.getItem("bbm-buyer-email") || "";
+      } catch (e) {}
+      overlay.style.display = "flex";
+      form.onsubmit = (e) => {
+        e.preventDefault();
+        const name = (form.name.value || "").trim();
+        const email = (form.email.value || "").trim();
+        if (!name || !email) return;
+        try { localStorage.setItem("bbm-buyer-name", name); localStorage.setItem("bbm-buyer-email", email); } catch (e) {}
+        overlay.style.display = "none";
+        opts.onSubmit(name, email);
+      };
+    }
+    document.getElementById("buyer-cancel").onclick = () => { document.getElementById("buyer-modal").style.display = "none"; };
+    document.getElementById("buyer-modal").addEventListener("click", (e) => {
+      if (e.target.id === "buyer-modal") document.getElementById("buyer-modal").style.display = "none";
+    });
+
+    document.querySelectorAll("[data-pkg]").forEach(btn => btn.addEventListener("click", () => {
       const pkg = btn.dataset.pkg;
       const orig = btn.textContent;
-      btn.disabled = true; btn.textContent = "Loading…";
-      try {
-        const res = await fetch("/api/checkout", {
-          method: "POST", headers: {"Content-Type": "application/json"},
-          body: JSON.stringify({ packageId: pkg, originUrl: window.location.origin })
-        });
-        if (!res.ok) throw new Error(await res.text());
-        const data = await res.json();
-        if (data.url) window.location.href = data.url;
-        else throw new Error("No checkout URL returned");
-      } catch (e) {
-        console.error(e); toast("Payment couldn't start: " + e.message, true);
-        btn.disabled = false; btn.textContent = orig;
-      }
+      openBuyerModal({
+        title: "Almost there",
+        subtitle: "Enter your name & email — we'll auto-set-up your account the moment Stripe confirms.",
+        onSubmit: async (buyerName, email) => {
+          btn.disabled = true; btn.textContent = "Loading…";
+          try {
+            const res = await fetch("/api/checkout", {
+              method: "POST", headers: {"Content-Type": "application/json"},
+              body: JSON.stringify({ packageId: pkg, originUrl: window.location.origin, email, buyerName })
+            });
+            if (!res.ok) throw new Error(await res.text());
+            const data = await res.json();
+            if (data.url) window.location.href = data.url;
+            else throw new Error("No checkout URL returned");
+          } catch (e) {
+            console.error(e); toast("Payment couldn't start: " + e.message, true);
+            btn.disabled = false; btn.textContent = orig;
+          }
+        }
+      });
     }));
 
     // ── Operation Manager Pack bundle builder ──
@@ -570,24 +622,29 @@
       });
       computeTotal();
     });
-    document.getElementById("ops-checkout").onclick = async () => {
-      // Use the highest tier in the bundle as the Stripe package; in production
-      // you'd create one subscription per farm via the Stripe API.
+    document.getElementById("ops-checkout").onclick = () => {
       const tierOrder = ["bronze", "silver", "gold"];
       const highest = opsFarms.reduce((best, f) =>
         tierOrder.indexOf(f.tier) > tierOrder.indexOf(best) ? f.tier : best, "bronze");
       const pkg = `ops_${highest}`;
       const btn = document.getElementById("ops-checkout");
-      btn.disabled = true; btn.textContent = "Loading…";
-      try {
-        const res = await fetch("/api/checkout", {
-          method: "POST", headers: {"Content-Type":"application/json"},
-          body: JSON.stringify({ packageId: pkg, originUrl: window.location.origin })
-        });
-        const data = await res.json();
-        if (data.url) window.location.href = data.url;
-        else throw new Error("No URL");
-      } catch (e) { toast("Bundle checkout failed: " + e.message, true); btn.disabled = false; btn.textContent = "Subscribe Bundle →"; }
+      const farmsSnapshot = opsFarms.map(f => ({ name: f.name, tier: f.tier }));
+      openBuyerModal({
+        title: `Ops Pack — ${farmsSnapshot.length} farm${farmsSnapshot.length !== 1 ? 's' : ''}`,
+        subtitle: "Enter your name & email — we'll auto-create the farms in your Ops dashboard the moment Stripe confirms.",
+        onSubmit: async (buyerName, email) => {
+          btn.disabled = true; btn.textContent = "Loading…";
+          try {
+            const res = await fetch("/api/checkout", {
+              method: "POST", headers: {"Content-Type":"application/json"},
+              body: JSON.stringify({ packageId: pkg, originUrl: window.location.origin, email, buyerName, farms: farmsSnapshot })
+            });
+            const data = await res.json();
+            if (data.url) window.location.href = data.url;
+            else throw new Error("No URL");
+          } catch (e) { toast("Bundle checkout failed: " + e.message, true); btn.disabled = false; btn.textContent = "Subscribe Bundle →"; }
+        }
+      });
     };
     renderOps();
 

@@ -68,6 +68,13 @@
   - Resend email integration (`/app/backend/email_service.py`) with graceful-degrade when `RESEND_API_KEY` is missing.
   - Demo-request form now emails admin (`appcovi2026@gmail.com`) when key is set; logs+skips when not.
   - Vite proxy updated to forward `/ops-dashboard` to FastAPI.
+- **2026-06-13 (Stripe auto-onboarding + Feed Program farm switcher)**:
+  - Landing page now opens a "Almost there" modal collecting buyer name + email before any plan/ops checkout.
+  - Ops bundle checkout sends the full configured farms list + per-tier pricing (Σ tier_prices, not hardcoded).
+  - On Stripe `paid` event (status poll or webhook), `_provision_purchase` auto-creates farms, seeds each with 10 shed-groups × 3 silos, and emails the buyer their reader URLs + ops-dashboard link. Idempotent — second call returns None.
+  - Admin (`appcovi2026@gmail.com`) gets a sale-notification email on every paid checkout (when Resend key set).
+  - Success page (`/landing/success`) renders the buyer's auto-provisioned farm cards with reader links and adapts primary CTA: single farm → reader, multi-farm → ops-dashboard.
+  - Feed Program (React desktop) now mounts a floating farm-switcher header widget with a dropdown of all farms + "Ops →" shortcut; auto-hides when only the default farm exists. Same fetch monkey-patch trick auto-scopes every `/api/*` call by the selected farm (stored in localStorage).
 
 ## Future / Backlog
 - 🟡 P1: Stripe LIVE mode — swap `sk_test_` for user's `sk_live_…` + real Price IDs (next session when user is home).

@@ -852,10 +852,17 @@ PACKAGES = {
 }
 
 
+class CheckoutFarmConfig(BaseModel):
+    name: str
+    tier: Optional[str] = None  # "bronze" | "silver" | "gold"
+
+
 class CheckoutRequest(BaseModel):
     packageId: str
     originUrl: str
     email: Optional[str] = None
+    farms: Optional[List[CheckoutFarmConfig]] = None  # for ops_* bundles
+    buyerName: Optional[str] = None
 
 
 @app.post("/api/checkout")
@@ -882,8 +889,14 @@ async def create_checkout(body: CheckoutRequest):
     meta = {"package_id": body.packageId, "kind": pkg["kind"], "label": pkg["label"]}
     if body.email: meta["email"] = body.email
 
+    # Calculate dynamic amount for ops_bundle if farms list is provided
+    amount = float(pkg["amount"])
+    if pkg["kind"] == "ops_bundle" and body.farms:
+        tier_prices = {"bronze": 50.0, "silver": 90.0, "gold": 150.0}
+        amount = sum(tier_prices.get((f.tier or "bronze").lower(), 50.0) for f in body.farms)
+
     req = CheckoutSessionRequest(
-        amount=float(pkg["amount"]), currency="usd",
+        amount=amount, currency="usd",
         success_url=success_url, cancel_url=cancel_url, metadata=meta,
     )
     session = await checkout.create_checkout_session(req)
@@ -892,10 +905,13 @@ async def create_checkout(body: CheckoutRequest):
         "id": str(uuid.uuid4()),
         "session_id": session.session_id,
         "package_id": body.packageId,
-        "amount": float(pkg["amount"]),
+        "amount": amount,
         "currency": "usd",
         "kind": pkg["kind"],
         "email": body.email,
+        "buyerName": body.buyerName,
+        "farms": [f.model_dump() for f in body.farms] if body.farms else None,
+        "provisioned": False,
         "payment_status": "initiated",
         "status": "open",
         "createdAt": datetime.now(timezone.utc),
@@ -918,8 +934,141 @@ async def checkout_status(session_id: str):
         await payments_col.update_one({"session_id": session_id},
             {"$set": {"payment_status": s.payment_status, "status": s.status,
                       "updatedAt": datetime.now(timezone.utc)}})
+
+    # Auto-onboarding: when payment first becomes 'paid', provision farms + email buyer
+    onboarding = None
+    if cur and s.payment_status == "paid" and not cur.get("provisioned"):
+        onboarding = await _provision_purchase(session_id)
+
     return {"status": s.status, "payment_status": s.payment_status, "amount_total": s.amount_total,
-            "currency": s.currency, "metadata": s.metadata}
+            "currency": s.currency, "metadata": s.metadata, "onboarding": onboarding}
+
+
+async def _provision_purchase(session_id: str) -> Optional[dict]:
+    """When a Stripe session lands as 'paid', create farms + email buyer (idempotent)."""
+    from email_service import send_email
+    cur = await payments_col.find_one({"session_id": session_id})
+    if not cur or cur.get("provisioned"):
+        return None
+
+    kind = cur.get("kind")
+    buyer_email = cur.get("email")
+    buyer_name = cur.get("buyerName") or "there"
+    public_url = os.environ.get("APP_PUBLIC_URL", "").rstrip("/")
+    created_farms: List[dict] = []
+
+    if kind == "ops_bundle" and cur.get("farms"):
+        # Multi-farm Ops Pack: create one farm per configured name
+        for f in cur["farms"]:
+            name = (f.get("name") or "Farm").strip()
+            base_slug = _slugify(name)
+            # Ensure unique slug
+            slug = base_slug
+            n = 2
+            while await farms_col.find_one({"slug": slug}):
+                slug = f"{base_slug}-{n}"
+                n += 1
+            doc = {
+                "id": str(uuid.uuid4()),
+                "slug": slug,
+                "name": name,
+                "ownerEmail": buyer_email,
+                "tier": f.get("tier"),
+                "createdAt": datetime.now(timezone.utc),
+                "isDefault": False,
+                "stripeSessionId": session_id,
+            }
+            await farms_col.insert_one(doc)
+            await _seed_farm(slug, name)
+            reader_url = f"{public_url}/reader?farm={slug}" if public_url else f"/reader?farm={slug}"
+            created_farms.append({"slug": slug, "name": name, "tier": f.get("tier"), "readerUrl": reader_url})
+
+    elif kind == "subscription":
+        # Single-farm plans (Bronze/Silver/Gold/Platinum/Integrator)
+        slug_base = _slugify(buyer_name) if buyer_name and buyer_name != "there" else "my-farm"
+        slug = slug_base
+        n = 2
+        while await farms_col.find_one({"slug": slug}):
+            slug = f"{slug_base}-{n}"
+            n += 1
+        doc = {
+            "id": str(uuid.uuid4()),
+            "slug": slug,
+            "name": (buyer_name if buyer_name != "there" else "My Farm"),
+            "ownerEmail": buyer_email,
+            "tier": cur.get("package_id"),
+            "createdAt": datetime.now(timezone.utc),
+            "isDefault": False,
+            "stripeSessionId": session_id,
+        }
+        await farms_col.insert_one(doc)
+        await _seed_farm(slug, doc["name"])
+        reader_url = f"{public_url}/reader?farm={slug}" if public_url else f"/reader?farm={slug}"
+        created_farms.append({"slug": slug, "name": doc["name"], "tier": doc["tier"], "readerUrl": reader_url})
+
+    ops_dashboard_url = f"{public_url}/ops-dashboard" if public_url else "/ops-dashboard"
+
+    # Send buyer email (graceful-degrade)
+    email_result: Optional[dict] = None
+    if buyer_email and created_farms:
+        farm_rows = "".join([
+            f"<tr><td style='padding:8px 12px;background:#f7fbf4;font-weight:700'>{fc['name']}</td>"
+            f"<td style='padding:8px 12px;background:#fff;border:1px solid #e8ecea'><a href='{fc['readerUrl']}'>{fc['readerUrl']}</a></td></tr>"
+            for fc in created_farms
+        ])
+        is_ops = kind == "ops_bundle"
+        html = f"""
+        <div style="font-family:system-ui,-apple-system,sans-serif;max-width:580px;margin:0 auto;padding:20px;">
+          <h2 style="color:#0f3d24;margin:0 0 10px;">🎉 You're all set, {buyer_name}!</h2>
+          <p style="font-size:15px;color:#1a3d24;line-height:1.6;">
+            Your <b>{cur.get('kind','subscription')}</b> on Broiler Base Mate is active.
+            We've created <b>{len(created_farms)} farm{'s' if len(created_farms) != 1 else ''}</b> for you and pre-seeded each with 10 shed-groups × 3 silos so you can start tracking immediately.
+          </p>
+          <h3 style="color:#0f3d24;margin:24px 0 8px;font-size:16px;">Your Field Reader links (give these to your workers):</h3>
+          <table cellpadding="0" cellspacing="0" style="border-collapse:collapse;width:100%;font-size:13px;">{farm_rows}</table>
+          { f'<p style="text-align:center;margin:28px 0;"><a href="{ops_dashboard_url}" style="background:#C9A227;color:#000;text-decoration:none;padding:14px 28px;border-radius:99px;font-weight:900;font-size:15px;display:inline-block;">📊 Open Ops Dashboard</a></p>' if is_ops else f'<p style="text-align:center;margin:28px 0;"><a href="{public_url or ""}/" style="background:#C9A227;color:#000;text-decoration:none;padding:14px 28px;border-radius:99px;font-weight:900;font-size:15px;display:inline-block;">📊 Open Feed Program</a></p>' }
+          <p style="font-size:12px;color:#5a7268;border-top:1px solid #e8ecea;padding-top:16px;margin-top:24px;">
+            Welcome aboard — reply to this email any time if you need a hand.
+          </p>
+        </div>
+        """
+        email_result = await send_email(
+            to=buyer_email,
+            subject=f"🎉 Welcome to Broiler Base Mate — your {len(created_farms)} farm{'s are' if len(created_farms) != 1 else ' is'} ready",
+            html=html,
+        )
+
+    # Mark provisioned
+    await payments_col.update_one(
+        {"session_id": session_id},
+        {"$set": {"provisioned": True, "createdFarms": created_farms, "provisionedAt": datetime.now(timezone.utc)}},
+    )
+
+    # Also notify admin
+    admin = os.environ.get("ADMIN_EMAIL")
+    if admin and buyer_email:
+        try:
+            await send_email(
+                to=admin,
+                subject=f"💰 New sale: {cur.get('kind')} · {buyer_email} · ${cur.get('amount')}",
+                html=(
+                    f"<p>New paid checkout:<br>"
+                    f"<b>Buyer:</b> {buyer_name} &lt;{buyer_email}&gt;<br>"
+                    f"<b>Package:</b> {cur.get('package_id')} ({cur.get('kind')})<br>"
+                    f"<b>Amount:</b> ${cur.get('amount')} {cur.get('currency','usd').upper()}<br>"
+                    f"<b>Farms created:</b> {', '.join(fc['slug'] for fc in created_farms) or 'none'}<br>"
+                    f"<b>Session:</b> {session_id}</p>"
+                ),
+            )
+        except Exception:
+            pass
+
+    return {
+        "createdFarms": created_farms,
+        "opsDashboardUrl": ops_dashboard_url,
+        "emailSent": (email_result or {}).get("ok", False) if email_result else False,
+        "emailSkipped": (email_result or {}).get("skipped", False) if email_result else False,
+    }
 
 
 @app.post("/api/webhook/stripe")
@@ -934,6 +1083,14 @@ async def stripe_webhook(request: Request):
         await payments_col.update_one({"session_id": evt.session_id},
             {"$set": {"payment_status": evt.payment_status, "webhook_event": evt.event_type,
                       "updatedAt": datetime.now(timezone.utc)}})
+        # Auto-onboard on first paid webhook (idempotent — _provision_purchase skips if already provisioned)
+        if evt.payment_status == "paid":
+            try:
+                await _provision_purchase(evt.session_id)
+            except Exception as prov_err:
+                # never fail the webhook just because onboarding hit an issue
+                import logging
+                logging.exception("Auto-onboarding from webhook failed: %s", prov_err)
     except Exception as e:
         return JSONResponse({"ok": False, "error": str(e)}, status_code=200)
     return {"ok": True}
