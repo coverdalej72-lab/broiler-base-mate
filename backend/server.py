@@ -282,15 +282,16 @@ async def list_shed_groups(farm: str = Query(default=DEFAULT_FARM_ID)):
 
 # ── Silos ────────────────────────────────────────────────────────────────
 @api.get("/silos")
-async def list_silos():
-    silos = await silos_col.find().sort("letter", 1).to_list(length=1000)
+async def list_silos(farm: str = Query(default=DEFAULT_FARM_ID)):
+    silos = await silos_col.find(_farm_filter(farm)).sort("letter", 1).to_list(length=1000)
     return [clean(s) for s in silos]
 
 
 @api.post("/silos", status_code=201)
-async def create_silo(body: CreateSiloBody):
+async def create_silo(body: CreateSiloBody, farm: str = Query(default=DEFAULT_FARM_ID)):
     doc = {
         "id": str(uuid.uuid4()),
+        "farmId": farm,
         "name": body.name,
         "defaultFeedType": body.defaultFeedType,
         "shedGroupId": body.shedGroupId,
