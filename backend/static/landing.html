@@ -143,7 +143,7 @@
         <a href="#sponsor">Sponsor</a>
         <a href="#charity">Charity</a>
         <a href="#build">Back the Build</a>
-        <a href="/" style="color:var(--gold)">Open App</a>
+        <a href="#" id="login-link" style="color:var(--gold)">Login</a>
       </div>
     </nav>
     <div class="hero-content">
@@ -467,7 +467,7 @@
 
   <footer>
     <div style="max-width:1100px;margin:0 auto;display:flex;flex-direction:column;align-items:center;gap:20px;">
-      <p><b>Broiler Base Mate</b> · Built for Australian poultry producers · <a href="/">Open the App</a> · <a href="/reader">Mobile Reader</a></p>
+      <p><b>Broiler Base Mate</b> · Built for Australian poultry producers</p>
       <p style="margin-top:8px;opacity:.6;">© 2026 · Payments processed securely by Stripe.</p>
       <div style="display:flex;align-items:center;gap:14px;padding:14px 24px;background:rgba(201,162,39,.06);border:1px solid rgba(201,162,39,.25);border-radius:14px;margin-top:8px;">
         <span style="font-size:11px;letter-spacing:2px;color:#8aa094;font-weight:700;">CRAFTED BY</span>
@@ -492,6 +492,24 @@
       body { padding-bottom: 84px; }
     }
   </style>
+
+  <!-- ── LOGIN / RECOVER LINK MODAL ── -->
+  <div id="login-modal" style="display:none;position:fixed;inset:0;background:rgba(5,15,10,0.92);z-index:101;align-items:center;justify-content:center;padding:24px;backdrop-filter:blur(8px);">
+    <div style="background:#fff;border-radius:24px;max-width:440px;width:100%;padding:32px;position:relative;">
+      <h2 style="font-size:22px;font-weight:900;color:var(--green-800);margin-bottom:10px;letter-spacing:-0.5px;">Existing customer?</h2>
+      <p style="font-size:14px;color:var(--muted);line-height:1.6;margin-bottom:18px;">
+        Your <b>personal dashboard URL</b> was emailed to you the moment you signed up — there's no shared login page. Check your inbox for the welcome email from <b>Broiler Base Mate</b> and bookmark the link inside.
+      </p>
+      <p style="font-size:14px;color:var(--muted);line-height:1.6;margin-bottom:18px;">
+        <b>Lost your link?</b> Email us with your farm name and we'll resend it within 24 hours:
+      </p>
+      <a href="mailto:appcovi2026@gmail.com?subject=Lost%20my%20dashboard%20link&body=Hi%20-%20I'm%20a%20customer%20and%20I've%20lost%20my%20Broiler%20Base%20Mate%20dashboard%20link.%20My%20farm%20name%20is%20___.%20Could%20you%20resend%20it?%20Thanks!" target="_blank" style="display:block;background:var(--gold);color:#000;text-decoration:none;text-align:center;padding:14px 22px;border-radius:99px;font-weight:900;font-size:14px;margin-bottom:10px;">
+        📧 Email appcovi2026@gmail.com
+      </a>
+      <button id="login-close" style="width:100%;background:transparent;border:1px solid var(--line);color:var(--muted);padding:11px;border-radius:99px;font-weight:800;cursor:pointer;font-size:13px;">Close</button>
+      <p style="font-size:11px;color:var(--muted);margin-top:14px;text-align:center;line-height:1.5;">Not a customer yet? <a href="#plans" style="color:var(--green-700);font-weight:700;">See plans →</a></p>
+    </div>
+  </div>
 
   <!-- ── BUYER DETAILS MODAL ── -->
   <div id="buyer-modal" style="display:none;position:fixed;inset:0;background:rgba(5,15,10,0.92);z-index:101;align-items:center;justify-content:center;padding:24px;backdrop-filter:blur(8px);">
@@ -556,6 +574,16 @@
     document.getElementById("buyer-cancel").onclick = () => { document.getElementById("buyer-modal").style.display = "none"; };
     document.getElementById("buyer-modal").addEventListener("click", (e) => {
       if (e.target.id === "buyer-modal") document.getElementById("buyer-modal").style.display = "none";
+    });
+
+    // ── "Login" handler — for existing customers who lost their dashboard URL ──
+    document.getElementById("login-link").addEventListener("click", (e) => {
+      e.preventDefault();
+      document.getElementById("login-modal").style.display = "flex";
+    });
+    document.getElementById("login-close").onclick = () => { document.getElementById("login-modal").style.display = "none"; };
+    document.getElementById("login-modal").addEventListener("click", (e) => {
+      if (e.target.id === "login-modal") document.getElementById("login-modal").style.display = "none";
     });
 
     document.querySelectorAll("[data-pkg]").forEach(btn => btn.addEventListener("click", () => {
