@@ -99,13 +99,24 @@
           window.fetch = function (input, init) {
             try {
               var urlStr = typeof input === "string" ? input : (input && input.url);
-              if (urlStr && urlStr.startsWith("/api/")) {
-                var u = new URL(urlStr, window.location.origin);
-                if (!u.searchParams.has("farm")) {
-                  u.searchParams.set("farm", window.__BBM_FARM__ || "default");
-                  var newUrl = u.pathname + (u.search ? u.search : "");
-                  if (typeof input === "string") input = newUrl;
-                  else input = new Request(newUrl, input);
+              if (urlStr) {
+                // Match both relative ("/api/...") and absolute URLs containing "/api/" on the same origin
+                var isApi = urlStr.startsWith("/api/") || (
+                  urlStr.indexOf("://") !== -1 &&
+                  urlStr.indexOf(window.location.origin) === 0 &&
+                  urlStr.indexOf("/api/", window.location.origin.length) === window.location.origin.length
+                );
+                if (isApi) {
+                  var u = new URL(urlStr, window.location.origin);
+                  if (!u.searchParams.has("farm")) {
+                    u.searchParams.set("farm", window.__BBM_FARM__ || "default");
+                    // Preserve absolute-vs-relative form to avoid CORS surprises
+                    var newUrl = urlStr.startsWith("/api/")
+                      ? u.pathname + (u.search ? u.search : "")
+                      : u.toString();
+                    if (typeof input === "string") input = newUrl;
+                    else input = new Request(newUrl, input);
+                  }
                 }
               }
             } catch (e) { /* ignore */ }
@@ -114,7 +125,7 @@
         } catch (e) { console.warn("farm-init", e); }
       })();
     </script>
-    <script type="module" crossorigin src="/assets/index-CgiQVoZZ.js"></script>
+    <script type="module" crossorigin src="/assets/index-BZPr0UMu.js"></script>
     <link rel="stylesheet" crossorigin href="/assets/index-vEM5l2MM.css">
   <link rel="manifest" href="/manifest.webmanifest"></head>
   <body>
