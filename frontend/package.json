@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "start": "bash -lc 'command -v pnpm >/dev/null 2>&1 || npm install -g pnpm@9 >/dev/null 2>&1; cd /app/silo && BASE_PATH=/ PORT=3000 pnpm --filter @workspace/feed-program run dev'",
-    "build": "bash -lc 'command -v pnpm >/dev/null 2>&1 || npm install -g pnpm@9 >/dev/null 2>&1; cd /app/silo && BASE_PATH=/ pnpm --filter @workspace/feed-program run build'",
+    "build": "node build.js",
     "serve": "bash -lc 'cd /app/silo && BASE_PATH=/ PORT=3000 pnpm --filter @workspace/feed-program run serve'"
   }
 }
