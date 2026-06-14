@@ -425,8 +425,8 @@ async def list_readings(limit: int = Query(default=100, le=1000), siloId: Option
     if siloId:
         q = _and(q, {"siloId": siloId})
     rows = await readings_col.find(q).sort("readingDate", -1).limit(limit).to_list(length=limit)
-    silos = await silos_col.find().to_list(length=1000)
-    groups = await shed_groups_col.find().to_list(length=200)
+    silos = await silos_col.find(_farm_filter(farm)).to_list(length=1000)
+    groups = await shed_groups_col.find(_farm_filter(farm)).to_list(length=200)
     out = []
     for r in rows:
         silo = next((s for s in silos if s["id"] == r["siloId"]), None)
@@ -459,8 +459,8 @@ async def delete_reading(reading_id: str):
 @api.get("/deliveries")
 async def list_deliveries(limit: int = Query(default=100, le=1000), farm: str = Query(default=DEFAULT_FARM_ID)):
     rows = await deliveries_col.find(_farm_filter(farm)).sort("deliveryDate", -1).limit(limit).to_list(length=limit)
-    silos = await silos_col.find().to_list(length=1000)
-    groups = await shed_groups_col.find().to_list(length=200)
+    silos = await silos_col.find(_farm_filter(farm)).to_list(length=1000)
+    groups = await shed_groups_col.find(_farm_filter(farm)).to_list(length=200)
     out = []
     for r in rows:
         silo = next((s for s in silos if s["id"] == r.get("siloId")), None)
