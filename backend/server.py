@@ -61,13 +61,54 @@ def _and(*filters: dict) -> dict:
 
 # ─── App ───────────────────────────────────────────────────────────────────
 app = FastAPI(title="Broiler Base Mate API")
+
+# CORS: explicit origins (not "*") because we use credential cookies. Add both
+# preview and production hosts plus localhost for dev.
+def _cors_origins() -> list[str]:
+    pub = (os.environ.get("APP_PUBLIC_URL") or "").rstrip("/")
+    base = ["http://localhost:3000", "http://localhost:8001"]
+    if pub: base.append(pub)
+    # Common companion URL in same Emergent environment
+    if ".preview.emergentagent.com" in pub:
+        base.append(pub.replace(".preview.emergentagent.com", ".emergent.host"))
+    if ".emergent.host" in pub:
+        base.append(pub.replace(".emergent.host", ".preview.emergentagent.com"))
+    return sorted(set(base))
+
 app.add_middleware(
     CORSMiddleware,
     allow_credentials=True,
-    allow_origins=["*"],
+    allow_origins=_cors_origins(),
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# ─── Auth (Emergent Google Auth) ──────────────────────────────────────────
+# REMINDER: DO NOT HARDCODE THE URL, OR ADD ANY FALLBACKS OR REDIRECT URLS, THIS BREAKS THE AUTH
+from auth import build_router as _build_auth_router, get_current_user as _get_current_user, list_user_farms as _list_user_farms, COOKIE_NAME as _AUTH_COOKIE  # noqa: E402
+
+app.include_router(_build_auth_router(db))
+
+
+async def _user_from_request(request: Request) -> Optional[dict]:
+    """Helper that the API endpoints can call to check who the caller is."""
+    token = request.cookies.get(_AUTH_COOKIE)
+    auth_hdr = request.headers.get("authorization")
+    return await _get_current_user(db, session_token=token, authorization=auth_hdr)
+
+
+async def _require_farm_access(request: Request, farm_slug: str) -> dict:
+    """Ensure the current user can access this farm slug. Returns user dict; raises 401/403."""
+    user = await _user_from_request(request)
+    if not user:
+        raise HTTPException(401, "Authentication required")
+    farms_info = await _list_user_farms(db, user["email"])
+    if farms_info["role"] == "admin":
+        return user
+    allowed = {f["slug"] for f in farms_info["owned"]} | {f["slug"] for f in farms_info["invited"]}
+    if farm_slug not in allowed:
+        raise HTTPException(403, f"No access to farm '{farm_slug}'")
+    return user
 
 
 # ─── Helpers ───────────────────────────────────────────────────────────────

@@ -82,6 +82,11 @@
       })();
     </script>
 
+    <!-- Auth guard — checks /api/auth/me and bounces to Emergent OAuth if needed.
+         REMINDER: DO NOT HARDCODE THE URL, OR ADD ANY FALLBACKS OR REDIRECT URLS, THIS BREAKS THE AUTH -->
+    <script>window.__BBM_PAGE__ = "app";</script>
+    <script src="/reader-assets/auth-guard.js"></script>
+
     <!-- ─── Multi-farm support (Ops Manager pack) ──────────────────────
          Reads ?farm=slug (URL) or stored selection, then monkey-patches
          fetch() so every /api/* call carries ?farm=<slug>. A floating
