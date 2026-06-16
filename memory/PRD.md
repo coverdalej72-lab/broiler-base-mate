@@ -59,6 +59,12 @@
 - Demo requests stored in MongoDB `demo_requests` collection; readable via GET `/api/demo-request`.
 
 ## Changelog
+- **2026-02-16 (Whole-Farm Flock Forecast)**:
+  - New `/app/silo/artifacts/feed-program/src/lib/breedStandards.ts` — daily-resolution Ross 308 FF + Cobb 500 performance objectives (0–56 days) with `stdAt()` linear interpolation helper.
+  - Added "🌾 Whole-Farm Forecast" section at the top of the Flock Forecast page in `App.tsx`. Aggregates weigh-ins + catch averages across all sheds (weighted by birds), picks dominant breed standard, projects forward to user-selected pickup age (35 / 42 / 49 d).
+  - 8 rollup KPI cards: birds live, current age, projected pickup weight, total live weight, projected FCR, mortality %, feed-to-pickup, days-to-pickup.
+  - Two Recharts graphs: Whole-Farm Growth Curve (actual + breed std + forecast tail) and FCR Trajectory (breed std + current actual reference line).
+  - Plain-english insight strip explains tracking status (above/below/on standard) with predicted pickup weight and remaining feed.
 - **2026-06-12 (fork-resume)**: Fixed broken FAQ section (raw JS template-literal was leaking into HTML), wired Book-a-Demo form to `/api/demo-request` with toast feedback, added mobile-only sticky "Start free trial" CTA bar.
 - **2026-06-12 (multi-farm + ops + email)**:
   - Added `farmId` scoping to readings/deliveries/photos/shed_groups/silos/farm_config — backward-compatible (untagged data treated as `farmId="default"`).
