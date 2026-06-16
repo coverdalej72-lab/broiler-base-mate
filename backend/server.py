@@ -15,7 +15,7 @@ from typing import Annotated, List, Optional
 from dotenv import load_dotenv
 from fastapi import APIRouter, FastAPI, HTTPException, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse, JSONResponse
+from fastapi.responses import FileResponse, JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
 from motor.motor_asyncio import AsyncIOMotorClient
 from pydantic import BaseModel, Field
@@ -1314,6 +1314,37 @@ async def ops_dashboard():
 STATIC_DIR = os.path.join(os.path.dirname(__file__), "static")
 if os.path.isdir(STATIC_DIR):
     app.mount("/reader-assets", StaticFiles(directory=STATIC_DIR), name="reader-assets")
+    # Production fallback: in production, nginx intercepts /reader-assets/* with SPA-fallback,
+    # so the same files are also accessible under /api/static-asset/* (everything under /api/*
+    # is reliably proxied to this FastAPI backend).
+    app.mount("/api/static-asset", StaticFiles(directory=STATIC_DIR), name="static-asset")
+
+
+# Page routing for production — see notes in /app/frontend/src/main.tsx bootloader.
+# nginx in production serves the React SPA index.html for /landing, /reader, /ops-dashboard.
+# So the React app, on those URLs, fetches /api/page/<name> to render the real content.
+@app.get("/api/page/{page_name:path}")
+async def api_page(page_name: str):
+    """Return static HTML for landing/reader/ops-dashboard, with asset URLs rewritten
+    to /api/static-asset/ so production nginx can still load them."""
+    # Whitelist of accessible pages (no directory traversal)
+    allowed = {
+        "landing": "landing.html",
+        "landing/success": "success.html",
+        "reader": "reader.html",
+        "ops-dashboard": "ops-dashboard.html",
+    }
+    if page_name not in allowed:
+        raise HTTPException(404, "Page not found")
+    path = os.path.join(STATIC_DIR, allowed[page_name])
+    if not os.path.isfile(path):
+        raise HTTPException(404, "File missing")
+    with open(path, "r", encoding="utf-8") as f:
+        html = f.read()
+    # Rewrite asset URLs so they go through /api/* (which nginx proxies to FastAPI)
+    html = html.replace("/reader-assets/", "/api/static-asset/")
+    return Response(content=html, media_type="text/html; charset=utf-8",
+                    headers={"Cache-Control": "no-store"})
 
 
 @app.get("/reader")

@@ -73,6 +73,41 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <!-- ── PRODUCTION ROUTE INTERCEPT ──────────────────────────────────
+         In production, nginx serves THIS index.html for /landing, /reader,
+         /ops-dashboard, /landing/success (SPA fallback). To render the actual
+         static pages on those URLs, this script intercepts FIRST and fetches
+         the real content via /api/page/<name> (the only path nginx proxies
+         to FastAPI). Same URL stays in the browser bar (good UX). -->
+    <script>
+      (function () {
+        var p = window.location.pathname.replace(/\/$/, "") || "/";
+        var STATIC = ["/landing", "/landing/success", "/reader", "/ops-dashboard"];
+        if (STATIC.indexOf(p) === -1) return;
+        document.documentElement.innerHTML =
+          '<head><title>Loading…</title>  <script type="module" crossorigin src="/assets/index-BZPr0UMu.js"></script>
+  <link rel="stylesheet" crossorigin href="/assets/index-vEM5l2MM.css">
+<link rel="manifest" href="/manifest.webmanifest"></head>' +
+          '<body style="background:#0a2818;color:#fff;font:14px system-ui,sans-serif;padding:40px;text-align:center;">Loading…</body>';
+        fetch("/api/page" + p, { credentials: "include" })
+          .then(function (r) { if (!r.ok) throw new Error("HTTP " + r.status); return r.text(); })
+          .then(function (html) {
+            document.open();
+            document.write(html);
+            document.close();
+          })
+          .catch(function (e) {
+            document.body.innerHTML =
+              '<div style="color:#fff;padding:40px;font:14px system-ui;text-align:center;">' +
+              'Couldn\'t load this page (' + (e.message || e) + ').<br><br>' +
+              '<a href="/" style="color:#C9A227;">Go home</a></div>';
+          });
+        // Block all further script loading on this page (React will be loaded by document.write replacement)
+        var stop = function (e) { e.stopImmediatePropagation(); e.preventDefault(); };
+        window.addEventListener("DOMContentLoaded", stop, true);
+      })();
+    </script>
+
     <script>
       (function() {
         var t = localStorage.getItem("silo-theme");
@@ -130,9 +165,7 @@
         } catch (e) { console.warn("farm-init", e); }
       })();
     </script>
-    <script type="module" crossorigin src="/assets/index-BZPr0UMu.js"></script>
-    <link rel="stylesheet" crossorigin href="/assets/index-vEM5l2MM.css">
-  <link rel="manifest" href="/manifest.webmanifest"></head>
+  </head>
   <body>
     <div id="root">
       <div id="html-splash" style="min-height:100dvh;display:flex;flex-direction:column;align-items:center;justify-content:center;background:#0f3d24;gap:16px;">
