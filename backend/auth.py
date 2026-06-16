@@ -25,7 +25,16 @@ COOKIE_NAME = "session_token"
 
 
 def _admin_emails() -> set[str]:
-    raw = os.environ.get("ADMIN_EMAIL", "") or ""
+    """Emails granted super-admin access (see ALL farms across all customers).
+
+    Deliberately separate from ADMIN_EMAIL (which is just the notification target for
+    sale/support emails). This lets the developer receive sale notifications WITHOUT
+    being able to peek at customer farm data — a privacy promise.
+
+    By default this is empty (no super-admin). To enable temporary support access,
+    add SUPERUSER_EMAILS=you@example.com,backup@example.com to /app/backend/.env.
+    """
+    raw = os.environ.get("SUPERUSER_EMAILS", "") or ""
     return {e.strip().lower() for e in raw.split(",") if e.strip()}
 
 
