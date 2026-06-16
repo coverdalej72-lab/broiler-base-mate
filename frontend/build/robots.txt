@@ -1,4 +1,0 @@
-User-agent: *
-Allow: /
-
-Sitemap: https://farmbuddy.com.au/sitemap.xml
