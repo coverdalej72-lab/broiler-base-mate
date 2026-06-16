@@ -1,0 +1,806 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <meta name="theme-color" content="#ff7a1a" />
+  <link rel="manifest" href="/reader-assets/manifest.json" />
+  <link rel="apple-touch-icon" href="/reader-assets/icon-192.png" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="Silo Reader" />
+  <title>Double B Farm — Feed Management</title>
+  <script>
+    // Robust loader: local first, then CDN fallbacks
+    (function loadQrLib(){
+      const sources = [
+        "/reader-assets/html5-qrcode.min.js",
+        "https://cdn.jsdelivr.net/npm/html5-qrcode@2.3.10/html5-qrcode.min.js",
+        "https://unpkg.com/html5-qrcode@2.3.10/html5-qrcode.min.js",
+      ];
+      let i = 0;
+      function next(){
+        if (i >= sources.length) { window.__qrLibFailed = true; return; }
+        const s = document.createElement("script");
+        s.src = sources[i++];
+        s.async = false;
+        s.onload = () => { window.__qrLibReady = true; };
+        s.onerror = next;
+        document.head.appendChild(s);
+      }
+      next();
+    })();
+  </script>
+  <style>
+    :root {
+      --bg: #0f1410; --panel: #161e18; --panel-2: #1b2620;
+      --line: #243029; --ink: #f1f6f3; --muted: #8da39a;
+      --accent-orange: #ff7a1a; --green-500: #2dbd5e; --green-600: #29a352;
+      --green-soft: #11321f; --silo-a: #2dbd5e; --silo-b: #1f70c4; --silo-c: #d97706;
+      --danger: #ef4444;
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; background: var(--bg); color: var(--ink);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      font-size: 16px; line-height: 1.4; -webkit-font-smoothing: antialiased; }
+    .status-bar { background: var(--accent-orange); height: 24px; }
+    header.app-header { background: var(--bg); padding: 12px 16px 4px; display: flex; align-items: center; gap: 12px; }
+    .app-icon { width: 44px; height: 44px; border-radius: 10px; background: var(--bg);
+      display: grid; place-items: center; overflow: hidden; box-shadow: 0 2px 6px rgba(0,0,0,.4); }
+    .app-icon img { width: 100%; height: 100%; display: block; }
+    .farm-info { flex: 1; min-width: 0; }
+    .farm-info .name { font-weight: 800; font-size: 18px; }
+    .farm-info .sub { font-size: 10px; color: var(--muted); letter-spacing: 1.5px; font-weight: 700; }
+    .today-block { text-align: center; flex-shrink: 0; }
+    .today-block .lbl { font-size: 10px; color: var(--muted); letter-spacing: 1.5px; font-weight: 700; }
+    .today-block .day { font-size: 15px; font-weight: 800; line-height: 1.1; margin-top: 2px; }
+    .progress-pill { background: var(--green-soft); border: 2px solid var(--green-600); color: var(--green-500);
+      border-radius: 14px; padding: 8px 12px; text-align: center; min-width: 64px; }
+    .progress-pill .num { font-weight: 900; font-size: 16px; line-height: 1; }
+    .progress-pill .lbl { font-size: 9px; letter-spacing: 1.5px; font-weight: 800; margin-top: 2px; }
+    .progress-bar { height: 2px; background: var(--green-500); margin-top: 8px; opacity: 0.8; }
+
+    .tabs { display: grid; grid-template-columns: repeat(5, 1fr); background: var(--bg); padding: 10px 8px 6px;
+      border-bottom: 1px solid var(--line); position: sticky; top: 0; z-index: 9; }
+    .tab { text-align: center; padding: 8px 2px 6px; cursor: pointer; user-select: none;
+      color: var(--muted); font-size: 11px; font-weight: 600; transition: color .12s; position: relative; }
+    .tab .ico { font-size: 18px; display: block; margin-bottom: 3px; }
+    .tab.active { color: var(--ink); }
+    .tab.active::after { content: ""; position: absolute; left: 22%; right: 22%; bottom: 2px;
+      height: 2px; background: var(--green-500); border-radius: 99px; }
+
+    .scroll-area { padding: 14px 14px 100px; }
+
+    /* ── Today: shed cards ── */
+    .shed-card { background: var(--panel); border-radius: 14px; padding: 14px;
+      margin-bottom: 12px; border: 1px solid var(--line); }
+    .shed-card .sc-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+    .shed-card .sc-head .lbl { font-size: 10px; color: var(--muted); letter-spacing: 1.5px; font-weight: 700; }
+    .shed-card .sc-head .num { font-size: 22px; font-weight: 900; letter-spacing: -0.5px; margin-top: 2px; }
+    .save-pill { background: var(--green-500); color: #fff; border: 0; border-radius: 99px;
+      padding: 8px 20px; font-size: 14px; font-weight: 800; cursor: pointer; transition: background .12s; }
+    .save-pill:active { background: var(--green-600); }
+    .save-pill:disabled { opacity: 0.6; }
+    .silos-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+    .silo-cell .silo-h { display: flex; align-items: center; gap: 6px; margin-bottom: 6px; }
+    .silo-badge { width: 22px; height: 22px; border-radius: 99px; color: #fff;
+      font-size: 12px; font-weight: 900; display: grid; place-items: center; }
+    .silo-badge.A { background: var(--silo-a); }
+    .silo-badge.B { background: var(--silo-b); }
+    .silo-badge.C { background: var(--silo-c); }
+    .silo-name { font-size: 13px; color: var(--muted); font-weight: 600; }
+    .silo-input { display: flex; gap: 4px; }
+    .silo-input input { flex: 1; background: var(--panel-2); border: 1px solid var(--line);
+      border-radius: 10px; padding: 12px 10px; color: var(--ink); font-size: 16px; font-weight: 800;
+      text-align: right; width: 100%; -webkit-appearance: none; appearance: none; }
+    .silo-input input:focus { outline: 2px solid var(--green-500); border-color: var(--green-500); }
+    .silo-input .unit { background: var(--panel-2); border: 1px solid var(--line); border-radius: 10px;
+      padding: 12px 8px; color: var(--muted); font-size: 13px; font-weight: 700; min-width: 38px; text-align: center; }
+    .silo-saved { font-size: 10px; color: var(--accent-orange); text-align: center; font-weight: 800;
+      letter-spacing: 1px; margin-top: 4px; padding-bottom: 4px; border-bottom: 2px solid var(--accent-orange); opacity: 0; transition: opacity .15s; }
+    .silo-saved.show { opacity: 1; }
+
+    /* ── History ── */
+    .history-tools { display: flex; gap: 8px; margin-bottom: 14px; }
+    .pill { background: var(--panel); border: 1px solid var(--line); border-radius: 99px;
+      padding: 8px 14px; font-size: 13px; font-weight: 700; color: var(--muted); display: inline-flex; align-items: center; gap: 6px; }
+    .pill.green { color: var(--green-500); border-color: var(--green-600); background: var(--green-soft); cursor: pointer; }
+    .date-head { font-size: 11px; color: var(--muted); letter-spacing: 1.5px; font-weight: 800;
+      margin: 18px 0 8px; }
+    .hist-group { background: var(--panel); border-radius: 12px; padding: 4px 0; border: 1px solid var(--line); }
+    .hist-row { display: grid; grid-template-columns: 1fr auto auto; gap: 10px; align-items: center;
+      padding: 12px 14px; border-bottom: 1px solid var(--line); }
+    .hist-row:last-child { border-bottom: 0; }
+    .hist-row .l-name { font-weight: 800; font-size: 14px; }
+    .hist-row .l-time { font-size: 11px; color: var(--muted); margin-top: 2px; }
+    .hist-row .silo-tag { font-size: 10px; padding: 3px 8px; border-radius: 5px;
+      font-weight: 800; letter-spacing: 0.5px; display: inline-block; }
+    .silo-tag.A { background: rgba(45,189,94,.15); color: var(--silo-a); }
+    .silo-tag.B { background: rgba(31,112,196,.18); color: #60a5fa; }
+    .silo-tag.C { background: rgba(217,119,6,.18); color: #fbbf24; }
+    .hist-row .amt { text-align: right; }
+    .hist-row .amt .num { font-size: 22px; font-weight: 900; line-height: 1; }
+    .hist-row .amt .unit { font-size: 10px; color: var(--muted); }
+    .icon-btn { background: transparent; border: 0; color: var(--muted); font-size: 16px;
+      cursor: pointer; padding: 6px; }
+    .icon-btn:hover { color: var(--danger); }
+
+    /* ── Deliveries ── */
+    .scan-row { display: grid; grid-template-columns: 1fr 56px; gap: 10px; margin-bottom: 14px; }
+    .scan-btn { background: var(--green-500); color: #fff; border: 0; border-radius: 14px;
+      padding: 16px; font-size: 16px; font-weight: 800; cursor: pointer; display: flex;
+      align-items: center; justify-content: center; gap: 10px; }
+    .scan-btn:active { background: var(--green-600); }
+    .add-btn { background: var(--panel); border: 1px solid var(--line); border-radius: 14px;
+      color: var(--ink); font-size: 24px; font-weight: 300; cursor: pointer; }
+    .delivery-card { background: var(--panel); border-radius: 14px; border: 1px solid var(--line);
+      overflow: hidden; }
+    .delivery-card .dc-head { display: flex; justify-content: space-between; align-items: baseline;
+      padding: 16px 16px 4px; }
+    .delivery-card .dc-head .ttl { font-size: 22px; font-weight: 800; }
+    .delivery-card .dc-head .amt { font-size: 24px; font-weight: 800; }
+    .delivery-card .dc-sub { display: flex; justify-content: space-between; padding: 0 16px 12px;
+      color: var(--muted); font-size: 12px; }
+    .delivery-list { display: flex; flex-direction: column; }
+    .delivery-item { display: grid; grid-template-columns: 40px 1fr auto; gap: 12px;
+      padding: 12px 16px; align-items: center; border-top: 1px solid var(--line); }
+    .truck-icon { width: 40px; height: 40px; border-radius: 99px; background: rgba(45,189,94,.18);
+      display: grid; place-items: center; color: var(--green-500); font-size: 18px; }
+    .delivery-item .feed-name { font-weight: 800; font-size: 15px; display: flex; align-items: center; gap: 8px; }
+    .feed-tag { font-size: 9px; padding: 3px 8px; border-radius: 5px; font-weight: 900; letter-spacing: 0.5px;
+      background: rgba(31,112,196,.2); color: #60a5fa; }
+    .feed-tag.starter { background: rgba(31,112,196,.2); color: #60a5fa; }
+    .feed-tag.grower { background: rgba(45,189,94,.18); color: var(--silo-a); }
+    .feed-tag.finisher { background: rgba(217,119,6,.2); color: #fbbf24; }
+    .feed-tag.withdrawal { background: rgba(139,92,246,.2); color: #a78bfa; }
+    .delivery-item .meta { font-size: 11px; color: var(--muted); margin-top: 3px; }
+
+    /* ── Photos ── */
+    .photo-section { background: var(--panel); border: 1px solid var(--line); border-radius: 14px;
+      margin-bottom: 12px; overflow: hidden; }
+    .photo-section .ph-head { padding: 14px 16px; display: flex; align-items: center; justify-content: space-between;
+      cursor: pointer; }
+    .photo-section .ph-head .ttl { font-size: 16px; font-weight: 800; display: flex; align-items: center; gap: 8px; }
+    .photo-section .ph-head.danger .ttl { color: var(--danger); }
+    .photo-section .ph-body { padding: 0 16px 16px; }
+    .photo-section.collapsed .ph-body { display: none; }
+    .photo-btn { width: 100%; background: transparent; border: 2px solid var(--line); border-radius: 12px;
+      padding: 14px; color: var(--ink); font-size: 14px; font-weight: 700; cursor: pointer;
+      display: flex; align-items: center; justify-content: center; gap: 8px; }
+    .photo-btn.weight { color: var(--green-500); border-color: var(--green-600); }
+    .photo-btn.mort { color: var(--danger); border-color: var(--danger); background: rgba(239,68,68,.05); }
+    .photo-empty { text-align: center; color: var(--muted); font-size: 12px; padding: 14px 0 4px; }
+    .photo-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 10px; }
+    .photo-thumb { aspect-ratio: 1; background: #000; border-radius: 8px; overflow: hidden; position: relative; cursor: pointer; }
+    .photo-thumb img { width: 100%; height: 100%; object-fit: cover; }
+    .photo-thumb .del { position: absolute; top: 4px; right: 4px; background: rgba(0,0,0,.6); color: #fff;
+      border: 0; border-radius: 99px; width: 22px; height: 22px; cursor: pointer; font-size: 12px; }
+
+    /* ── Settings ── */
+    .set-row { background: var(--panel); border: 1px solid var(--line); border-radius: 14px;
+      padding: 14px 16px; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+    .set-row label { font-size: 14px; font-weight: 700; }
+    .set-row .desc { font-size: 12px; color: var(--muted); font-weight: 500; margin-top: 2px; max-width: 260px; }
+    .set-row input { background: var(--panel-2); border: 1px solid var(--line); border-radius: 10px;
+      padding: 10px 12px; color: var(--ink); font-size: 15px; font-weight: 700; min-width: 100px;
+      text-align: right; -webkit-appearance: none; appearance: none; }
+    .set-row input:focus { outline: 2px solid var(--green-500); border-color: var(--green-500); }
+    .section-label { font-size: 11px; color: var(--muted); letter-spacing: 1.5px; font-weight: 800;
+      margin: 20px 6px 8px; }
+    .toggle-row { background: var(--panel); border: 1px solid var(--line); border-radius: 12px;
+      padding: 12px 16px; margin-bottom: 6px; display: flex; align-items: center; gap: 14px; }
+    .toggle { width: 44px; height: 24px; background: #444; border-radius: 99px; position: relative;
+      cursor: pointer; flex-shrink: 0; transition: background .15s; }
+    .toggle::after { content: ""; position: absolute; top: 2px; left: 2px; width: 20px; height: 20px;
+      border-radius: 99px; background: #ccc; transition: all .15s; }
+    .toggle.on { background: var(--green-600); }
+    .toggle.on::after { left: 22px; background: #fff; }
+    .toggle-row .name { flex: 1; font-weight: 700; font-size: 15px; }
+    .toggle-row.off .name { text-decoration: line-through; color: var(--muted); }
+    .toggle-row.off { opacity: 0.6; }
+
+    /* ── Toasts / modals ── */
+    .toast { position: fixed; left: 50%; bottom: 20px; transform: translateX(-50%);
+      background: var(--panel-2); color: var(--ink); padding: 10px 18px; border-radius: 99px;
+      font-size: 13px; font-weight: 700; box-shadow: 0 8px 22px rgba(0,0,0,.5); z-index: 100;
+      opacity: 0; transition: opacity .2s; pointer-events: none; border: 1px solid var(--line); max-width: 92vw; }
+    .toast.show { opacity: 1; }
+    .toast.err { border-color: var(--danger); color: var(--danger); }
+    .toast.ok { border-color: var(--green-600); color: var(--green-500); }
+
+    .modal { position: fixed; inset: 0; background: rgba(0,0,0,.85); z-index: 50;
+      display: none; align-items: center; justify-content: center; padding: 16px; }
+    .modal.show { display: flex; }
+    .modal-card { background: var(--panel); border-radius: 16px; padding: 18px; width: 100%; max-width: 420px;
+      max-height: 88vh; overflow-y: auto; border: 1px solid var(--line); }
+    .modal-card h3 { margin: 0 0 14px; font-size: 17px; }
+    #qr-reader { width: 100%; border-radius: 10px; overflow: hidden; }
+    .lightbox img { max-width: 100%; max-height: 100%; border-radius: 10px; }
+    .form-grid { display: grid; gap: 10px; }
+    .form-grid label { font-size: 11px; color: var(--muted); font-weight: 700; letter-spacing: 1px; }
+    .form-grid input, .form-grid select, .form-grid textarea {
+      width: 100%; background: var(--panel-2); border: 1px solid var(--line);
+      border-radius: 10px; padding: 10px 12px; color: var(--ink); font-size: 15px;
+      -webkit-appearance: none; appearance: none; font-family: inherit;
+    }
+    .form-grid textarea { min-height: 60px; resize: vertical; }
+    .btn-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 14px; }
+    .btn-row button { padding: 12px; border-radius: 10px; font-size: 14px; font-weight: 800;
+      cursor: pointer; border: 0; }
+    .btn-primary { background: var(--green-500); color: #fff; }
+    .btn-secondary { background: var(--panel-2); color: var(--ink); border: 1px solid var(--line); }
+    .spinner { display: inline-block; width: 14px; height: 14px; border-radius: 99px;
+      border: 2px solid currentColor; border-top-color: transparent; animation: spin .8s linear infinite;
+      vertical-align: middle; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+  </style>
+</head>
+<body data-page="reader">
+<script src="/reader-assets/auth-guard.js"></script>
+  <div class="status-bar"></div>
+  <header class="app-header">
+    <div class="app-icon"><img src="/reader-assets/logo.svg" alt="" /></div>
+    <div class="farm-info">
+      <div class="name" id="farm-name">Double B Farm</div>
+      <div class="sub">FEED MANAGEMENT</div>
+    </div>
+    <div class="today-block">
+      <div class="lbl">TODAY</div>
+      <div class="day" id="today-date">—</div>
+    </div>
+    <div class="progress-pill">
+      <div class="num" id="progress-num">0/0</div>
+      <div class="lbl" id="progress-lbl">DONE</div>
+    </div>
+  </header>
+  <div class="progress-bar"></div>
+
+  <nav class="tabs">
+    <div class="tab active" data-tab="today"><span class="ico">📋</span>Today</div>
+    <div class="tab" data-tab="history"><span class="ico">🕐</span>History</div>
+    <div class="tab" data-tab="deliveries"><span class="ico">🚚</span>Deliveries</div>
+    <div class="tab" data-tab="photos"><span class="ico">📷</span>Photos</div>
+    <div class="tab" data-tab="settings"><span class="ico">⚙️</span>Settings</div>
+  </nav>
+
+  <main>
+    <!-- TODAY -->
+    <div class="scroll-area" id="tab-today"><div id="shed-list"></div></div>
+
+    <!-- HISTORY -->
+    <div class="scroll-area" id="tab-history" style="display:none">
+      <div class="history-tools">
+        <div class="pill"><span>📵</span> Local only</div>
+        <div class="pill green" id="export-excel"><span>📄</span> Export Excel</div>
+      </div>
+      <div id="history-list"></div>
+    </div>
+
+    <!-- DELIVERIES -->
+    <div class="scroll-area" id="tab-deliveries" style="display:none">
+      <div class="scan-row">
+        <button class="scan-btn" id="open-qr">⌗ Scan QR Code</button>
+        <button class="add-btn" id="open-add">+</button>
+      </div>
+      <div style="text-align:center; margin-bottom:14px;">
+        <button class="pill green" id="open-photo-scan" style="border:1px solid var(--green-600);">✨ AI Photo Scan (Ingham's / Baiada / BPL)</button>
+      </div>
+      <div class="delivery-card" id="delivery-card"></div>
+    </div>
+
+    <!-- PHOTOS -->
+    <div class="scroll-area" id="tab-photos" style="display:none">
+      <div class="photo-section" id="mort-section">
+        <div class="ph-head danger" data-collapse="mort"><div class="ttl">📄 Mort Sheet</div><span>▲</span></div>
+        <div class="ph-body">
+          <button class="photo-btn mort" data-cat="mort_sheet">📄 Add Mort Sheet Photo</button>
+          <div id="mort-photos"></div>
+        </div>
+      </div>
+      <div id="bird-weight-sections"></div>
+    </div>
+
+    <!-- SETTINGS -->
+    <div class="scroll-area" id="tab-settings" style="display:none">
+      <div class="set-row">
+        <label>Farm Name</label>
+        <input id="set-farm-name" type="text" />
+      </div>
+      <div class="set-row" style="flex-wrap:wrap;">
+        <div style="flex:1;min-width:140px;">
+          <label>Farm Logo</label>
+          <div class="desc">Shown in both the mobile app and the Feed Program header.</div>
+        </div>
+        <div style="display:flex;gap:8px;align-items:center;">
+          <img id="logo-preview" src="/reader-assets/logo.svg" style="width:44px;height:44px;border-radius:8px;background:#000;object-fit:cover;" />
+          <label class="pill green" style="cursor:pointer;border:1px solid var(--green-600);margin:0;">
+            Upload<input id="logo-file" type="file" accept="image/*" style="display:none;" />
+          </label>
+          <button class="pill" id="logo-reset" style="border:1px solid var(--line);color:var(--muted);">Reset</button>
+        </div>
+      </div>
+      <div class="section-label">SHEDS & SILO CAPACITY</div>
+      <div class="set-row">
+        <div>
+          <label>Total Sheds</label>
+          <div class="desc">Sets how many sheds are active across the whole app</div>
+        </div>
+        <input id="set-total-sheds" type="number" min="0" max="60" />
+      </div>
+      <div id="shed-toggles"></div>
+
+      <div class="section-label" style="margin-top: 28px;">DANGER ZONE</div>
+      <div class="set-row" style="border-color: var(--danger);">
+        <div>
+          <label style="color: var(--danger);">Start New Batch</label>
+          <div class="desc">Wipes all readings, deliveries, and photos. The Feed Program spreadsheet is not affected.</div>
+        </div>
+        <button class="pill" id="new-batch-btn" style="color: var(--danger); border-color: var(--danger);">🗑 Reset</button>
+      </div>
+
+      <div style="text-align:center;margin:32px 0 8px;display:flex;flex-direction:column;align-items:center;gap:10px;color:var(--muted);font-size:11px;letter-spacing:1.5px;font-weight:700;">
+        <div>CRAFTED BY</div>
+        <img src="/reader-assets/company-logo.png" alt="" style="height:64px;width:64px;object-fit:contain;border-radius:12px;background:#000;padding:6px;" />
+      </div>
+    </div>
+  </main>
+
+  <!-- ── QR Scanner Modal ── -->
+  <div class="modal" id="qr-modal">
+    <div class="modal-card">
+      <h3>Scan Docket QR Code</h3>
+      <div id="qr-reader" style="min-height:120px;background:#000;border-radius:10px;display:grid;place-items:center;color:#888;font-size:13px;">Loading camera…</div>
+      <div id="qr-error" style="display:none;margin-top:10px;padding:10px;border-radius:8px;background:rgba(239,68,68,.12);border:1px solid var(--danger);color:#ffb4b4;font-size:12px;line-height:1.5;"></div>
+      <div style="margin-top:12px;padding-top:12px;border-top:1px solid var(--line);text-align:center;color:var(--muted);font-size:12px;">
+        Or if your camera won't open:
+      </div>
+      <label class="pill green" style="display:flex;justify-content:center;margin-top:10px;cursor:pointer;border:1px solid var(--green-600);">
+        📁 Pick a photo of the QR
+        <input id="qr-file" type="file" accept="image/*" style="display:none" />
+      </label>
+      <div class="btn-row"><div></div><button class="btn-secondary" id="qr-close">Close</button></div>
+    </div>
+  </div>
+
+  <!-- ── Manual Add Delivery Modal ── -->
+  <div class="modal" id="add-modal">
+    <div class="modal-card">
+      <h3>Add Delivery Manually</h3>
+      <div class="form-grid">
+        <label>FEED TYPE</label>
+        <select id="dx-feed"><option>Starter</option><option>Grower</option><option>Finisher</option><option>Withdrawal</option></select>
+        <label>AMOUNT (KG)</label>
+        <input id="dx-amount-kg" type="number" inputmode="decimal" step="1" placeholder="0" />
+        <label>DOCKET #</label>
+        <input id="dx-docket" type="text" placeholder="Order / Ticket No" />
+        <label>NOTES</label>
+        <textarea id="dx-notes" placeholder="Truck rego, supplier, etc."></textarea>
+      </div>
+      <div class="btn-row">
+        <button class="btn-secondary" id="add-cancel">Cancel</button>
+        <button class="btn-primary" id="add-save">Save</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── AI Photo Scan Modal ── -->
+  <div class="modal" id="aiscan-modal">
+    <div class="modal-card">
+      <h3>✨ Scan Docket Photo (AI)</h3>
+      <p style="font-size:12px; color: var(--muted); margin:0 0 12px;">Auto-detects Ingham's / Baiada / BPL Adelaide.</p>
+      <input type="file" accept="image/*" capture="environment" id="ai-file" />
+      <img id="ai-preview" style="max-width:100%; max-height:200px; margin-top:12px; border-radius:10px; display:none;" />
+      <div id="ai-result" style="margin-top:12px; font-size:13px;"></div>
+      <div class="btn-row">
+        <button class="btn-secondary" id="ai-cancel">Cancel</button>
+        <button class="btn-primary" id="ai-save" disabled>Save</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Photo lightbox ── -->
+  <div class="modal lightbox" id="lightbox"><img id="lightbox-img" /></div>
+
+  <div class="toast" id="toast">Saved</div>
+
+  <script>
+    // ─── Multi-farm support ────────────────────────────────────────────
+    // Read ?farm=slug from URL and route ALL /api/ calls through that farm.
+    const FARM_SLUG = (() => {
+      try { return new URLSearchParams(window.location.search).get("farm") || "default"; }
+      catch { return "default"; }
+    })();
+    document.title = (FARM_SLUG !== "default" ? `[${FARM_SLUG}] ` : "") + "Broiler Base Mate";
+    // Patch fetch so every /api/* call automatically carries ?farm=<slug>
+    (function patchFetch() {
+      const orig = window.fetch.bind(window);
+      window.fetch = function(input, init) {
+        try {
+          let urlStr = typeof input === "string" ? input : input.url;
+          if (urlStr && urlStr.startsWith("/api/")) {
+            const u = new URL(urlStr, window.location.origin);
+            if (!u.searchParams.has("farm")) {
+              u.searchParams.set("farm", FARM_SLUG);
+              urlStr = u.pathname + (u.search ? u.search : "");
+              if (typeof input === "string") input = urlStr;
+              else input = new Request(urlStr, input);
+            }
+          }
+        } catch (e) { /* fall through to original */ }
+        return orig(input, init);
+      };
+    })();
+
+    const FEED_TYPES = ["Starter","Grower","Finisher","Withdrawal"];
+    let groupsCache=[], progressCache=null, deliveriesCache=[], readingsHistory=[], photosCache=[], farmConfig={};
+    let activeTab="today";
+    let qrScanner=null;
+    let aiScanState={file:null,dataUrl:null,thumb:null,fields:null};
+
+    const $=s=>document.querySelector(s); const $$=s=>Array.from(document.querySelectorAll(s));
+    const toast=(m,k="")=>{ const t=$("#toast"); t.textContent=m; t.className="toast show "+(k||""); clearTimeout(toast._); toast._=setTimeout(()=>t.className="toast",2400); };
+    const fmtDateShort=(iso)=>{ try{const d=new Date(iso.length===10?iso+"T00:00:00":iso); return d.toLocaleDateString("en-AU",{day:"numeric",month:"short"});}catch{return iso;}};
+    const fmtDateLong=(iso)=>{ try{const d=new Date(iso.length===10?iso+"T00:00:00":iso); return d.toLocaleDateString("en-AU",{weekday:"long",day:"numeric",month:"long",year:"numeric"}).toUpperCase();}catch{return iso;}};
+    const fmtTime=(iso)=>{ try{const d=new Date(iso); return d.toLocaleTimeString("en-AU",{hour:"numeric",minute:"2-digit"});}catch{return "";}};
+
+    function setActiveTab(name){
+      activeTab=name;
+      $$(".tab").forEach(t=>t.classList.toggle("active", t.dataset.tab===name));
+      ["today","history","deliveries","photos","settings"].forEach(n=>document.getElementById("tab-"+n).style.display=(n===name)?"":"none");
+      if (name==="history") loadHistory();
+      if (name==="deliveries") loadDeliveries();
+      if (name==="photos") loadPhotos();
+      if (name==="settings") renderSettings();
+    }
+    $$(".tab").forEach(t=>t.addEventListener("click",()=>setActiveTab(t.dataset.tab)));
+
+    // ─── Bootstrapping ─────────────────────────────────────────────────
+    async function loadAll(){
+      const [gRes,pRes,fcRes] = await Promise.all([
+        fetch("/api/shed-groups"), fetch("/api/readings/today"), fetch("/api/farm-config")
+      ]);
+      groupsCache=await gRes.json(); progressCache=await pRes.json(); farmConfig=await fcRes.json();
+      $("#farm-name").textContent = farmConfig.farmName || "Double B Farm";
+      applyLogo(farmConfig.logoData);
+      $("#today-date").textContent = progressCache?.date ? fmtDateShort(progressCache.date) : "—";
+      const enabled = (farmConfig.enabledGroupIds || []).length ? new Set(farmConfig.enabledGroupIds) : new Set(groupsCache.map(g=>g.id));
+      const activeGroups = groupsCache.filter(g=>enabled.has(g.id));
+      const saved = (progressCache?.sheds||[]).filter(s=>s.allSaved && enabled.has(s.shedGroupId)).length;
+      const total = activeGroups.length;
+      $("#progress-num").textContent = `${saved}/${total}`;
+      $("#progress-lbl").textContent = saved===total && total>0 ? "DONE" : "LEFT";
+      renderToday(activeGroups);
+    }
+
+    function siloProgress(gid,sid){ const s=progressCache?.sheds?.find(s=>s.shedGroupId===gid); return s?.silos?.find(x=>x.siloId===sid); }
+
+    function renderToday(activeGroups){
+      const list=$("#shed-list");
+      if (!activeGroups.length){ list.innerHTML='<div style="color:var(--muted);text-align:center;padding:40px 0;">No shed groups enabled. Open Settings to turn some on.</div>'; return; }
+      list.innerHTML = activeGroups.map(g=>{
+        const num = g.name.replace(/[^\d&]/g,"").trim();
+        return `<div class="shed-card" data-shed="${g.id}">
+          <div class="sc-head">
+            <div><div class="lbl">SHEDS</div><div class="num">${num}</div></div>
+            <button class="save-pill" data-save="${g.id}">Save</button>
+          </div>
+          <div class="silos-row">
+            ${g.silos.map(s=>{ const p=siloProgress(g.id,s.id); const val=p?.amountRemaining??""; const saved=!!p?.saved;
+              return `<div class="silo-cell">
+                <div class="silo-h"><div class="silo-badge ${s.letter}">${s.letter}</div><div class="silo-name">Silo ${s.letter}</div></div>
+                <div class="silo-input"><input type="number" inputmode="decimal" step="0.1" placeholder="0" value="${val}" data-silo="${s.id}" data-shed="${g.id}" /><div class="unit">t</div></div>
+                <div class="silo-saved ${saved?"show":""}">SAVED</div>
+              </div>`;}).join("")}
+          </div>
+        </div>`;
+      }).join("");
+      list.querySelectorAll("[data-save]").forEach(btn=>btn.addEventListener("click",()=>saveShed(btn.dataset.save,btn)));
+    }
+
+    async function saveShed(gid,btn){
+      const g=groupsCache.find(x=>x.id===gid); if(!g)return;
+      const readings=[];
+      for (const s of g.silos){
+        const input=document.querySelector(`input[data-silo="${s.id}"]`);
+        const raw=input.value.trim();
+        const amt=parseFloat(raw);
+        if (raw==="" || isNaN(amt)) continue;
+        readings.push({siloId:s.id, feedType:"Grower", amountRemaining:amt, unit:"t"});
+      }
+      if (!readings.length){ toast("Enter at least one silo amount","err"); return; }
+      btn.disabled=true; btn.textContent="Saving…";
+      try{
+        const res=await fetch("/api/readings/batch",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({readings, readingDate:new Date().toISOString()})});
+        if(!res.ok) throw new Error(await res.text());
+        toast("✓ Saved — flowing to Feed Program","ok"); await loadAll();
+      }catch(e){ toast("Save failed","err"); btn.disabled=false; btn.textContent="Save"; }
+    }
+
+    // ─── History ───────────────────────────────────────────────────────
+    async function loadHistory(){
+      const r=await fetch("/api/readings?limit=300"); readingsHistory=await r.json();
+      const byDate={};
+      for (const x of readingsHistory){ const k=x.readingDate.slice(0,10); (byDate[k]=byDate[k]||[]).push(x); }
+      const dates=Object.keys(byDate).sort().reverse();
+      const list=$("#history-list");
+      if (!dates.length){ list.innerHTML='<div style="color:var(--muted);text-align:center;padding:40px 0;">No silo readings yet.</div>'; return; }
+      list.innerHTML = dates.map(d=>`
+        <div class="date-head">${fmtDateLong(d)}</div>
+        <div class="hist-group">
+          ${byDate[d].map(x=>`
+            <div class="hist-row">
+              <div><div class="l-name">${x.shedGroupName||"—"} <span class="silo-tag ${x.siloLetter}">SILO ${x.siloLetter}</span></div><div class="l-time">${fmtTime(x.readingDate)}</div></div>
+              <div class="amt"><div class="num">${Math.round(x.amountRemaining)}</div><div class="unit">${x.unit}</div></div>
+              <button class="icon-btn" data-del-r="${x.id}">🗑</button>
+            </div>`).join("")}
+        </div>`).join("");
+      list.querySelectorAll("[data-del-r]").forEach(b=>b.addEventListener("click", async()=>{ if(!confirm("Delete this reading?"))return; await fetch(`/api/readings/${b.dataset.delR}`,{method:"DELETE"}); loadHistory(); loadAll(); }));
+    }
+
+    $("#export-excel").addEventListener("click",async()=>{
+      if (!readingsHistory.length){ toast("Nothing to export","err"); return; }
+      const rows = [["Date","Time","Shed Group","Silo","Feed Type","Amount","Unit"]];
+      readingsHistory.forEach(x=>rows.push([x.readingDate.slice(0,10),fmtTime(x.readingDate),x.shedGroupName,x.siloLetter,x.feedType,x.amountRemaining,x.unit]));
+      const csv = rows.map(r=>r.map(v=>`"${String(v??"").replace(/"/g,'""')}"`).join(",")).join("\n");
+      const blob = new Blob([csv],{type:"text/csv"}); const a=document.createElement("a");
+      a.href=URL.createObjectURL(blob); a.download=`silo-readings-${new Date().toISOString().slice(0,10)}.csv`; a.click();
+      toast("✓ Exported","ok");
+    });
+
+    // ─── Deliveries ────────────────────────────────────────────────────
+    async function loadDeliveries(){
+      const r=await fetch("/api/deliveries?limit=200"); deliveriesCache=await r.json();
+      const total=deliveriesCache.reduce((s,d)=>s + (d.unit==="kg" ? d.amount : d.amount), 0);
+      const totalKg=deliveriesCache.reduce((s,d)=>s + (d.unit==="kg" ? d.amount : d.amount*1000), 0);
+      $("#delivery-card").innerHTML = deliveriesCache.length ? `
+        <div class="dc-head"><div class="ttl">Delivery</div><div class="amt">${total.toFixed(2)} t</div></div>
+        <div class="dc-sub"><div>${deliveriesCache.length} deliveries</div><div>${totalKg.toLocaleString()} KG</div></div>
+        <div class="delivery-list">
+          ${deliveriesCache.map(d=>{ const kg = d.unit==="kg" ? d.amount : d.amount*1000;
+            const cls = (d.feedType||"").toLowerCase();
+            return `<div class="delivery-item">
+              <div class="truck-icon">🚛</div>
+              <div>
+                <div class="feed-name">${d.feedTypeOriginal||d.feedType} <span class="feed-tag ${cls}">${(d.feedType||"").toUpperCase()}</span></div>
+                <div class="meta">Doc: ${d.docketNumber||"—"} · ${d.deliveryDate.slice(0,10)} · ${Math.round(kg).toLocaleString()} kg</div>
+              </div>
+              <button class="icon-btn" data-del-d="${d.id}">🗑</button>
+            </div>`;}).join("")}
+        </div>` : `<div style="padding:30px 16px;text-align:center;color:var(--muted);">No deliveries yet. Tap Scan QR or + to add one.</div>`;
+      $("#delivery-card").querySelectorAll("[data-del-d]").forEach(b=>b.addEventListener("click", async()=>{ if(!confirm("Delete this delivery?"))return; await fetch(`/api/deliveries/${b.dataset.delD}`,{method:"DELETE"}); loadDeliveries(); }));
+    }
+
+    // ── QR Scanner
+    function parseQrDocket(raw){
+      const out={rawText:raw};
+      // CSV with quotes (common Ingham's format)
+      if (raw.trimStart().startsWith('"')){
+        const fields = []; let i=0;
+        while(i<raw.length){ if (raw[i]==='"'){ i++; let f=""; while(i<raw.length && raw[i]!=='"'){ f+=raw[i++]; } fields.push(f); i++; } else { let f=""; while(i<raw.length && raw[i]!==","){ f+=raw[i++]; } fields.push(f.trim()); } if (i<raw.length && raw[i]===",") i++; }
+        if (fields.length>=8){ out.docketNumber=fields[1]; out.deliveryDate=fields[2]; out.feedType=fields[7]; const n=parseFloat((fields[fields.length-1]||"").replace(/[^\d.]/g,"")); if(!isNaN(n)) out.amountKg=n; return out; }
+      }
+      try { const u=new URL(raw); const p=u.searchParams; out.amountKg=parseFloat((p.get("net")||p.get("weight")||"").replace(/[^\d.]/g,""))||undefined; out.docketNumber=p.get("ticket")||p.get("dispatch")||undefined; out.feedType=p.get("feedType")||p.get("feed")||undefined; out.deliveryDate=p.get("date")||p.get("deliveryDate")||undefined; return out; } catch {}
+      try { const o=JSON.parse(raw); return {...out, ...o}; } catch {}
+      return out;
+    }
+    function isoFromDdmmyy(s){ if(!s) return null; const m=s.match(/(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})/); if(!m) return s; let [_,a,b,c]=m; if(c.length===2)c="20"+c; return `${c}-${b.padStart(2,"0")}-${a.padStart(2,"0")}`; }
+    $("#open-qr").addEventListener("click", async ()=>{
+      $("#qr-modal").classList.add("show");
+      $("#qr-error").style.display = "none";
+      $("#qr-reader").innerHTML = "Loading camera…";
+      // Wait briefly for the lib to load
+      let tries = 0;
+      while (!window.Html5Qrcode && !window.__qrLibFailed && tries < 30) {
+        await new Promise(r => setTimeout(r, 100)); tries++;
+      }
+      if (!window.Html5Qrcode) {
+        showQrError("⚠️ Couldn't load QR scanner library — check your internet, or use 'Pick a photo' below.");
+        return;
+      }
+      try {
+        $("#qr-reader").innerHTML = ""; // clear placeholder so library can mount its video
+        qrScanner = new Html5Qrcode("qr-reader");
+        const cams = await Html5Qrcode.getCameras().catch(()=>[]);
+        const camId = cams.find(c => /back|rear|environment/i.test(c.label))?.id || cams[0]?.id;
+        const constraint = camId ? camId : { facingMode: "environment" };
+        await qrScanner.start(constraint, { fps: 10, qrbox: { width: 250, height: 250 } },
+          (decoded) => handleQrDecoded(decoded),
+          () => {}
+        );
+      } catch (e) {
+        const msg = String(e?.message || e || "");
+        if (/permission|denied|NotAllowed/i.test(msg)) {
+          showQrError("📷 Camera permission denied. Open browser settings → allow camera, or use 'Pick a photo' below.");
+        } else if (/NotFound|no camera/i.test(msg)) {
+          showQrError("📷 No camera found on this device. Use 'Pick a photo' below.");
+        } else if (/NotReadable|Could not start|hardware/i.test(msg)) {
+          showQrError("📷 Camera in use by another app. Close other camera apps, or use 'Pick a photo'.");
+        } else {
+          showQrError("📷 Couldn't start camera: " + msg + ". Try 'Pick a photo' below.");
+        }
+      }
+    });
+    function showQrError(msg){ $("#qr-error").style.display = "block"; $("#qr-error").textContent = msg; $("#qr-reader").innerHTML = '<div style="padding:30px;color:#888;">Camera unavailable</div>'; }
+    async function handleQrDecoded(decoded){
+      try { await qrScanner?.stop(); qrScanner?.clear(); } catch{}
+      const f = parseQrDocket(decoded);
+      $("#qr-modal").classList.remove("show");
+      await fetch("/api/deliveries",{method:"POST",headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({feedType:(f.feedType||"Starter"), amount:(f.amountKg||0)/1000, unit:"t",
+          deliveryDate:(isoFromDdmmyy(f.deliveryDate)?isoFromDdmmyy(f.deliveryDate)+"T00:00:00Z":new Date().toISOString()),
+          docketNumber:f.docketNumber, notes:f.docketNumber?`Docket ${f.docketNumber}`:null, supplier:"QR-scanned"})});
+      toast(`✓ Saved ${f.feedType||""} ${(f.amountKg||0).toLocaleString()} kg`, "ok"); loadDeliveries();
+    }
+    $("#qr-file").addEventListener("change", async (e)=>{
+      const f = e.target.files?.[0]; if (!f) return;
+      if (!window.Html5Qrcode) { toast("QR library not loaded", "err"); return; }
+      const tmp = new Html5Qrcode("qr-reader");
+      try {
+        const decoded = await tmp.scanFile(f, false);
+        await tmp.clear();
+        handleQrDecoded(decoded);
+      } catch (err) {
+        await tmp.clear().catch(()=>{});
+        toast("No QR found in that photo", "err");
+      }
+    });
+    $("#qr-close").addEventListener("click", async ()=>{
+      try { await qrScanner?.stop(); qrScanner?.clear(); } catch{}
+      qrScanner = null;
+      $("#qr-modal").classList.remove("show");
+    });
+
+    // ── Manual Add
+    $("#open-add").addEventListener("click",()=>$("#add-modal").classList.add("show"));
+    $("#add-cancel").addEventListener("click",()=>$("#add-modal").classList.remove("show"));
+    $("#add-save").addEventListener("click",async()=>{
+      const kg=parseFloat($("#dx-amount-kg").value); if(!kg||kg<=0){ toast("Enter amount in kg","err"); return; }
+      await fetch("/api/deliveries",{method:"POST",headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({feedType:$("#dx-feed").value, amount:kg/1000, unit:"t", deliveryDate:new Date().toISOString(), docketNumber:$("#dx-docket").value||null, notes:$("#dx-notes").value||null})});
+      $("#add-modal").classList.remove("show"); $("#dx-amount-kg").value=""; $("#dx-docket").value=""; $("#dx-notes").value=""; toast("✓ Delivery added","ok"); loadDeliveries();
+    });
+
+    // ── AI Photo Scan
+    $("#open-photo-scan").addEventListener("click",()=>{ $("#aiscan-modal").classList.add("show"); $("#ai-result").innerHTML=""; $("#ai-preview").style.display="none"; $("#ai-save").disabled=true; });
+    $("#ai-cancel").addEventListener("click",()=>$("#aiscan-modal").classList.remove("show"));
+    $("#ai-file").addEventListener("change", async (e)=>{
+      const f=e.target.files?.[0]; if(!f) return;
+      const dataUrl = await resizeImg(f,1600,.85); const thumb = await resizeImg(f,280,.78);
+      $("#ai-preview").src=dataUrl; $("#ai-preview").style.display="block";
+      $("#ai-result").innerHTML='<span class="spinner"></span> Reading…';
+      try {
+        const r=await fetch("/api/scan-docket/auto",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({imageData:dataUrl.split(",")[1],mimeType:"image/jpeg"})});
+        if(!r.ok) throw new Error(await r.text());
+        const out=await r.json(); aiScanState={fields:out.fields, dataUrl, thumb:thumb.split(",")[1]};
+        const F=out.fields;
+        $("#ai-result").innerHTML = `<div style="background:var(--panel-2);padding:10px;border-radius:8px;line-height:1.7;">
+          <div><b>${F.supplier||"?"}</b></div>
+          <div>${F.feedType||"?"} ${F.productCode?`(${F.productCode})`:""}</div>
+          <div>${F.amount||"?"} ${F.unit||"t"}</div>
+          <div>${F.deliveryDate||"?"} · Docket ${F.orderNumber||"?"}</div>
+          ${F.truckRego?`<div>🚛 ${F.truckRego}</div>`:""}</div>`;
+        $("#ai-save").disabled=false;
+      } catch(e){ $("#ai-result").innerHTML=`<span style="color:var(--danger)">Failed: ${e.message}</span>`; }
+    });
+    $("#ai-save").addEventListener("click",async()=>{
+      const F=aiScanState.fields; if(!F) return;
+      await fetch("/api/deliveries",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({
+        feedType:F.feedType, amount:parseFloat(F.amount), unit:F.unit||"t",
+        deliveryDate:F.deliveryDate?`${F.deliveryDate}T00:00:00Z`:new Date().toISOString(),
+        notes:F.orderNumber?`Docket ${F.orderNumber}`:null, docketNumber:F.orderNumber, productCode:F.productCode,
+        customerName:F.customerName, siteCode:F.siteCode, truckRego:F.truckRego, outloadingBin:F.outloadingBin,
+        deliveryInstructions:F.deliveryInstructions, supplier:F.supplier, imageThumb:aiScanState.thumb
+      })});
+      $("#aiscan-modal").classList.remove("show"); toast("✓ Saved from AI scan","ok"); loadDeliveries();
+    });
+
+    // ─── Photos ────────────────────────────────────────────────────────
+    async function loadPhotos(){
+      const totalShedsNum = farmConfig.totalSheds || 20;
+      const r=await fetch("/api/photos"); photosCache=await r.json();
+      $("#mort-photos").innerHTML = renderPhotoGrid(photosCache.filter(p=>p.category==="mort_sheet"));
+      const wrap=$("#bird-weight-sections");
+      const sheds=Array.from({length:totalShedsNum},(_,i)=>i+1);
+      wrap.innerHTML = sheds.map(n=>{
+        const ph=photosCache.filter(p=>p.category==="bird_weight" && p.shedNumber===n);
+        return `<div class="photo-section" data-shed="${n}">
+          <div class="ph-head" data-collapse="shed-${n}"><div class="ttl">Shed ${n}</div><span>▲</span></div>
+          <div class="ph-body">
+            <button class="photo-btn weight" data-cat="bird_weight" data-shed="${n}">⚖ Bird Weight</button>
+            ${ph.length ? renderPhotoGrid(ph) : '<div class="photo-empty">No photos yet for Shed '+n+'</div>'}
+          </div></div>`;
+      }).join("");
+      bindPhotoBtns();
+    }
+    function renderPhotoGrid(items){
+      if (!items.length) return '<div class="photo-empty">No photos yet</div>';
+      return `<div class="photo-grid">${items.map(p=>`<div class="photo-thumb"><img data-full="${p.id}" src="data:image/jpeg;base64,${p.imageData.length>20000?'':p.imageData}" /><button class="del" data-del-p="${p.id}">×</button></div>`).join("")}</div>`;
+    }
+    function bindPhotoBtns(){
+      $$("[data-cat]").forEach(b=>b.addEventListener("click",()=>capturePhoto(b.dataset.cat, b.dataset.shed?parseInt(b.dataset.shed):null)));
+      $$("[data-collapse]").forEach(h=>h.addEventListener("click",()=>h.parentElement.classList.toggle("collapsed")));
+      $$("[data-del-p]").forEach(b=>b.addEventListener("click",async()=>{ if(!confirm("Delete?"))return; await fetch(`/api/photos/${b.dataset.delP}`,{method:"DELETE"}); loadPhotos(); }));
+      $$(".photo-thumb img[data-full]").forEach(img=>img.addEventListener("click",()=>{ $("#lightbox-img").src=img.src; $("#lightbox").classList.add("show"); }));
+    }
+    $("#lightbox").addEventListener("click",()=>$("#lightbox").classList.remove("show"));
+    async function capturePhoto(cat, shedNum){
+      const inp=document.createElement("input"); inp.type="file"; inp.accept="image/*"; inp.capture="environment";
+      inp.addEventListener("change",async(e)=>{
+        const f=e.target.files?.[0]; if(!f)return;
+        const data=await resizeImg(f,1200,.78); const b64=data.split(",")[1];
+        await fetch("/api/photos",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({category:cat, shedNumber:shedNum, imageData:b64})});
+        toast("✓ Photo saved","ok"); loadPhotos();
+      }); inp.click();
+    }
+
+    // ─── Settings ──────────────────────────────────────────────────────
+    function renderSettings(){
+      $("#set-farm-name").value = farmConfig.farmName || "";
+      $("#set-total-sheds").value = farmConfig.totalSheds || 20;
+      const enabled = new Set(farmConfig.enabledGroupIds || groupsCache.map(g=>g.id));
+      $("#shed-toggles").innerHTML = groupsCache.map(g=>{
+        const on = enabled.has(g.id);
+        return `<div class="toggle-row ${on?"":"off"}" data-tgl="${g.id}"><div class="toggle ${on?"on":""}"></div><div class="name">${g.name}</div></div>`;
+      }).join("");
+      $$("[data-tgl]").forEach(row=>row.addEventListener("click",async()=>{
+        const gid=row.dataset.tgl;
+        const cur = new Set(farmConfig.enabledGroupIds || groupsCache.map(g=>g.id));
+        if (cur.has(gid)) cur.delete(gid); else cur.add(gid);
+        farmConfig.enabledGroupIds=Array.from(cur);
+        await fetch("/api/farm-config",{method:"PATCH",headers:{"Content-Type":"application/json"},body:JSON.stringify({enabledGroupIds:farmConfig.enabledGroupIds})});
+        renderSettings(); loadAll();
+      }));
+    }
+    $("#set-farm-name").addEventListener("change", async()=>{ farmConfig.farmName=$("#set-farm-name").value; await fetch("/api/farm-config",{method:"PATCH",headers:{"Content-Type":"application/json"},body:JSON.stringify({farmName:farmConfig.farmName})}); $("#farm-name").textContent=farmConfig.farmName; toast("✓ Saved","ok"); });
+    $("#set-total-sheds").addEventListener("change", async()=>{ farmConfig.totalSheds=parseInt($("#set-total-sheds").value)||20; await fetch("/api/farm-config",{method:"PATCH",headers:{"Content-Type":"application/json"},body:JSON.stringify({totalSheds:farmConfig.totalSheds})}); toast("✓ Saved","ok"); });
+    $("#new-batch-btn").addEventListener("click",async()=>{
+      if (!confirm("Start new batch?\n\nThis wipes ALL readings, deliveries, and photos.")) return;
+      await fetch("/api/batch/reset",{method:"DELETE"});
+      toast("✓ Batch reset","ok"); loadAll();
+    });
+
+    // ── Logo upload / reset
+    function applyLogo(logoData){
+      const url = logoData ? `data:image/png;base64,${logoData}` : "/reader-assets/logo.svg";
+      const headerImg = document.querySelector(".app-icon img");
+      if (headerImg) headerImg.src = url;
+      const preview = $("#logo-preview"); if (preview) preview.src = url;
+    }
+    $("#logo-file").addEventListener("change", async(e)=>{
+      const f = e.target.files?.[0]; if (!f) return;
+      // Resize to 192x192 cover-fit (square) for storage
+      const dataUrl = await resizeImgSquare(f, 192, .9);
+      const b64 = dataUrl.split(",")[1];
+      farmConfig.logoData = b64;
+      applyLogo(b64);
+      await fetch("/api/farm-config",{method:"PATCH",headers:{"Content-Type":"application/json"},body:JSON.stringify({logoData:b64})});
+      toast("✓ Logo updated — also live in the Feed Program","ok");
+      $("#logo-file").value = "";
+    });
+    $("#logo-reset").addEventListener("click", async()=>{
+      if (!confirm("Reset to default logo?")) return;
+      farmConfig.logoData = null;
+      applyLogo(null);
+      await fetch("/api/farm-config",{method:"PATCH",headers:{"Content-Type":"application/json"},body:JSON.stringify({logoData:""})});
+      toast("✓ Logo reset","ok");
+    });
+    function resizeImgSquare(file, size, q){
+      return new Promise((res,rej)=>{ const r=new FileReader(); r.onload=()=>{ const img=new Image(); img.onload=()=>{
+        const c=document.createElement("canvas"); c.width=size; c.height=size; const ctx=c.getContext("2d");
+        // cover-fit: scale so the shorter side fills, center-crop the longer
+        const s=Math.max(size/img.width, size/img.height);
+        const w=img.width*s, h=img.height*s;
+        ctx.drawImage(img,(size-w)/2,(size-h)/2,w,h);
+        res(c.toDataURL("image/jpeg",q));
+      }; img.onerror=rej; img.src=r.result; }; r.onerror=rej; r.readAsDataURL(file); });
+    }
+
+    // ─── Helpers ───────────────────────────────────────────────────────
+    function resizeImg(file,maxPx,q){return new Promise((res,rej)=>{const r=new FileReader();r.onload=()=>{const img=new Image();img.onload=()=>{const s=Math.min(1,maxPx/Math.max(img.width,img.height));const w=Math.round(img.width*s),h=Math.round(img.height*s);const c=document.createElement("canvas");c.width=w;c.height=h;c.getContext("2d").drawImage(img,0,0,w,h);res(c.toDataURL("image/jpeg",q));};img.onerror=rej;img.src=r.result;};r.onerror=rej;r.readAsDataURL(file);});}
+
+    // ── Boot ──
+    loadAll().catch(e=>{console.error(e);toast("Failed to load","err")});
+    setInterval(()=>{ if(activeTab==="today") loadAll().catch(()=>{}); }, 30000);
+  </script>
+</body>
+</html>
