@@ -491,6 +491,15 @@
       #sticky-cta { display: block !important; }
       body { padding-bottom: 84px; }
     }
+    /* ── Demo walkthrough animations ── */
+    @keyframes typein { from { width: 0; } to { width: 100%; } }
+    @keyframes fadeup { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+    @keyframes slidein { from { opacity: 0; transform: translateX(-12px); } to { opacity: 1; transform: translateX(0); } }
+    @keyframes fillbar { from { width: 0%; } to { width: var(--w, 0%); } }
+    @keyframes flash { 0%, 100% { background: transparent; } 50% { background: #fff8e0; } }
+    @keyframes rowpulse { 0%, 100% { box-shadow: inset 0 0 0 0 rgba(201,162,39,0); } 50% { box-shadow: inset 0 0 0 2px rgba(201,162,39,0.4); } }
+    @keyframes arrowpulse { 0%, 100% { transform: translateX(0); opacity: 0.6; } 50% { transform: translateX(6px); opacity: 1; } }
+    @keyframes drawline { to { stroke-dashoffset: 0; } }
   </style>
 
   <!-- ── LOGIN / RECOVER LINK MODAL ── -->
@@ -689,27 +698,282 @@
     renderOps();
 
     // ── How To Demo modal ──
+    // Each step renders an inline animated mini-mockup of the actual Feed Program
+    // UI, plus a short caption. Visuals are pure HTML/CSS/SVG so they animate
+    // smoothly inside the modal with zero asset weight.
     const DEMO_STEPS = [
-      { ico:"📲", title:"1. Scan to open on your phone", body:"From the Feed Program on your PC, open Settings and scan the QR code with your phone camera. The mobile Silo Reader opens instantly — no app store install. Tap 'Add to Home Screen' and it lives on your phone like a real app." },
-      { ico:"📋", title:"2. Tap silo readings in the field", body:"Walk the sheds. Each shed group shows three silos (A, B, C). Type the tonnes remaining and hit Save. The previous reading auto-fills with one tap so you only type the change." },
-      { ico:"📷", title:"3. Photograph a delivery docket", body:"When a feed truck arrives, snap the docket. Gemini Vision AI auto-detects Ingham's / Baiada / BPL Adelaide and pulls out feed type, kg, docket number, truck rego — all the right fields in 2 seconds. Save → done." },
-      { ico:"📊", title:"4. Spreadsheet auto-updates", body:"Within 2 minutes the Feed Program on your computer reflects every silo reading and every delivery in the End-of-Batch section. No retyping, no copying. Open it Monday morning and everything from the weekend is already there." },
-      { ico:"🚚", title:"5. End of batch — instant FCR", body:"When the catchers come, enter the catch numbers + bird weights. FCR (Feed Conversion Ratio), morts, kg/bird and net consumed all calculate automatically. Export to CSV or Excel and email to your integrator." },
-      { ico:"🎉", title:"That's it — ready to start your free trial?", body:"14 days free, no card if you cancel in time. Bronze for small farms, Silver for most, Gold for big ops. Pick a plan below — we'll have you up and running in under 5 minutes.", cta:true },
+      {
+        title: "1. Open the Feed Program & set up your farm",
+        body: "Click Summary → set your placement date and bird numbers for each shed. The Feed Program auto-builds the full grow-out spreadsheet for you — no more manual Excel formulas.",
+        mockup: `
+          <div style="background:#fff;border:1px solid #e0e8e4;border-radius:12px;padding:14px 16px;font-family:Calibri,sans-serif;color:#1a3a5c;text-align:left;width:100%;max-width:520px;box-shadow:0 4px 14px rgba(0,0,0,.18);">
+            <div style="background:linear-gradient(135deg,#1a5c36,#2d8052);color:#fff;margin:-14px -16px 12px;padding:8px 16px;border-radius:12px 12px 0 0;font-weight:800;font-size:13px;">📋 SUMMARY · Double B Farm</div>
+            <div style="display:grid;grid-template-columns:130px 1fr;row-gap:8px;font-size:13px;align-items:center;">
+              <div style="color:#666;">Placement date:</div>
+              <div style="background:#fff8e0;border:1px solid #e8d070;border-radius:5px;padding:3px 8px;font-weight:700;color:#7a6000;animation:typein 1.6s steps(11,end) 0.3s forwards;overflow:hidden;white-space:nowrap;width:0;">20 March 2026</div>
+              <div style="color:#666;">Batch number:</div>
+              <div style="font-weight:700;animation:typein 1s steps(3,end) 1.4s forwards;overflow:hidden;white-space:nowrap;width:0;">112</div>
+              <div style="color:#666;">Sheds 1–2 birds:</div>
+              <div style="font-weight:800;color:#16a085;animation:typein 1.4s steps(6,end) 2.1s forwards;overflow:hidden;white-space:nowrap;width:0;">79,643</div>
+              <div style="color:#666;">Sheds 3–4 birds:</div>
+              <div style="font-weight:800;color:#16a085;animation:typein 1.4s steps(6,end) 2.8s forwards;overflow:hidden;white-space:nowrap;width:0;">80,000</div>
+              <div style="color:#666;">Sheds 5–6 birds:</div>
+              <div style="font-weight:800;color:#16a085;animation:typein 1.4s steps(6,end) 3.5s forwards;overflow:hidden;white-space:nowrap;width:0;">79,841</div>
+            </div>
+            <div style="margin-top:12px;background:#f0faf4;border:1px solid #a8ddb8;border-radius:7px;padding:8px 10px;font-size:11px;color:#1a7a40;font-weight:700;opacity:0;animation:fadeup 0.6s 4.4s forwards;">✓ Spreadsheet auto-built · 42 days populated</div>
+          </div>`,
+      },
+      {
+        title: "2. Shed sheets calculate themselves",
+        body: "Every shed gets its own 42-day grow-out sheet — feed ordered, feed on hand, silo levels, morts, density. Every cell auto-calculates so you just type the actual numbers each day.",
+        mockup: `
+          <div style="background:#fff;border:1px solid #e0e8e4;border-radius:12px;padding:0;font-family:Calibri,sans-serif;color:#1a3a5c;text-align:left;width:100%;max-width:560px;box-shadow:0 4px 14px rgba(0,0,0,.18);overflow:hidden;">
+            <div style="background:#1a3a5c;color:#fff;padding:8px 14px;font-weight:800;font-size:13px;display:flex;justify-content:space-between;align-items:center;">
+              <span>🏠 SHED 3 &amp; 4 — Day 18</span>
+              <span style="background:#C9A227;color:#000;border-radius:5px;padding:1px 8px;font-size:11px;">80,000 birds</span>
+            </div>
+            <table style="width:100%;border-collapse:collapse;font-size:11px;">
+              <thead>
+                <tr style="background:#f6f9f7;color:#1a5c36;font-weight:700;">
+                  <th style="padding:5px 6px;text-align:left;">Age</th>
+                  <th style="padding:5px 6px;text-align:left;">Date</th>
+                  <th style="padding:5px 6px;text-align:right;">Ordered</th>
+                  <th style="padding:5px 6px;text-align:right;">Used</th>
+                  <th style="padding:5px 6px;text-align:right;">On hand</th>
+                  <th style="padding:5px 6px;text-align:right;">Birds left</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr><td style="padding:4px 6px;">15</td><td>3 Apr</td><td style="text-align:right;">22,000</td><td style="text-align:right;font-weight:700;">5,920</td><td style="text-align:right;color:#1a7a40;font-weight:700;">22,320</td><td style="text-align:right;">79,612</td></tr>
+                <tr style="background:#fafcfb;"><td style="padding:4px 6px;">16</td><td>4 Apr</td><td style="text-align:right;color:#aaa;">—</td><td style="text-align:right;font-weight:700;">6,000</td><td style="text-align:right;color:#e67e22;font-weight:700;">16,320</td><td style="text-align:right;">79,591</td></tr>
+                <tr><td style="padding:4px 6px;">17</td><td>5 Apr</td><td style="text-align:right;color:#2980b9;font-weight:700;animation:flash 1.6s 0.4s infinite;">22,000</td><td style="text-align:right;font-weight:700;">6,400</td><td style="text-align:right;color:#1a7a40;font-weight:700;">31,920</td><td style="text-align:right;">79,570</td></tr>
+                <tr style="background:#fff5d6;animation:rowpulse 2s 1s infinite;"><td style="padding:4px 6px;font-weight:800;">18</td><td><strong>6 Apr</strong></td><td style="text-align:right;color:#aaa;">—</td><td style="text-align:right;font-weight:800;color:#1a5c36;">6,960</td><td style="text-align:right;font-weight:800;color:#1a7a40;">24,960</td><td style="text-align:right;font-weight:700;">79,549</td></tr>
+                <tr style="opacity:0.45;"><td style="padding:4px 6px;">19</td><td>7 Apr</td><td style="text-align:right;color:#aaa;">—</td><td style="text-align:right;">7,440</td><td style="text-align:right;">17,520</td><td style="text-align:right;">79,528</td></tr>
+              </tbody>
+            </table>
+            <div style="background:#f6f9f7;padding:6px 14px;font-size:10px;color:#666;border-top:1px solid #e0e8e4;">⚡ Every formula live · auto-saves every keystroke</div>
+          </div>`,
+      },
+      {
+        title: "3. Scan the QR — your phone becomes the silo reader",
+        body: "Settings → Pair Phone. Scan the QR with your camera. The mobile reader opens instantly — no app store, no install. Add it to your home screen and you're ready to walk the sheds.",
+        mockup: `
+          <div style="display:flex;gap:24px;align-items:center;justify-content:center;flex-wrap:wrap;">
+            <div style="background:#fff;border-radius:14px;padding:16px;box-shadow:0 6px 18px rgba(0,0,0,.22);">
+              <svg width="140" height="140" viewBox="0 0 140 140" style="display:block;">
+                <rect width="140" height="140" fill="#fff"/>
+                ${(() => {
+                  // Generate a fake QR-ish pattern
+                  let cells = '';
+                  const seed = [0,1,1,0,1,0,0,1,1,1,0,1,0,1,0,0,1,0,1,1,0,1,1,0,0,1,0,1,1,0,1,0];
+                  for (let y = 0; y < 12; y++) for (let x = 0; x < 12; x++) {
+                    if (seed[(y*7+x*3) % seed.length]) cells += `<rect x="${10+x*10}" y="${10+y*10}" width="9" height="9" fill="#0f3d24"/>`;
+                  }
+                  // Corner finders
+                  ['10,10','110,10','10,110'].forEach(p => {
+                    const [x,y] = p.split(',').map(Number);
+                    cells += `<rect x="${x}" y="${y}" width="29" height="29" fill="#0f3d24"/><rect x="${x+4}" y="${y+4}" width="21" height="21" fill="#fff"/><rect x="${x+8}" y="${y+8}" width="13" height="13" fill="#0f3d24"/>`;
+                  });
+                  return cells;
+                })()}
+              </svg>
+              <div style="text-align:center;font-size:11px;color:#666;margin-top:6px;font-weight:700;">Scan with phone camera</div>
+            </div>
+            <div style="font-size:48px;color:#C9A227;animation:arrowpulse 1.4s infinite;">→</div>
+            <div style="position:relative;width:140px;height:240px;background:#0a0a0a;border-radius:20px;padding:8px;box-shadow:0 8px 24px rgba(0,0,0,.35);">
+              <div style="width:100%;height:100%;background:#0f3d24;border-radius:14px;overflow:hidden;position:relative;">
+                <div style="background:#1a5c36;padding:8px 6px;color:#C9A227;font-size:9px;font-weight:800;text-align:center;">SILO READER</div>
+                <div style="padding:8px 6px;display:flex;flex-direction:column;gap:6px;">
+                  <div style="background:rgba(201,162,39,.15);border:1px solid #C9A227;border-radius:5px;padding:5px;color:#fff;font-size:9px;font-weight:700;">Shed 1&amp;2 →</div>
+                  <div style="background:rgba(255,255,255,.05);border-radius:5px;padding:5px;color:#bdd3c4;font-size:9px;">Shed 3&amp;4</div>
+                  <div style="background:rgba(255,255,255,.05);border-radius:5px;padding:5px;color:#bdd3c4;font-size:9px;">Shed 5&amp;6</div>
+                  <div style="background:rgba(255,255,255,.05);border-radius:5px;padding:5px;color:#bdd3c4;font-size:9px;">Shed 7&amp;8</div>
+                </div>
+                <div style="position:absolute;bottom:8px;left:8px;right:8px;background:#C9A227;color:#000;border-radius:5px;padding:4px;text-align:center;font-size:8px;font-weight:800;">📷 SCAN DOCKET</div>
+              </div>
+            </div>
+          </div>`,
+      },
+      {
+        title: "4. Walk the sheds — tap silo readings on your phone",
+        body: "Each shed shows silos A, B, C. Type the tonnes remaining (or kg — your choice). Previous reading auto-fills so you only type what changed. Hit Save → instantly syncs to your computer.",
+        mockup: `
+          <div style="background:#0f3d24;border-radius:18px;padding:16px;width:280px;color:#fff;font-family:system-ui,sans-serif;box-shadow:0 8px 24px rgba(0,0,0,.35);">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+              <div style="font-weight:800;font-size:14px;">Shed 3 &amp; 4</div>
+              <div style="background:#C9A227;color:#000;border-radius:5px;padding:2px 8px;font-size:10px;font-weight:800;">Day 18</div>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:8px;">
+              ${[
+                {letter:'A', val:'8.2', pct:68, color:'#16a085'},
+                {letter:'B', val:'5.7', pct:47, color:'#e67e22'},
+                {letter:'C', val:'11.0', pct:92, color:'#2980b9'},
+              ].map((s,i) => `
+                <div style="background:rgba(255,255,255,.07);border-radius:10px;padding:9px 11px;display:flex;align-items:center;gap:10px;animation:slidein 0.5s ${i*0.18+0.2}s both;">
+                  <div style="width:30px;height:30px;background:${s.color};border-radius:8px;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:14px;color:#fff;">${s.letter}</div>
+                  <div style="flex:1;">
+                    <div style="font-weight:800;font-size:13px;">${s.val}<span style="font-size:10px;color:#bdd3c4;"> t remaining</span></div>
+                    <div style="height:5px;background:rgba(255,255,255,.1);border-radius:3px;margin-top:4px;overflow:hidden;">
+                      <div style="height:100%;width:0;background:${s.color};border-radius:3px;transition:width 0.9s ${i*0.18+0.5}s cubic-bezier(.2,.8,.2,1);" data-pct="${s.pct}"></div>
+                    </div>
+                  </div>
+                </div>`).join('')}
+            </div>
+            <div style="background:#C9A227;color:#000;border-radius:8px;padding:8px;text-align:center;margin-top:10px;font-weight:800;font-size:12px;opacity:0;animation:fadeup 0.4s 1.4s forwards;">✓ Saved · Synced to PC</div>
+          </div>`,
+      },
+      {
+        title: "5. Snap a feed docket — AI fills the form",
+        body: "Truck arrives? Open the phone reader → 📷 Scan Docket. Gemini Vision auto-detects Ingham's / Baiada / BPL Adelaide, pulls out feed type, kg, docket number, truck rego. Tap Save → delivery row appears in your spreadsheet within 2 seconds.",
+        mockup: `
+          <div style="display:flex;gap:20px;align-items:center;justify-content:center;flex-wrap:wrap;">
+            <div style="background:#fff;border-radius:8px;padding:10px;width:160px;box-shadow:0 6px 18px rgba(0,0,0,.22);transform:rotate(-3deg);">
+              <div style="background:#f5f5f0;border:1px dashed #c9a227;border-radius:4px;padding:10px;font-family:'Courier New',monospace;font-size:9px;color:#222;line-height:1.5;text-align:left;">
+                <div style="font-weight:800;color:#1a5c36;">BAIADA POULTRY</div>
+                <div style="border-bottom:1px solid #c9a227;margin:4px 0;"></div>
+                <div>Docket: 8842-A</div>
+                <div>Date: 06/04/26</div>
+                <div>Feed: <strong>FINISHER 7%</strong></div>
+                <div>Wt: <strong>22,000 kg</strong></div>
+                <div>Truck: REG 384-KP</div>
+                <div>Silo: 3B</div>
+              </div>
+            </div>
+            <div style="font-size:36px;color:#C9A227;animation:arrowpulse 1.4s infinite;">→</div>
+            <div style="background:#fff;border-radius:10px;padding:12px 14px;width:260px;box-shadow:0 6px 18px rgba(0,0,0,.22);text-align:left;">
+              <div style="font-weight:800;font-size:12px;color:#1a5c36;margin-bottom:8px;">🤖 AI EXTRACTED</div>
+              ${[
+                ['Supplier','Baiada','#1a5c36'],
+                ['Docket #','8842-A','#222'],
+                ['Feed type','Finisher 7%','#8e44ad'],
+                ['Amount','22,000 kg','#16a085'],
+                ['Truck','REG 384-KP','#222'],
+                ['Allocated','Shed 3 · Silo B','#2980b9'],
+              ].map(([k,v,c],i) => `
+                <div style="display:flex;justify-content:space-between;font-size:11px;padding:3px 0;border-bottom:1px solid #f0f0f0;opacity:0;animation:fadeup 0.4s ${i*0.18+0.3}s forwards;">
+                  <span style="color:#888;">${k}</span><span style="font-weight:700;color:${c};">${v}</span>
+                </div>`).join('')}
+              <div style="background:#f0faf4;color:#1a7a40;border-radius:5px;padding:5px;margin-top:6px;font-size:10px;font-weight:800;text-align:center;opacity:0;animation:fadeup 0.4s 1.5s forwards;">✓ Added to End-of-Batch sheet</div>
+            </div>
+          </div>`,
+      },
+      {
+        title: "6. Whole-farm Flock Forecast — see the future of your batch",
+        body: "Every weigh-in and docket feeds the Flock Forecast graph. See your flock's growth curve vs Ross 308 / Cobb 500 standard, projected pickup weight, FCR trajectory, and feed-to-pickup tonnage — across the whole farm at a glance.",
+        mockup: `
+          <div style="background:#fff;border-radius:12px;padding:12px 16px;width:100%;max-width:560px;box-shadow:0 6px 18px rgba(0,0,0,.22);text-align:left;">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+              <span style="background:#1a3a5c;color:#fff;border-radius:5px;padding:3px 10px;font-weight:800;font-size:11px;">🌾 WHOLE-FARM FORECAST</span>
+              <span style="color:#888;font-size:10px;font-weight:700;">Ross 308 · 6 sheds</span>
+            </div>
+            <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:10px;">
+              ${[
+                ['479k','Birds','#1a5c36'],
+                ['3.05kg','Proj Wt','#8e44ad'],
+                ['1.46','Proj FCR','#2980b9'],
+                ['1462t','Live Wt','#16a085'],
+              ].map(([v,l,c]) => `
+                <div style="background:#f8fbf9;border:1px solid #e0e8e4;border-radius:7px;padding:6px;text-align:center;">
+                  <div style="font-size:15px;font-weight:900;color:${c};">${v}</div>
+                  <div style="font-size:9px;color:#888;text-transform:uppercase;letter-spacing:0.5px;font-weight:700;">${l}</div>
+                </div>`).join('')}
+            </div>
+            <svg width="100%" height="120" viewBox="0 0 480 120" style="background:#fafcfb;border-radius:7px;">
+              <defs>
+                <linearGradient id="actualGrad" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stop-color="#16a085" stop-opacity="0.3"/>
+                  <stop offset="100%" stop-color="#16a085" stop-opacity="0"/>
+                </linearGradient>
+              </defs>
+              ${(() => {
+                // grid lines
+                let g = '';
+                for (let i = 0; i < 6; i++) g += `<line x1="0" y1="${i*24}" x2="480" y2="${i*24}" stroke="#ececec" stroke-width="1"/>`;
+                return g;
+              })()}
+              <!-- Std curve (Ross 308) -->
+              <path d="M 0 110 Q 80 105 160 80 T 320 35 T 480 10" stroke="#94a3b8" stroke-width="2" stroke-dasharray="5 4" fill="none"/>
+              <!-- Actual curve (above std) -->
+              <path d="M 0 112 Q 80 100 160 72 T 280 24" stroke="#16a085" stroke-width="3" fill="none" stroke-linecap="round" style="stroke-dasharray:800;stroke-dashoffset:800;animation:drawline 1.6s 0.3s forwards;"/>
+              <!-- Forecast tail -->
+              <path d="M 280 24 Q 360 18 480 4" stroke="#C9A227" stroke-width="2.5" stroke-dasharray="4 3" fill="none" style="opacity:0;animation:fadeup 0.6s 1.8s forwards;"/>
+              <!-- Pickup marker -->
+              <line x1="430" y1="0" x2="430" y2="120" stroke="#C9A227" stroke-width="1.5" stroke-dasharray="3 3" opacity="0.7"/>
+              <text x="425" y="14" text-anchor="end" fill="#C9A227" font-size="10" font-weight="800">42d</text>
+              <!-- Dots on actual -->
+              ${[[40,108],[120,90],[200,60],[280,24]].map((p,i) => `<circle cx="${p[0]}" cy="${p[1]}" r="3.5" fill="#16a085" stroke="#fff" stroke-width="1.5" opacity="0" style="animation:fadeup 0.3s ${0.6+i*0.2}s forwards;"/>`).join('')}
+              <!-- Labels -->
+              <text x="6" y="115" fill="#999" font-size="9">Day 0</text>
+              <text x="465" y="115" text-anchor="end" fill="#999" font-size="9">56</text>
+            </svg>
+            <div style="margin-top:8px;background:#f0faf4;border:1px solid #a8ddb8;border-radius:6px;padding:6px 10px;font-size:11px;color:#1a7a40;font-weight:700;">🟢 Tracking +2.4% above Ross 308 standard — predicted pickup 3.05 kg at day 42</div>
+          </div>`,
+      },
+      {
+        title: "7. End of batch — FCR &amp; results, calculated for you",
+        body: "When the catchers come, enter the load weights and bird counts. Every number you need — FCR, CFCR, mortality %, kg/bird, net consumed — calculates automatically. One click exports to CSV or emails your integrator.",
+        mockup: `
+          <div style="background:linear-gradient(135deg,#0f3d24,#1a5c36);border-radius:12px;padding:16px;width:100%;max-width:520px;box-shadow:0 6px 18px rgba(0,0,0,.22);">
+            <div style="color:#C9A227;font-weight:800;font-size:12px;margin-bottom:12px;text-align:center;">🏁 BATCH 112 RESULTS — DOUBLE B FARM</div>
+            <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;">
+              ${[
+                ['1.452','FCR','#fff'],
+                ['1.527','CFCR','#C9A227'],
+                ['41.8','Cage Age','#fff'],
+                ['3.08 kg','Ave Wt','#fff'],
+                ['3.24%','Mortality','#fff'],
+                ['1,478 t','Live Wt','#C9A227'],
+              ].map(([v,l,c],i) => `
+                <div style="background:rgba(255,255,255,.08);border:1px solid rgba(201,162,39,.3);border-radius:8px;padding:8px 6px;text-align:center;opacity:0;animation:fadeup 0.4s ${i*0.15+0.2}s forwards;">
+                  <div style="font-size:18px;font-weight:900;color:${c};">${v}</div>
+                  <div style="font-size:9px;color:#bdd3c4;text-transform:uppercase;letter-spacing:0.5px;font-weight:700;margin-top:2px;">${l}</div>
+                </div>`).join('')}
+            </div>
+            <div style="display:flex;gap:8px;margin-top:12px;justify-content:center;">
+              <button style="background:#C9A227;color:#000;border:0;border-radius:6px;padding:6px 12px;font-weight:800;font-size:11px;">📊 Export CSV</button>
+              <button style="background:rgba(255,255,255,.1);color:#fff;border:1px solid rgba(255,255,255,.2);border-radius:6px;padding:6px 12px;font-weight:700;font-size:11px;">✉ Email integrator</button>
+            </div>
+          </div>`,
+      },
+      {
+        title: "Ready to take control of your farm?",
+        body: "14-day free trial · no card if you cancel in time · Bronze for small farms, Silver for most, Gold for big operations. Up and running in under 5 minutes — your data syncs the moment you set placement.",
+        mockup: `
+          <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap;">
+            ${[
+              ['🥉','Bronze','$50','/mo'],
+              ['🥈','Silver','$90','/mo'],
+              ['🥇','Gold','$150','/mo'],
+            ].map(([ico,tier,price,per]) => `
+              <div style="background:#fff;border:2px solid #1a5c36;border-radius:12px;padding:14px 18px;text-align:center;min-width:110px;box-shadow:0 4px 12px rgba(0,0,0,.18);">
+                <div style="font-size:30px;line-height:1;">${ico}</div>
+                <div style="font-weight:800;color:#1a5c36;margin-top:4px;font-size:13px;">${tier}</div>
+                <div style="font-weight:900;font-size:22px;color:#0f3d24;margin-top:6px;">${price}<span style="font-size:11px;color:#888;font-weight:600;">${per}</span></div>
+              </div>`).join('')}
+          </div>`,
+        cta: true,
+      },
     ];
     let demoStep = 0;
     function renderDemoStep(){
       const s = DEMO_STEPS[demoStep];
       document.getElementById("demo-stage").innerHTML = `
-        <div style="font-size:72px;line-height:1;">${s.ico}</div>
-        <h2 style="margin:0;font-size:26px;font-weight:900;letter-spacing:-0.5px;">${s.title}</h2>
-        <p style="color:#bdd3c4;max-width:560px;font-size:15px;line-height:1.6;margin:0;">${s.body}</p>
+        <div style="width:100%;display:flex;justify-content:center;align-items:center;min-height:240px;padding:8px 0;">${s.mockup || ''}</div>
+        <h2 style="margin:8px 0 0;font-size:22px;font-weight:900;letter-spacing:-0.5px;color:#fff;">${s.title}</h2>
+        <p style="color:#bdd3c4;max-width:560px;font-size:14px;line-height:1.55;margin:0;">${s.body}</p>
         ${s.cta ? '<a href="#plans" onclick="document.getElementById(\'demo-modal\').style.display=\'none\'" class="btn btn-gold" style="margin-top:8px;">See Plans →</a>' : ""}`;
       document.getElementById("demo-dots").innerHTML = DEMO_STEPS.map((_,i) =>
         `<div style="width:8px;height:8px;border-radius:99px;background:${i===demoStep?'#C9A227':'rgba(255,255,255,.2)'}"></div>`).join("");
       document.getElementById("demo-prev").disabled = demoStep === 0;
       document.getElementById("demo-prev").style.opacity = demoStep === 0 ? 0.3 : 1;
       document.getElementById("demo-next").textContent = demoStep === DEMO_STEPS.length-1 ? "Close ✓" : "Next →";
+
+      // Animate fill bars (data-pct → width%)
+      requestAnimationFrame(() => {
+        document.querySelectorAll('#demo-stage [data-pct]').forEach(el => {
+          el.style.width = el.dataset.pct + '%';
+        });
+      });
     }
     document.getElementById("open-demo").onclick = () => {
       demoStep = 0; renderDemoStep();
