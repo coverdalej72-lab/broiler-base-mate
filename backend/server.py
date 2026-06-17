@@ -97,6 +97,39 @@ async def _user_from_request(request: Request) -> Optional[dict]:
     return await _get_current_user(db, session_token=token, authorization=auth_hdr)
 
 
+async def _require_admin(request: Request) -> dict:
+    """Ensure the current user has admin role (SUPERUSER_EMAILS). Returns user dict."""
+    user = await _user_from_request(request)
+    if not user:
+        raise HTTPException(401, "Authentication required")
+    farms_info = await _list_user_farms(db, user["email"])
+    if farms_info["role"] != "admin":
+        raise HTTPException(403, "Admin only")
+    return user
+
+
+async def _require_outreach_admin(request: Request) -> dict:
+    """Outreach tracker access — gated by OUTREACH_ADMIN_EMAILS so the platform
+    owner can manage their cold-email pipeline without inheriting SUPERUSER
+    farm-visibility powers (which would break the customer-data privacy promise)."""
+    user = await _user_from_request(request)
+    if not user:
+        raise HTTPException(401, "Authentication required")
+    raw = os.environ.get("OUTREACH_ADMIN_EMAILS", "") or ""
+    allowed = {e.strip().lower() for e in raw.split(",") if e.strip()}
+    # SUPERUSER_EMAILS also gets through (admin is a superset)
+    raw2 = os.environ.get("SUPERUSER_EMAILS", "") or ""
+    allowed |= {e.strip().lower() for e in raw2.split(",") if e.strip()}
+    if (user.get("email") or "").lower() not in allowed:
+        raise HTTPException(403, "Outreach admin access required")
+    return user
+
+
+# ─── Outreach tracker (admin-only) ────────────────────────────────────────
+from outreach import build_router as _build_outreach_router, track_slug_click as _track_outreach_click, run_due_followups as _run_outreach_drip  # noqa: E402
+app.include_router(_build_outreach_router(db, _require_outreach_admin))
+
+
 async def _require_farm_access(request: Request, farm_slug: str) -> dict:
     """Ensure the current user can access this farm slug. Returns user dict; raises 401/403."""
     user = await _user_from_request(request)
@@ -1333,6 +1366,7 @@ async def api_page(page_name: str):
         "landing/success": "success.html",
         "reader": "reader.html",
         "ops-dashboard": "ops-dashboard.html",
+        "ops-outreach": "ops-outreach.html",
     }
     if page_name not in allowed:
         raise HTTPException(404, "Page not found")
@@ -1356,3 +1390,45 @@ async def reader_page():
 @app.get("/reader/")
 async def reader_page_slash():
     return FileResponse(os.path.join(STATIC_DIR, "reader.html"))
+
+
+# ─── Personalised landing pages from outreach links ───────────────────────
+@app.get("/g/{slug}")
+async def personalised_landing(slug: str):
+    """Tracks a click from an outreach email and redirects to /landing with the
+    slug attached so the landing page can personalise the headline. Used for
+    direct/non-browser access; the React SPA also has a /g/ shortcut in its
+    bootloader for production where nginx falls back to the SPA."""
+    from fastapi.responses import RedirectResponse
+    await _track_outreach_click(db, slug)
+    return RedirectResponse(url=f"/landing?g={slug}", status_code=302)
+
+
+@app.post("/api/g/{slug}/click")
+@app.get("/api/g/{slug}/click")
+async def personalised_landing_click(slug: str):
+    """Fire-and-forget click bump from the SPA bootloader. Returns a tiny 204."""
+    await _track_outreach_click(db, slug)
+    return Response(status_code=204)
+
+
+@app.get("/api/g/{slug}/profile")
+async def personalised_landing_profile(slug: str):
+    """Used by the landing page JS to look up the personalised name / integrator
+    for the visitor (no auth — slug is the only access token)."""
+    doc = await db["outreach_contacts"].find_one({"slug": slug})
+    if not doc:
+        return {"found": False}
+    return {
+        "found":      True,
+        "name":       doc.get("name") or "",
+        "email":      doc.get("email") or "",
+        "integrator": doc.get("integrator"),
+        "farm_name":  doc.get("farm_name") or "",
+    }
+
+
+@app.get("/ops-outreach")
+async def ops_outreach_page():
+    """Admin-only outreach tracker UI. Auth gating happens client-side via /api/auth/me."""
+    return FileResponse(os.path.join(STATIC_DIR, "ops-outreach.html"))

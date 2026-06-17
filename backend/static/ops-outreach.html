@@ -1,0 +1,339 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Outreach Tracker · Broiler Base Mate</title>
+<style>
+  :root {
+    --green-900: #082617;
+    --green-800: #0f3d24;
+    --green-700: #1a5c36;
+    --green-50:  #f7fbf4;
+    --gold:      #C9A227;
+    --paper:     #fff;
+    --line:      #e0e8e4;
+    --muted:     #5a7268;
+    --shadow:    0 1px 3px rgba(0,0,0,0.05), 0 4px 12px rgba(0,0,0,0.04);
+  }
+  * { box-sizing: border-box; }
+  body { margin:0; font-family:system-ui,-apple-system,Segoe UI,sans-serif; background:#f4f6f5; color:#1a2622; }
+  header { background:linear-gradient(135deg,var(--green-800),var(--green-700)); color:#fff; padding:18px 26px; }
+  header h1 { margin:0; font-size:20px; font-weight:900; letter-spacing:-0.3px; }
+  header .sub { color:#bdd3c4; font-size:12px; margin-top:3px; }
+  main { max-width:1280px; margin:0 auto; padding:22px 26px; }
+
+  .card { background:var(--paper); border:1px solid var(--line); border-radius:14px; padding:18px; box-shadow:var(--shadow); margin-bottom:18px; }
+  .card-title { font-weight:800; font-size:13px; color:var(--green-800); margin-bottom:10px; letter-spacing:0.3px; text-transform:uppercase; }
+
+  /* Stats grid */
+  .stats { display:grid; grid-template-columns:repeat(auto-fit,minmax(110px,1fr)); gap:10px; }
+  .stat { background:var(--paper); border:1px solid var(--line); border-radius:11px; padding:12px 14px; text-align:center; cursor:pointer; transition:transform .15s, box-shadow .15s; }
+  .stat:hover { transform:translateY(-2px); box-shadow:0 6px 14px rgba(0,0,0,.08); }
+  .stat .v { font-size:24px; font-weight:900; color:var(--green-700); line-height:1; }
+  .stat .l { font-size:10px; color:#888; text-transform:uppercase; letter-spacing:0.4px; margin-top:5px; font-weight:700; }
+  .stat.active { border-color:var(--gold); background:#fffcf0; }
+
+  /* Import box */
+  textarea { width:100%; min-height:120px; padding:12px; border:1px solid var(--line); border-radius:10px; font-family:ui-monospace,SF Mono,Consolas,monospace; font-size:12px; resize:vertical; }
+  .btn { background:var(--green-700); color:#fff; border:0; border-radius:99px; padding:10px 22px; font-weight:800; font-size:13px; cursor:pointer; }
+  .btn:hover { background:var(--green-800); }
+  .btn.gold { background:var(--gold); color:#000; }
+  .btn.ghost { background:transparent; color:var(--green-700); border:1px solid var(--line); }
+  .btn.danger { background:#c0392b; }
+  .btn:disabled { opacity:0.5; cursor:not-allowed; }
+
+  /* Table */
+  .tbl-wrap { overflow-x:auto; }
+  table { width:100%; border-collapse:collapse; font-size:13px; }
+  th, td { padding:9px 11px; text-align:left; border-bottom:1px solid var(--line); vertical-align:top; }
+  th { background:var(--green-50); color:var(--green-800); font-weight:700; font-size:11px; text-transform:uppercase; letter-spacing:0.4px; }
+  tr:hover td { background:#fafdfa; }
+  .email { font-weight:700; color:var(--green-800); }
+  .meta { font-size:11px; color:var(--muted); margin-top:2px; }
+
+  /* Status badges */
+  select.status { padding:3px 8px; border:1px solid var(--line); border-radius:99px; font-weight:700; font-size:11px; background:#fff; cursor:pointer; }
+  .badge { display:inline-block; padding:2px 8px; border-radius:99px; font-size:10px; font-weight:800; letter-spacing:0.3px; text-transform:uppercase; }
+  .badge.cold     { background:#f0f2f5; color:#5a6878; }
+  .badge.sent     { background:#dbeafe; color:#1d4ed8; }
+  .badge.opened   { background:#fef3c7; color:#92400e; }
+  .badge.replied  { background:#a8ddb8; color:#0f3d24; }
+  .badge.trialled { background:#d8b4fe; color:#5b21b6; }
+  .badge.won      { background:#1a7a40; color:#fff; }
+  .badge.lost     { background:#fecaca; color:#7f1d1d; }
+  .badge.integ    { background:#e0e8e4; color:#0f3d24; font-size:10px; }
+
+  /* Toast */
+  .toast { position:fixed; bottom:20px; right:20px; background:#0f3d24; color:#fff; padding:12px 18px; border-radius:10px; box-shadow:0 8px 24px rgba(0,0,0,.2); font-size:13px; font-weight:700; opacity:0; transform:translateY(20px); transition:all .25s; pointer-events:none; z-index:50; }
+  .toast.show { opacity:1; transform:translateY(0); }
+  .toast.err { background:#7f1d1d; }
+
+  .inline-input { background:transparent; border:0; border-bottom:1px dashed transparent; padding:2px 4px; font-size:12px; font-family:inherit; width:100%; min-width:100px; }
+  .inline-input:hover, .inline-input:focus { border-bottom-color:var(--line); outline:none; background:#fafdfa; }
+
+  .row-actions { display:flex; gap:6px; flex-wrap:wrap; }
+  .row-actions .btn { padding:5px 11px; font-size:11px; }
+
+  .empty { text-align:center; color:#aaa; padding:60px 20px; font-size:14px; }
+
+  /* Mini bars */
+  .activity { display:flex; gap:6px; align-items:center; font-size:11px; color:var(--muted); }
+  .dot { width:7px; height:7px; border-radius:99px; background:#cbd5d1; }
+  .dot.active { background:var(--green-700); }
+</style>
+</head>
+<body>
+<header>
+  <h1>📡 Outreach Tracker</h1>
+  <div class="sub">Cold-email pipeline · drip follow-ups · click &amp; open tracking</div>
+</header>
+<main>
+
+  <!-- ── STATS ───────────────────────────────────────────── -->
+  <div class="card">
+    <div class="card-title">Pipeline</div>
+    <div class="stats" id="stats">
+      <div class="stat" data-filter="">      <div class="v" id="s-total">0</div>     <div class="l">Total</div></div>
+      <div class="stat" data-filter="cold">  <div class="v" id="s-cold">0</div>      <div class="l">Cold</div></div>
+      <div class="stat" data-filter="sent">  <div class="v" id="s-sent">0</div>      <div class="l">Sent</div></div>
+      <div class="stat" data-filter="opened"><div class="v" id="s-opened">0</div>    <div class="l">Opened</div></div>
+      <div class="stat" data-filter="replied"><div class="v" id="s-replied">0</div>  <div class="l">Replied</div></div>
+      <div class="stat" data-filter="trialled"><div class="v" id="s-trialled">0</div><div class="l">Trial</div></div>
+      <div class="stat" data-filter="won">   <div class="v" id="s-won">0</div>       <div class="l">Customer</div></div>
+      <div class="stat" data-filter="lost">  <div class="v" id="s-lost">0</div>      <div class="l">Lost</div></div>
+    </div>
+    <div style="margin-top:14px;display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+      <button class="btn gold" id="run-drip">⚡ Run drip now</button>
+      <span style="color:var(--muted);font-size:12px;">Followups due: <strong id="due-count" style="color:#c0392b;">0</strong></span>
+    </div>
+  </div>
+
+  <!-- ── IMPORT ──────────────────────────────────────────── -->
+  <div class="card">
+    <div class="card-title">📥 Bulk import emails</div>
+    <p style="font-size:12px;color:var(--muted);margin:0 0 10px;">Paste any blob — comma-separated, newline-separated, with or without <code>"Name &lt;email&gt;"</code> format. Duplicates are skipped automatically.</p>
+    <textarea id="import-box" placeholder='Stephen Matchett &lt;Stephen.Matchett@baiada.com.au&gt;, john@southernfreerange.com.au, "Farm1@Proten.com.au" &lt;farm1@proten.com.au&gt;'></textarea>
+    <div style="margin-top:10px;display:flex;gap:10px;align-items:center;">
+      <button class="btn" id="import-btn">Import contacts</button>
+      <span id="import-status" style="font-size:12px;color:var(--muted);"></span>
+    </div>
+  </div>
+
+  <!-- ── CONTACTS TABLE ──────────────────────────────────── -->
+  <div class="card">
+    <div class="card-title" id="table-title">All contacts</div>
+    <div class="tbl-wrap">
+      <table id="tbl">
+        <thead>
+          <tr>
+            <th>Contact</th>
+            <th>Integrator</th>
+            <th>Status</th>
+            <th>Step</th>
+            <th>Activity</th>
+            <th>Notes</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody id="tbody"><tr><td colspan="7" class="empty">Loading…</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+
+</main>
+
+<div class="toast" id="toast"></div>
+
+<script>
+  const STATUSES = ["cold","sent","opened","replied","trialled","won","lost"];
+  let filter = "";   // current status filter
+  let all = [];      // last list response
+
+  const toast = (m, err) => {
+    const t = document.getElementById("toast");
+    t.textContent = m; t.className = "toast show" + (err ? " err" : "");
+    clearTimeout(toast._); toast._ = setTimeout(()=>t.className="toast", 3500);
+  };
+
+  function fmtDate(s) {
+    if (!s) return "—";
+    const d = new Date(s);
+    if (isNaN(d.getTime())) return "—";
+    const now = new Date();
+    const days = Math.floor((now - d) / 86400000);
+    if (days === 0) return d.toLocaleTimeString([], {hour:"2-digit",minute:"2-digit"});
+    if (days === 1) return "yesterday";
+    if (days < 7)   return days + "d ago";
+    return d.toLocaleDateString();
+  }
+
+  async function load() {
+    const url = "/api/ops/outreach" + (filter ? "?status=" + encodeURIComponent(filter) : "");
+    const res = await fetch(url, { credentials: "include" });
+    if (res.status === 401 || res.status === 403) {
+      document.body.innerHTML = '<div style="padding:80px;text-align:center;"><h2>Admin access required</h2><p><a href="/landing">Sign in</a> with a superuser account.</p></div>';
+      return;
+    }
+    const data = await res.json();
+    all = data.items || [];
+    // Stats
+    const s = data.stats || {};
+    document.getElementById("s-total").textContent     = s.total ?? 0;
+    document.getElementById("s-cold").textContent      = s.cold ?? 0;
+    document.getElementById("s-sent").textContent      = s.sent ?? 0;
+    document.getElementById("s-opened").textContent    = s.opened ?? 0;
+    document.getElementById("s-replied").textContent   = s.replied ?? 0;
+    document.getElementById("s-trialled").textContent  = s.trialled ?? 0;
+    document.getElementById("s-won").textContent       = s.won ?? 0;
+    document.getElementById("s-lost").textContent      = s.lost ?? 0;
+    document.getElementById("due-count").textContent   = s.followups_due ?? 0;
+    document.querySelectorAll(".stat").forEach(el => {
+      el.classList.toggle("active", (el.dataset.filter || "") === filter);
+    });
+    document.getElementById("table-title").textContent = filter ? `${filter.toUpperCase()} contacts (${all.length})` : `All contacts (${all.length})`;
+    renderTable();
+  }
+
+  function renderTable() {
+    const tbody = document.getElementById("tbody");
+    if (all.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="7" class="empty">No contacts yet. Paste an email list above to start.</td></tr>';
+      return;
+    }
+    tbody.innerHTML = all.map(c => `
+      <tr data-id="${c.id}">
+        <td>
+          <div class="email">${c.email}</div>
+          <div class="meta">${c.name ? c.name + " · " : ""}<a href="/g/${c.slug}" target="_blank" style="color:var(--muted);">/g/${c.slug}</a></div>
+        </td>
+        <td>${c.integrator ? `<span class="badge integ">${c.integrator}</span>` : '<span style="color:#cbd5d1;">—</span>'}</td>
+        <td>
+          <select class="status" data-act="status">
+            ${STATUSES.map(s => `<option value="${s}" ${s===c.status?'selected':''}>${s}</option>`).join("")}
+          </select>
+          <div style="margin-top:4px;"><span class="badge ${c.status}">${c.status}</span></div>
+        </td>
+        <td>
+          <div style="font-weight:700;">${c.followup_step || 0}/4</div>
+          <div class="meta">${c.next_followup_at ? "next " + fmtDate(c.next_followup_at) : (c.sent_at ? "all done" : "not sent")}</div>
+        </td>
+        <td>
+          <div class="activity">
+            <span class="dot ${c.sent_at?'active':''}" title="Sent"></span> sent ${fmtDate(c.sent_at)}
+          </div>
+          <div class="activity">
+            <span class="dot ${c.first_opened_at?'active':''}" title="Opened"></span> opens ${c.open_count || 0}
+          </div>
+          <div class="activity">
+            <span class="dot ${(c.click_count||0)>0?'active':''}" title="Clicked"></span> clicks ${c.click_count || 0}
+          </div>
+        </td>
+        <td><input class="inline-input" data-act="notes" value="${(c.notes||'').replace(/"/g,'&quot;')}" placeholder="Add note…"></td>
+        <td>
+          <div class="row-actions">
+            <button class="btn"        data-act="send">${(c.followup_step||0) === 0 ? '✉ Send' : '✉ Follow-up'}</button>
+            <button class="btn danger" data-act="delete" title="Delete">✕</button>
+          </div>
+        </td>
+      </tr>
+    `).join("");
+    tbody.querySelectorAll("tr").forEach(tr => {
+      const id = tr.dataset.id;
+      tr.querySelector('[data-act="status"]').onchange = (e) => patchContact(id, { status: e.target.value });
+      tr.querySelector('[data-act="notes"]').onchange  = (e) => patchContact(id, { notes:  e.target.value });
+      tr.querySelector('[data-act="send"]').onclick    = () => sendOne(id, tr);
+      tr.querySelector('[data-act="delete"]').onclick  = () => deleteOne(id);
+    });
+  }
+
+  async function patchContact(id, body) {
+    try {
+      const res = await fetch("/api/ops/outreach/" + encodeURIComponent(id), {
+        method: "PATCH", credentials: "include",
+        headers: {"Content-Type":"application/json"},
+        body: JSON.stringify(body),
+      });
+      if (!res.ok) throw new Error(await res.text());
+      toast("Saved");
+      await load();
+    } catch (e) { toast("Save failed: " + e.message, true); }
+  }
+
+  async function sendOne(id, tr) {
+    const btn = tr.querySelector('[data-act="send"]');
+    btn.disabled = true; btn.textContent = "Sending…";
+    try {
+      const res = await fetch("/api/ops/outreach/" + encodeURIComponent(id) + "/send", {
+        method: "POST", credentials: "include",
+      });
+      const data = await res.json();
+      if (!res.ok || !data.ok) throw new Error(data.reason || data.detail || "send failed");
+      toast(data.skipped ? "Saved (Resend key missing — email skipped)" : "Sent ✓ next on " + fmtDate(data.next_followup_at));
+      await load();
+    } catch (e) {
+      toast("Send failed: " + e.message, true);
+      btn.disabled = false; btn.textContent = "✉ Retry";
+    }
+  }
+
+  async function deleteOne(id) {
+    if (!confirm("Delete this contact?")) return;
+    try {
+      const res = await fetch("/api/ops/outreach/" + encodeURIComponent(id), {
+        method: "DELETE", credentials: "include",
+      });
+      if (!res.ok) throw new Error(await res.text());
+      toast("Deleted");
+      await load();
+    } catch (e) { toast("Delete failed: " + e.message, true); }
+  }
+
+  // Import
+  document.getElementById("import-btn").onclick = async () => {
+    const raw = document.getElementById("import-box").value.trim();
+    if (!raw) { toast("Paste some emails first", true); return; }
+    const btn = document.getElementById("import-btn");
+    btn.disabled = true; btn.textContent = "Importing…";
+    try {
+      const res = await fetch("/api/ops/outreach/import", {
+        method: "POST", credentials: "include",
+        headers: {"Content-Type":"application/json"},
+        body: JSON.stringify({ raw }),
+      });
+      if (!res.ok) throw new Error(await res.text());
+      const data = await res.json();
+      document.getElementById("import-status").textContent =
+        `${data.created} added, ${data.skipped} duplicates skipped.`;
+      document.getElementById("import-box").value = "";
+      await load();
+      toast(`Added ${data.created} contacts`);
+    } catch (e) { toast("Import failed: " + e.message, true); }
+    finally { btn.disabled = false; btn.textContent = "Import contacts"; }
+  };
+
+  // Run drip
+  document.getElementById("run-drip").onclick = async () => {
+    const btn = document.getElementById("run-drip");
+    btn.disabled = true; btn.textContent = "Sending…";
+    try {
+      const res = await fetch("/api/ops/outreach/run-drip", {
+        method: "POST", credentials: "include",
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.detail || "drip failed");
+      toast(`Drip: ${data.sent} sent, ${data.skipped} skipped`);
+      await load();
+    } catch (e) { toast("Drip failed: " + e.message, true); }
+    finally { btn.disabled = false; btn.textContent = "⚡ Run drip now"; }
+  };
+
+  // Stat-card filtering
+  document.querySelectorAll(".stat").forEach(el => {
+    el.onclick = () => { filter = el.dataset.filter || ""; load(); };
+  });
+
+  load();
+</script>
+</body>
+</html>

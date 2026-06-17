@@ -147,15 +147,53 @@
       </div>
     </nav>
     <div class="hero-content">
-      <div class="tagline">🐔 Built for Poultry Producers — Large or Small</div>
-      <h1>Every shed. Every batch.<br><span class="accent">Always in control.</span></h1>
-      <p class="lede">Broiler Base Mate is a complete farm management platform for <b>broiler</b> and <b>breeder</b> farms — replacing paper &amp; Excel with live silo tracking, batch results, egg production logs, body weight curves, and real-time feed alerts across every device on your farm.</p>
+      <div class="tagline" id="hero-tagline">🐔 Built for Poultry Producers — Large or Small</div>
+      <h1 id="hero-h1">Every shed. Every batch.<br><span class="accent">Always in control.</span></h1>
+      <p class="lede" id="hero-lede">Broiler Base Mate is a complete farm management platform for <b>broiler</b> and <b>breeder</b> farms — replacing paper &amp; Excel with live silo tracking, batch results, egg production logs, body weight curves, and real-time feed alerts across every device on your farm.</p>
       <div class="hero-btns">
         <a href="#plans" class="btn btn-gold">See Plans &amp; Pricing →</a>
         <button class="btn btn-ghost" id="open-demo">▶ Watch Demo</button>
       </div>
     </div>
   </div>
+
+  <script>
+    // ── Personalised greeting from outreach link (/g/slug → /landing?g=slug) ──
+    (async () => {
+      const params = new URLSearchParams(window.location.search);
+      const slug = params.get("g");
+      if (!slug) return;
+      try {
+        const res = await fetch("/api/g/" + encodeURIComponent(slug) + "/profile");
+        if (!res.ok) return;
+        const p = await res.json();
+        if (!p.found) return;
+        const firstName = (p.name || "").split(/\s+/)[0];
+        const tagEl = document.getElementById("hero-tagline");
+        const h1El  = document.getElementById("hero-h1");
+        const ledeEl = document.getElementById("hero-lede");
+        if (firstName) {
+          tagEl.innerHTML = "🐔 G'day " + firstName + " — built for growers like you";
+          h1El.innerHTML = "G'day " + firstName + ".<br><span class='accent'>Built for your sheds.</span>";
+        } else if (p.integrator) {
+          tagEl.innerHTML = "🐔 Built for " + p.integrator + " growers";
+          h1El.innerHTML = "Built for <span class='accent'>" + p.integrator + "</span> growers.";
+        }
+        if (p.integrator) {
+          ledeEl.innerHTML = "Broiler Base Mate replaces the integrator Excel spreadsheet with live silo tracking, AI docket scanning, and real-time FCR forecasts — built by an Aussie poultry grower who got fed up with paperwork.";
+        }
+        // Pre-fill buyer modal email when they hit checkout
+        try {
+          if (p.email && !localStorage.getItem("bbm-buyer-email")) {
+            localStorage.setItem("bbm-buyer-email", p.email);
+          }
+          if (p.name && !localStorage.getItem("bbm-buyer-name")) {
+            localStorage.setItem("bbm-buyer-name", p.name);
+          }
+        } catch (e) {}
+      } catch (e) { /* silent fallback to generic hero */ }
+    })();
+  </script>
 
   <!-- FEATURES STRIP -->
   <section class="features-strip" style="padding-top:50px;padding-bottom:50px;">
