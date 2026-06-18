@@ -25,15 +25,27 @@ def _sender() -> str:
     return os.environ.get("SENDER_EMAIL", "onboarding@resend.dev").strip() or "onboarding@resend.dev"
 
 
-async def send_email(*, to: str, subject: str, html: str) -> dict:
-    """Send an email via Resend. Returns {"ok": bool, "id": str|None, "skipped": bool}."""
+def _reply_to() -> Optional[str]:
+    """Optional Reply-To address — when set, replies go here instead of the sender.
+    Lets the platform send from a verified Resend domain but route grower replies
+    to the owner's personal Gmail."""
+    r = os.environ.get("REPLY_TO_EMAIL", "").strip()
+    return r or None
+
+
+async def send_email(*, to: str, subject: str, html: str, reply_to: Optional[str] = None) -> dict:
+    """Send an email via Resend. Returns {"ok": bool, "id": str|None, "skipped": bool}.
+    If `reply_to` is omitted, falls back to the REPLY_TO_EMAIL env var."""
     key = _key()
     if not key:
         logger.warning("RESEND_API_KEY missing — skipping email to %s (subject=%r)", to, subject)
         return {"ok": True, "id": None, "skipped": True, "reason": "RESEND_API_KEY not set"}
 
     resend.api_key = key
-    params = {"from": _sender(), "to": [to], "subject": subject, "html": html}
+    params: dict = {"from": _sender(), "to": [to], "subject": subject, "html": html}
+    rt = reply_to or _reply_to()
+    if rt:
+        params["reply_to"] = rt
     try:
         email = await asyncio.to_thread(resend.Emails.send, params)
         return {"ok": True, "id": email.get("id") if isinstance(email, dict) else None, "skipped": False}
