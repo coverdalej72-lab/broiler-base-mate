@@ -744,8 +744,8 @@
     // smoothly inside the modal with zero asset weight.
     const DEMO_STEPS = [
       {
-        title: "1. Open the Feed Program & set up your farm",
-        body: "Click Summary → set your placement date and bird numbers for each shed. The Feed Program auto-builds the full grow-out spreadsheet for you — no more manual Excel formulas.",
+        title: "Open the Feed Program & set up your farm",
+        body: "Sign in once with Google → go to Summary. Punch in your placement date and the bird numbers placed in each shed. The Feed Program does the rest — it auto-builds every shed sheet for the full 42 (or 49 / 56) day grow-out, pulls in your breed standard (Ross 308 or Cobb 500), and pre-calculates every feed allocation. Took 60 seconds. No formulas, no version conflicts, no &quot;which file is the latest&quot;.",
         mockup: `
           <div style="background:#fff;border:1px solid #e0e8e4;border-radius:12px;padding:14px 16px;font-family:Calibri,sans-serif;color:#1a3a5c;text-align:left;width:100%;max-width:520px;box-shadow:0 4px 14px rgba(0,0,0,.18);">
             <div style="background:linear-gradient(135deg,#1a5c36,#2d8052);color:#fff;margin:-14px -16px 12px;padding:8px 16px;border-radius:12px 12px 0 0;font-weight:800;font-size:13px;">📋 SUMMARY · Double B Farm</div>
@@ -765,8 +765,8 @@
           </div>`,
       },
       {
-        title: "2. Shed sheets calculate themselves",
-        body: "Every shed gets its own 42-day grow-out sheet — feed ordered, feed on hand, silo levels, morts, density. Every cell auto-calculates so you just type the actual numbers each day.",
+        title: "Shed sheets calculate themselves",
+        body: "Every shed group gets a live 42-day grow-out sheet. Across the columns: <b>feed ordered, feed used, feed on hand, mortality, density, age, weight gain, current FCR</b>. Every formula is wired in — you just type the actual deliveries and morts as they happen. The blue figure (Ordered) flashes when feed is due, the gold row pulses on the current day, and the spreadsheet auto-saves every keystroke. Forgot to enter Sunday's morts? Open it Monday from the field on your phone — it's all there.",
         mockup: `
           <div style="background:#fff;border:1px solid #e0e8e4;border-radius:12px;padding:0;font-family:Calibri,sans-serif;color:#1a3a5c;text-align:left;width:100%;max-width:560px;box-shadow:0 4px 14px rgba(0,0,0,.18);overflow:hidden;">
             <div style="background:#1a3a5c;color:#fff;padding:8px 14px;font-weight:800;font-size:13px;display:flex;justify-content:space-between;align-items:center;">
@@ -796,8 +796,66 @@
           </div>`,
       },
       {
-        title: "3. Scan the QR — your phone becomes the silo reader",
-        body: "Settings → Pair Phone. Scan the QR with your camera. The mobile reader opens instantly — no app store, no install. Add it to your home screen and you're ready to walk the sheds.",
+        title: "Real-time sync — phone & PC stay locked together",
+        body: "This is the bit that kills paper logbooks. The moment you log a silo reading or scan a docket on your phone in the shed, the same row appears on the office PC within seconds — no refresh, no syncing, no &quot;hang on I'll email it through&quot;. Your wife, your manager, your integrator field-officer — anyone you've invited sees the live data instantly. Multiple devices can be writing at the same time without overwriting each other.",
+        mockup: `
+          <div style="display:flex;gap:18px;align-items:center;justify-content:center;flex-wrap:wrap;">
+            <!-- Phone -->
+            <div style="position:relative;width:160px;height:280px;background:#0a0a0a;border-radius:22px;padding:10px;box-shadow:0 8px 26px rgba(0,0,0,.32);">
+              <div style="width:100%;height:100%;background:#0f3d24;border-radius:16px;overflow:hidden;color:#fff;">
+                <div style="background:#1a5c36;padding:8px;font-size:10px;font-weight:800;color:#C9A227;text-align:center;">SHED 3 · SILO B</div>
+                <div style="padding:14px 10px;display:flex;flex-direction:column;gap:10px;">
+                  <div style="font-size:11px;color:#bdd3c4;">Tonnes remaining</div>
+                  <div style="font-size:34px;font-weight:900;color:#fff;">5.7<span style="font-size:14px;color:#bdd3c4;">t</span></div>
+                  <div style="height:5px;background:rgba(255,255,255,.08);border-radius:3px;overflow:hidden;">
+                    <div style="height:100%;width:0;background:#e67e22;transition:width 1s 0.4s cubic-bezier(.2,.8,.2,1);" data-pct="47"></div>
+                  </div>
+                  <button style="background:#C9A227;color:#000;border:0;border-radius:6px;padding:8px;font-weight:800;font-size:11px;margin-top:8px;">SAVE READING</button>
+                  <div style="background:rgba(168,221,184,.18);border:1px solid #a8ddb8;color:#a8ddb8;font-size:9px;text-align:center;padding:5px;border-radius:5px;font-weight:800;opacity:0;animation:fadeup 0.4s 1.5s forwards;">✓ Synced</div>
+                </div>
+              </div>
+            </div>
+            <!-- Sync animation arrows -->
+            <div style="display:flex;flex-direction:column;align-items:center;gap:6px;">
+              <div style="font-size:11px;color:#1a5c36;font-weight:800;">&lt; 2 sec</div>
+              <div style="width:48px;height:3px;background:linear-gradient(90deg,#16a085,#C9A227);border-radius:99px;animation:flash 1.2s infinite;"></div>
+              <div style="width:48px;height:3px;background:linear-gradient(90deg,#C9A227,#16a085);border-radius:99px;animation:flash 1.2s 0.3s infinite;"></div>
+              <div style="font-size:9px;color:#666;letter-spacing:1px;">LIVE</div>
+            </div>
+            <!-- PC -->
+            <div style="background:#1a1a1a;border-radius:8px;padding:6px;box-shadow:0 8px 26px rgba(0,0,0,.32);">
+              <div style="background:#fff;border-radius:5px;width:300px;height:200px;overflow:hidden;">
+                <div style="background:#1a3a5c;color:#fff;padding:5px 10px;font-size:10px;font-weight:800;display:flex;justify-content:space-between;align-items:center;">
+                  <span>📋 FEED PROGRAM</span><span style="background:#16a085;color:#fff;border-radius:99px;padding:1px 6px;font-size:8px;">● LIVE</span>
+                </div>
+                <table style="width:100%;border-collapse:collapse;font-size:9px;font-family:Calibri,sans-serif;color:#1a3a5c;">
+                  <thead>
+                    <tr style="background:#f6f9f7;color:#1a5c36;font-weight:700;">
+                      <th style="padding:4px;text-align:left;">Shed</th><th style="padding:4px;text-align:left;">Silo</th>
+                      <th style="padding:4px;text-align:right;">Reading</th><th style="padding:4px;text-align:right;">When</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr><td style="padding:3px 4px;">1&amp;2</td><td>A</td><td style="text-align:right;">8.2 t</td><td style="text-align:right;color:#888;">10:14</td></tr>
+                    <tr style="background:#fafcfb;"><td style="padding:3px 4px;">1&amp;2</td><td>B</td><td style="text-align:right;">11.0 t</td><td style="text-align:right;color:#888;">10:14</td></tr>
+                    <tr><td style="padding:3px 4px;">3&amp;4</td><td>A</td><td style="text-align:right;">8.2 t</td><td style="text-align:right;color:#888;">10:18</td></tr>
+                    <tr style="background:#fff5d6;animation:rowpulse 2s 1.5s infinite;opacity:0;animation:fadeup 0.4s 1.7s forwards, rowpulse 2s 2.1s infinite;">
+                      <td style="padding:3px 4px;font-weight:800;">3&amp;4</td><td style="font-weight:800;">B</td>
+                      <td style="text-align:right;font-weight:900;color:#1a5c36;">5.7 t</td>
+                      <td style="text-align:right;color:#16a085;font-weight:700;">just now</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+              <div style="display:flex;justify-content:center;gap:3px;margin-top:4px;">
+                <span style="width:30px;height:3px;background:#444;border-radius:99px;"></span>
+              </div>
+            </div>
+          </div>`,
+      },
+      {
+        title: "Scan the QR — your phone becomes the silo reader",
+        body: "Settings → Pair Phone shows a private QR code unique to your farm. Point your phone camera at it — the mobile Reader app opens instantly in your browser. No app store, no install, no Apple/Google approval bottleneck. Tap &quot;Add to Home Screen&quot; and it lives on your phone exactly like a real app, even offline. Give the same QR to your operator, your manager, your missus — they each pair their own device in 5 seconds.",
         mockup: `
           <div style="display:flex;gap:24px;align-items:center;justify-content:center;flex-wrap:wrap;">
             <div style="background:#fff;border-radius:14px;padding:16px;box-shadow:0 6px 18px rgba(0,0,0,.22);">
@@ -836,8 +894,8 @@
           </div>`,
       },
       {
-        title: "4. Walk the sheds — tap silo readings on your phone",
-        body: "Each shed shows silos A, B, C. Type the tonnes remaining (or kg — your choice). Previous reading auto-fills so you only type what changed. Hit Save → instantly syncs to your computer.",
+        title: "Walk the sheds — tap silo readings on your phone",
+        body: "In the shed yard with the phone in your pocket. Tap the shed → tap silo A, B, or C → type the tonnes (or kg) → Save. The previous reading is pre-filled so you only ever type the delta. Coloured fill bars warn you when a silo is below 20% — the gold &quot;NEEDS DELIVERY&quot; pill flips on automatically. Hit Save and the office spreadsheet is up to date before your boots are off.",
         mockup: `
           <div style="background:#0f3d24;border-radius:18px;padding:16px;width:280px;color:#fff;font-family:system-ui,sans-serif;box-shadow:0 8px 24px rgba(0,0,0,.35);">
             <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
@@ -864,8 +922,8 @@
           </div>`,
       },
       {
-        title: "5. Snap a feed docket — AI fills the form",
-        body: "Truck arrives? Open the phone reader → 📷 Scan Docket. Gemini Vision auto-detects Ingham's / Baiada / BPL Adelaide, pulls out feed type, kg, docket number, truck rego. Tap Save → delivery row appears in your spreadsheet within 2 seconds.",
+        title: "Snap a feed docket — AI fills the form",
+        body: "Truck rolls into the yard. Open the phone reader → 📷 Scan Docket → snap the paper. <b>Gemini Vision AI</b> auto-recognises Ingham's, Baiada, BPL Adelaide, ProTen, Ridley layouts — it pulls out supplier, feed type (Starter / Grower / Finisher / Withdrawal), kg delivered, docket number, truck rego, and which silo it went into. You glance, confirm, tap Save. Two seconds — the delivery row appears in your End-of-Batch sheet automatically. No paper, no losing dockets behind the dashboard.",
         mockup: `
           <div style="display:flex;gap:20px;align-items:center;justify-content:center;flex-wrap:wrap;">
             <div style="background:#fff;border-radius:8px;padding:10px;width:160px;box-shadow:0 6px 18px rgba(0,0,0,.22);transform:rotate(-3deg);">
@@ -899,8 +957,49 @@
           </div>`,
       },
       {
-        title: "6. Whole-farm Flock Forecast — see the future of your batch",
-        body: "Every weigh-in and docket feeds the Flock Forecast graph. See your flock's growth curve vs Ross 308 / Cobb 500 standard, projected pickup weight, FCR trajectory, and feed-to-pickup tonnage — across the whole farm at a glance.",
+        title: "Track flock weights — see today vs Ross 308 / Cobb 500",
+        body: "Weigh-in day? Tap 📷 Weigh Birds in the phone reader, enter your sample weights → the app rolls them up to a whole-shed average and plots it against the breed standard curve. You instantly see if your birds are tracking above, on, or below standard — and by how many grams. Same workflow for catches: each truck-load, enter birds picked up and average weight per bird → the program calculates load-by-load FCR live so you know your final result before the last truck has left.",
+        mockup: `
+          <div style="display:flex;gap:20px;align-items:flex-start;justify-content:center;flex-wrap:wrap;">
+            <!-- Weigh-in card -->
+            <div style="background:#fff;border-radius:12px;padding:14px 16px;width:240px;box-shadow:0 6px 18px rgba(0,0,0,.2);text-align:left;">
+              <div style="background:#1a5c36;color:#fff;margin:-14px -16px 12px;padding:7px 14px;border-radius:12px 12px 0 0;font-weight:800;font-size:12px;">⚖️ WEIGH-IN · DAY 28 · SHED 3</div>
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;font-size:12px;margin-bottom:10px;">
+                ${[
+                  ['Bird 1','1.79 kg'],['Bird 2','1.82 kg'],
+                  ['Bird 3','1.74 kg'],['Bird 4','1.88 kg'],
+                  ['Bird 5','1.80 kg'],['Bird 6','1.77 kg'],
+                ].map(([k,v],i) => `<div style="background:#f8fbf9;border:1px solid #e0e8e4;border-radius:5px;padding:4px 7px;display:flex;justify-content:space-between;opacity:0;animation:fadeup 0.3s ${i*0.12+0.3}s forwards;">
+                  <span style="color:#888;">${k}</span><span style="font-weight:700;color:#1a3a5c;">${v}</span></div>`).join('')}
+              </div>
+              <div style="border-top:1px solid #e0e8e4;padding-top:8px;display:flex;justify-content:space-between;align-items:center;">
+                <span style="font-size:11px;color:#666;font-weight:700;">AVERAGE</span>
+                <span style="font-size:18px;font-weight:900;color:#1a5c36;">1.80 kg</span>
+              </div>
+              <div style="background:#f0faf4;color:#1a7a40;border-radius:5px;padding:5px 8px;font-size:10px;font-weight:800;text-align:center;margin-top:8px;opacity:0;animation:fadeup 0.4s 1s forwards;">▲ +3.5% above Ross 308 std (1.74kg)</div>
+            </div>
+            <!-- Catch tracker -->
+            <div style="background:#fff;border-radius:12px;padding:14px 16px;width:260px;box-shadow:0 6px 18px rgba(0,0,0,.2);text-align:left;">
+              <div style="background:#C9A227;color:#000;margin:-14px -16px 12px;padding:7px 14px;border-radius:12px 12px 0 0;font-weight:800;font-size:12px;">🚚 CATCHES · BATCH 112</div>
+              <table style="width:100%;font-size:11px;border-collapse:collapse;">
+                <thead><tr style="color:#888;font-weight:700;"><th style="text-align:left;padding:3px;">Load</th><th style="text-align:right;padding:3px;">Birds</th><th style="text-align:right;padding:3px;">Avg wt</th></tr></thead>
+                <tbody>
+                  <tr><td style="padding:3px;">#1 04:30</td><td style="text-align:right;">8,420</td><td style="text-align:right;font-weight:700;">3.04 kg</td></tr>
+                  <tr style="background:#fafcfb;"><td style="padding:3px;">#2 05:50</td><td style="text-align:right;">8,510</td><td style="text-align:right;font-weight:700;">3.08 kg</td></tr>
+                  <tr><td style="padding:3px;">#3 07:10</td><td style="text-align:right;">8,455</td><td style="text-align:right;font-weight:700;">3.06 kg</td></tr>
+                  <tr style="background:#fff5d6;animation:rowpulse 2s 1s infinite;"><td style="padding:3px;font-weight:800;">#4 08:30</td><td style="text-align:right;font-weight:800;">8,498</td><td style="text-align:right;font-weight:800;color:#1a5c36;">3.10 kg</td></tr>
+                </tbody>
+              </table>
+              <div style="border-top:1px solid #e0e8e4;margin-top:8px;padding-top:6px;display:flex;justify-content:space-between;font-size:11px;font-weight:700;color:#1a3a5c;">
+                <span>Total so far:</span><span style="color:#1a5c36;">33,883 birds · 3.07 kg avg</span>
+              </div>
+              <div style="background:#f0faf4;color:#1a7a40;border-radius:5px;padding:5px 8px;font-size:10px;font-weight:800;text-align:center;margin-top:6px;">Live FCR after load #4: <span style="font-size:13px;">1.448</span></div>
+            </div>
+          </div>`,
+      },
+      {
+        title: "Whole-farm Flock Forecast — see the future of your batch",
+        body: "Every silo reading and weigh-in feeds the Flock Forecast graph. <b>The solid green line</b> is your actual flock weight; <b>the dashed grey line</b> is Ross 308 or Cobb 500 standard for your chosen breed; <b>the dotted gold tail</b> projects forward to pickup day. The KPI cards show predicted pickup weight, predicted FCR, total live weight at pickup, and how many tonnes of feed you still need to order before the catchers come. Aggregated across <i>every shed</i> on your farm — not just per-shed. Spot a shed dragging the average and act before pickup, not after.",
         mockup: `
           <div style="background:#fff;border-radius:12px;padding:12px 16px;width:100%;max-width:560px;box-shadow:0 6px 18px rgba(0,0,0,.22);text-align:left;">
             <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
@@ -951,8 +1050,8 @@
           </div>`,
       },
       {
-        title: "7. End of batch — FCR &amp; results, calculated for you",
-        body: "When the catchers come, enter the load weights and bird counts. Every number you need — FCR, CFCR, mortality %, kg/bird, net consumed — calculates automatically. One click exports to CSV or emails your integrator.",
+        title: "End of batch — FCR &amp; results, calculated for you",
+        body: "When the last truck rolls out, every number you need to send to the integrator is already there. <b>FCR, CFCR (cumulative FCR including the last week), cage age, average pickup weight, mortality %, total kg picked up, net feed consumed</b> — all calculated automatically from your delivery dockets and catch data. No more chasing receipts on Sunday night to work out where your batch landed. Compare this batch to your last 12 batches with a single click.",
         mockup: `
           <div style="background:linear-gradient(135deg,#0f3d24,#1a5c36);border-radius:12px;padding:16px;width:100%;max-width:520px;box-shadow:0 6px 18px rgba(0,0,0,.22);">
             <div style="color:#C9A227;font-weight:800;font-size:12px;margin-bottom:12px;text-align:center;">🏁 BATCH 112 RESULTS — DOUBLE B FARM</div>
@@ -977,8 +1076,65 @@
           </div>`,
       },
       {
+        title: "Reports & integrator exports — one click, sent",
+        body: "Every batch result, every silo reading, every delivery docket is exportable. One-click <b>CSV download</b> for your accountant, <b>PDF batch report</b> for your records, or <b>email straight to your integrator</b> field officer with the figures they need (FCR, kg picked up, mortality, average weight). Historical reports of every batch you've ever run are searchable in seconds — answer audit or contract questions without rifling through boxes of paper.",
+        mockup: `
+          <div style="background:#fff;border-radius:12px;padding:14px 16px;width:100%;max-width:520px;box-shadow:0 6px 18px rgba(0,0,0,.2);text-align:left;">
+            <div style="font-weight:800;color:#1a5c36;margin-bottom:10px;font-size:13px;">📤 EXPORT BATCH 112 RESULTS</div>
+            <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:12px;">
+              ${[
+                ['📊','CSV','#16a085'],
+                ['📄','PDF','#c0392b'],
+                ['✉','Email','#2980b9'],
+              ].map(([i,l,c],idx) => `<div style="background:#f8fbf9;border:1px solid #e0e8e4;border-radius:8px;padding:10px;text-align:center;opacity:0;animation:fadeup 0.3s ${idx*0.18+0.2}s forwards;">
+                <div style="font-size:22px;color:${c};">${i}</div>
+                <div style="font-size:11px;font-weight:800;color:#1a3a5c;margin-top:3px;">${l}</div>
+              </div>`).join('')}
+            </div>
+            <div style="background:#fafcfb;border:1px solid #e0e8e4;border-radius:7px;padding:10px;font-family:ui-monospace,SF Mono,Consolas,monospace;font-size:10px;line-height:1.6;color:#1a3a5c;">
+              <div style="color:#888;">batch_112_results.csv preview:</div>
+              <div><span style="color:#888;">shed,</span>birds,wt_avg,fcr,mort_pct,kg_picked</div>
+              <div><span style="color:#888;">1,</span>79,643, 3.06, 1.452, 3.18, 243,612</div>
+              <div><span style="color:#888;">2,</span>80,000, 3.09, 1.448, 3.22, 247,200</div>
+              <div><span style="color:#888;">3,</span>79,841, 3.04, 1.461, 3.31, 241,556</div>
+              <div style="color:#1a5c36;font-weight:800;">TOTAL,239,484,3.06,1.452,3.24,732,368</div>
+            </div>
+            <div style="background:#fff8e0;border:1px solid #e8d070;color:#7a6000;border-radius:7px;padding:7px 10px;margin-top:10px;font-size:11px;font-weight:700;">📨 Field officer Stephen will receive PDF + CSV in 5 seconds.</div>
+          </div>`,
+      },
+      {
+        title: "Run multiple farms? The Ops Manager view rolls them up",
+        body: "Got 2, 5, 20 farms? Switch to the <b>Ops Manager dashboard</b> at /ops-dashboard. Every farm you own or have been invited to shows as a tile: bird count, current age, latest FCR, days to pickup, alert flags (silo low, mortality spike). Click any farm to dive in. Send a field-operator invite by email — they get a magic link to the phone reader for that farm only, no access to your books. Built for contract growers, free-range groups, and integrator regions running multiple sites.",
+        mockup: `
+          <div style="background:#fff;border-radius:12px;padding:14px 16px;width:100%;max-width:560px;box-shadow:0 6px 18px rgba(0,0,0,.22);text-align:left;">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+              <span style="font-weight:800;color:#1a5c36;font-size:13px;">🏘️ OPS MANAGER — 4 FARMS</span>
+              <button style="background:#1a5c36;color:#fff;border:0;border-radius:99px;padding:4px 12px;font-weight:700;font-size:10px;">+ Invite operator</button>
+            </div>
+            <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:10px;">
+              ${[
+                {n:'Double B Farm',     b:'479,484', d:32, fcr:'1.42', alert:false},
+                {n:'Greenwood Farm',    b:'120,000', d:18, fcr:'1.28', alert:false},
+                {n:'Rocky Creek',       b:'160,000', d:5,  fcr:'0.92', alert:true},
+                {n:'Hilltop Free-Range',b:' 60,000', d:38, fcr:'1.51', alert:false},
+              ].map((f,i) => `<div style="background:${f.alert?'#fff5e6':'#fafcfb'};border:1px solid ${f.alert?'#f0c070':'#e0e8e4'};border-radius:8px;padding:9px 11px;opacity:0;animation:fadeup 0.3s ${i*0.15+0.2}s forwards;">
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:3px;">
+                  <span style="font-weight:800;color:#1a3a5c;font-size:11px;">${f.n}</span>
+                  ${f.alert?'<span style="background:#e67e22;color:#fff;border-radius:99px;padding:1px 6px;font-size:8px;font-weight:800;">! SILO LOW</span>':''}
+                </div>
+                <div style="display:flex;gap:10px;font-size:10px;">
+                  <span><span style="color:#888;">🐔</span> <strong>${f.b}</strong></span>
+                  <span><span style="color:#888;">📅</span> <strong>D${f.d}</strong></span>
+                  <span style="margin-left:auto;color:${parseFloat(f.fcr)<1.5?'#1a7a40':'#c0392b'};font-weight:800;">FCR ${f.fcr}</span>
+                </div>
+              </div>`).join('')}
+            </div>
+            <div style="margin-top:10px;font-size:11px;color:#666;text-align:center;">Each farm is fully isolated — operators only see what you invite them to.</div>
+          </div>`,
+      },
+      {
         title: "Ready to take control of your farm?",
-        body: "14-day free trial · no card if you cancel in time · Bronze for small farms, Silver for most, Gold for big operations. Up and running in under 5 minutes — your data syncs the moment you set placement.",
+        body: "<b>14-day free trial · no card needed if you cancel in time.</b> Bronze for single-shed setups, Silver for most family farms (2–6 sheds), Gold for big multi-farm operations. Up and running in under 5 minutes — your spreadsheet is auto-built the moment you set placement. Plus a free 30-min onboarding call with the founder (a 3rd-generation Aussie poultry grower) so you're set up right from batch one. No contracts. Cancel anytime.",
         mockup: `
           <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap;">
             ${[
