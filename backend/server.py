@@ -1287,6 +1287,101 @@ async def list_partner_requests():
     return [clean(r) for r in rows]
 
 
+# ─── Chat (per-farm + group) ──────────────────────────────────────────────
+class ChatPostBody(BaseModel):
+    text: str
+
+
+def _chat_clean(doc: dict) -> dict:
+    """Strip Mongo internals + format dates for the wire."""
+    doc.pop("_id", None)
+    for k, v in list(doc.items()):
+        if isinstance(v, datetime):
+            doc[k] = v.isoformat()
+    return doc
+
+
+async def _resolve_chat_actor(request: Request) -> tuple[dict, str]:
+    """Return (user, role) — role is 'ops' if admin/owner, else 'farm'."""
+    user = await _user_from_request(request)
+    if not user:
+        raise HTTPException(401, "Sign in required to chat")
+    email = (user.get("email") or "").lower()
+    raw_admin = (os.environ.get("OUTREACH_ADMIN_EMAILS") or "") + "," + (os.environ.get("SUPERUSER_EMAILS") or "")
+    admin_set = {e.strip().lower() for e in raw_admin.split(",") if e.strip()}
+    role = "ops" if email in admin_set else "farm"
+    return user, role
+
+
+@app.get("/api/chat/{scope}")
+async def chat_list(scope: str, request: Request, farm: Optional[str] = None, limit: int = 200):
+    """List the most recent `limit` messages for the given scope.
+    `scope` is either 'farm' (requires ?farm=<slug>) or 'group'."""
+    user, _ = await _resolve_chat_actor(request)
+    if scope not in ("farm", "group"):
+        raise HTTPException(400, "scope must be 'farm' or 'group'")
+    query: dict = {"scope": scope}
+    if scope == "farm":
+        if not farm:
+            raise HTTPException(400, "?farm=<slug> required for farm-scope chat")
+        query["farm_slug"] = farm
+    rows = await db["chat_messages"].find(query).sort("created_at", -1).limit(limit).to_list(length=limit)
+    rows.reverse()  # oldest first for chronological rendering
+    # Mark received messages as read by this user
+    me_email = (user.get("email") or "").lower()
+    await db["chat_messages"].update_many(
+        {**query, "sender_email": {"$ne": me_email}, "read_by": {"$ne": me_email}},
+        {"$push": {"read_by": me_email}},
+    )
+    return [_chat_clean(r) for r in rows]
+
+
+@app.post("/api/chat/{scope}")
+async def chat_post(scope: str, body: ChatPostBody, request: Request, farm: Optional[str] = None):
+    user, role = await _resolve_chat_actor(request)
+    if scope not in ("farm", "group"):
+        raise HTTPException(400, "scope must be 'farm' or 'group'")
+    text = (body.text or "").strip()
+    if not text:
+        raise HTTPException(400, "Empty message")
+    if len(text) > 4000:
+        raise HTTPException(400, "Message too long")
+    doc = {
+        "id":           "msg_" + uuid.uuid4().hex[:14],
+        "scope":        scope,
+        "farm_slug":    farm if scope == "farm" else None,
+        "sender_email": (user.get("email") or "").lower(),
+        "sender_name":  user.get("name") or user.get("email") or "User",
+        "sender_role":  role,
+        "text":         text,
+        "read_by":      [(user.get("email") or "").lower()],
+        "created_at":   datetime.now(timezone.utc),
+    }
+    if scope == "farm" and not farm:
+        raise HTTPException(400, "?farm=<slug> required for farm-scope chat")
+    await db["chat_messages"].insert_one(doc)
+    return _chat_clean({**doc})
+
+
+@app.get("/api/chat-unread")
+async def chat_unread(request: Request):
+    """Return unread message counts so the dashboard can show badges per-farm + group."""
+    user, _ = await _resolve_chat_actor(request)
+    me_email = (user.get("email") or "").lower()
+    out: dict = {"group": 0, "farms": {}}
+    cursor = db["chat_messages"].find({
+        "read_by": {"$ne": me_email},
+        "sender_email": {"$ne": me_email},
+    })
+    async for m in cursor:
+        if m.get("scope") == "group":
+            out["group"] += 1
+        elif m.get("scope") == "farm":
+            slug = m.get("farm_slug") or ""
+            out["farms"][slug] = out["farms"].get(slug, 0) + 1
+    return out
+
+
 # ─── Farms (multi-farm Ops layer) ────────────────────────────────────────
 import re as _re_farms
 
