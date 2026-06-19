@@ -1226,6 +1226,67 @@ async def list_demo_requests():
     return [clean(r) for r in rows]
 
 
+# ─── Partnership enquiries (resellers / integrators / equipment / feed mills) ─
+class PartnerRequest(BaseModel):
+    name: str
+    email: str
+    company: str
+    partner_type: str  # equipment_supplier | integrator | feed_mill | other
+    farms_count: Optional[str] = None
+    message: Optional[str] = None
+
+
+@app.post("/api/partner-request")
+async def partner_request(body: PartnerRequest):
+    from email_service import send_email
+    doc = {
+        "id": str(uuid.uuid4()),
+        "name":         body.name,
+        "email":        body.email,
+        "company":      body.company,
+        "partner_type": body.partner_type,
+        "farms_count":  body.farms_count,
+        "message":      body.message,
+        "createdAt":    datetime.now(timezone.utc),
+    }
+    await db["partner_requests"].insert_one(doc)
+    admin = os.environ.get("ADMIN_EMAIL")
+    type_label = {
+        "equipment_supplier": "🏭 Equipment supplier",
+        "integrator":         "🏢 Poultry integrator",
+        "feed_mill":          "🌾 Feed mill / consultant",
+        "other":              "Other",
+    }.get(body.partner_type, body.partner_type)
+    if admin:
+        try:
+            await send_email(
+                to=admin,
+                subject=f"🤝 New partnership enquiry — {body.company} ({type_label})",
+                html=f"""<div style="font-family:system-ui,sans-serif;max-width:560px;padding:24px;color:#1a2622;">
+                  <h2 style="color:#1a5c36;margin:0 0 16px;">🤝 New partnership enquiry</h2>
+                  <table style="width:100%;border-collapse:collapse;font-size:14px;">
+                    <tr><td style="padding:6px 0;color:#666;width:140px;">Name:</td><td style="font-weight:700;">{body.name}</td></tr>
+                    <tr><td style="padding:6px 0;color:#666;">Company:</td><td style="font-weight:700;">{body.company}</td></tr>
+                    <tr><td style="padding:6px 0;color:#666;">Email:</td><td><a href="mailto:{body.email}" style="color:#1a5c36;">{body.email}</a></td></tr>
+                    <tr><td style="padding:6px 0;color:#666;">Partner type:</td><td style="font-weight:700;">{type_label}</td></tr>
+                    <tr><td style="padding:6px 0;color:#666;">Farms count:</td><td>{body.farms_count or '—'}</td></tr>
+                  </table>
+                  {'<div style="margin-top:18px;padding:14px;background:#f7fbf4;border-left:4px solid #C9A227;border-radius:6px;font-size:14px;line-height:1.5;">' + (body.message or '') + '</div>' if body.message else ''}
+                  <p style="font-size:12px;color:#888;margin-top:18px;">Reply directly to this email to respond to {body.name}.</p>
+                </div>""",
+                reply_to=body.email,
+            )
+        except Exception:
+            pass
+    return {"ok": True}
+
+
+@app.get("/api/partner-request")
+async def list_partner_requests():
+    rows = await db["partner_requests"].find().sort("createdAt", -1).limit(100).to_list(length=100)
+    return [clean(r) for r in rows]
+
+
 # ─── Farms (multi-farm Ops layer) ────────────────────────────────────────
 import re as _re_farms
 
