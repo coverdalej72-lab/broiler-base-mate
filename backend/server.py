@@ -904,10 +904,13 @@ app.include_router(api)
 PACKAGES = {
     # Subscription plans (charged as one-off first-month for v1; user upgrades to recurring in Stripe dashboard)
     "bronze_monthly":      {"label": "Bronze",   "amount": 50.0,   "kind": "subscription"},
-    "silver_monthly":      {"label": "Silver",   "amount": 100.0,  "kind": "subscription"},
-    "gold_monthly":        {"label": "Gold",     "amount": 150.0,  "kind": "subscription"},
-    "platinum_monthly":    {"label": "Platinum", "amount": 200.0,  "kind": "subscription"},
-    "integrator_monthly":  {"label": "Integrator (per farm)", "amount": 60.0, "kind": "subscription"},
+    "silver_monthly":      {"label": "Silver",   "amount": 75.0,   "kind": "subscription"},
+    "gold_monthly":        {"label": "Gold",     "amount": 100.0,  "kind": "subscription"},
+    "platinum_monthly":    {"label": "Platinum", "amount": 150.0,  "kind": "subscription"},
+    "ops_bronze":          {"label": "Ops Pack (Bronze farms)",   "amount": 50.0,  "kind": "subscription"},
+    "ops_silver":          {"label": "Ops Pack (Silver farms)",   "amount": 75.0,  "kind": "subscription"},
+    "ops_gold":            {"label": "Ops Pack (Gold farms)",     "amount": 100.0, "kind": "subscription"},
+    "ops_platinum":        {"label": "Ops Pack (Platinum farms)", "amount": 150.0, "kind": "subscription"},
     # Annual variants (~15% off)
     "bronze_annual":       {"label": "Bronze Annual",   "amount": 510.0,   "kind": "subscription"},
     "silver_annual":       {"label": "Silver Annual",   "amount": 1020.0,  "kind": "subscription"},
