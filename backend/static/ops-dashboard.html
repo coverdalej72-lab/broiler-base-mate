@@ -190,6 +190,97 @@
   details.add-farm-collapse summary { cursor: pointer; font-weight: 800; color: var(--green-700); font-size: 13px; list-style: none; display: flex; align-items: center; gap: 8px; }
   details.add-farm-collapse summary::-webkit-details-marker { display: none; }
   details.add-farm-collapse[open] summary { margin-bottom: 12px; }
+
+  /* ── Chat Widget ───────────────────────────────── */
+  .chat-fab {
+    position: fixed; bottom: 22px; right: 22px; z-index: 60;
+    display: flex; align-items: center; gap: 8px;
+    background: linear-gradient(135deg, var(--green-800), var(--green-700));
+    color: #fff; border: 0; border-radius: 99px;
+    padding: 12px 18px; font-weight: 700; font-size: 14px; cursor: pointer;
+    box-shadow: 0 6px 20px rgba(0,0,0,.25);
+    transition: transform .15s, box-shadow .15s;
+  }
+  .chat-fab:hover { transform: translateY(-2px); box-shadow: 0 10px 26px rgba(0,0,0,.3); }
+  .chat-fab__icon { font-size: 18px; }
+  .chat-fab__badge {
+    position: absolute; top: -4px; right: -4px;
+    background: var(--bad); color: #fff; font-size: 11px; font-weight: 800;
+    min-width: 20px; height: 20px; border-radius: 99px;
+    display: inline-flex; align-items: center; justify-content: center;
+    padding: 0 6px; border: 2px solid var(--bg);
+  }
+
+  .chat-panel {
+    position: fixed; bottom: 22px; right: 22px; z-index: 70;
+    width: 360px; max-width: calc(100vw - 24px);
+    height: 520px; max-height: calc(100vh - 100px);
+    background: var(--card); color: var(--ink-soft);
+    border: 1px solid var(--line); border-radius: 14px;
+    box-shadow: 0 16px 48px rgba(0,0,0,.28);
+    display: none; flex-direction: column; overflow: hidden;
+  }
+  .chat-panel.open { display: flex; }
+  .chat-head {
+    display: flex; align-items: center; justify-content: space-between;
+    background: linear-gradient(135deg, var(--green-800), var(--green-700));
+    color: #fff; padding: 12px 16px;
+  }
+  .chat-head__title { font-weight: 800; font-size: 14px; letter-spacing: .3px; }
+  .chat-close {
+    background: rgba(255,255,255,.15); border: 0; color: #fff;
+    width: 28px; height: 28px; border-radius: 99px; cursor: pointer; font-size: 18px; line-height: 1;
+  }
+  .chat-close:hover { background: rgba(255,255,255,.28); }
+
+  .chat-tabs { display: flex; border-bottom: 1px solid var(--line); }
+  .chat-tab {
+    flex: 1; background: transparent; border: 0; padding: 10px 0;
+    font-size: 13px; font-weight: 700; color: var(--muted); cursor: pointer;
+    border-bottom: 2px solid transparent;
+  }
+  .chat-tab.active { color: var(--green-700); border-bottom-color: var(--gold); }
+
+  .chat-farm-row { padding: 8px 12px; border-bottom: 1px solid var(--line); }
+  .chat-farm-row select {
+    width: 100%; padding: 8px 10px; font-size: 13px; font-family: inherit;
+    border: 1px solid var(--line); border-radius: 8px; background: var(--paper); color: var(--ink-soft);
+  }
+
+  .chat-messages {
+    flex: 1; overflow-y: auto; padding: 12px; display: flex; flex-direction: column; gap: 10px;
+    background: var(--paper);
+  }
+  .chat-empty { color: var(--muted); text-align: center; padding: 30px 10px; font-size: 13px; }
+  .chat-msg { display: flex; flex-direction: column; align-items: flex-start; max-width: 85%; }
+  .chat-msg.mine { align-self: flex-end; align-items: flex-end; }
+  .chat-meta { font-size: 11px; color: var(--muted); margin-bottom: 3px; display: flex; align-items: center; gap: 6px; }
+  .chat-tag { background: var(--gold); color: #000; font-weight: 800; padding: 1px 6px; border-radius: 99px; font-size: 10px; }
+  .chat-time { color: var(--muted); font-size: 10px; margin-left: 4px; }
+  .chat-bubble {
+    background: var(--card); border: 1px solid var(--line); color: var(--ink-soft);
+    padding: 8px 12px; border-radius: 12px; font-size: 13px; line-height: 1.45;
+    word-break: break-word; white-space: pre-wrap;
+  }
+  .chat-msg.mine .chat-bubble {
+    background: var(--green-700); color: #fff; border-color: var(--green-700);
+  }
+
+  .chat-input-row { display: flex; gap: 8px; padding: 10px; border-top: 1px solid var(--line); background: var(--card); }
+  .chat-input {
+    flex: 1; padding: 9px 12px; font-size: 13px; font-family: inherit;
+    border: 1px solid var(--line); border-radius: 99px; background: var(--paper); color: var(--ink-soft);
+  }
+  .chat-input:focus { outline: none; border-color: var(--gold); }
+  .chat-send-btn {
+    background: var(--gold); color: #000; border: 0; border-radius: 99px;
+    padding: 0 18px; font-weight: 800; font-size: 13px; cursor: pointer;
+  }
+  .chat-send-btn:disabled { opacity: .6; cursor: not-allowed; }
+
+  @media (max-width: 480px) {
+    .chat-panel { width: calc(100vw - 24px); height: calc(100vh - 100px); }
+  }
 </style>
 </head>
 <body data-page="ops-dashboard">
@@ -248,6 +339,36 @@
     </div>
   </div>
 </main>
+
+<!-- ── Chat Widget ─────────────────────────────────────────── -->
+<button id="chat-fab" class="chat-fab" data-testid="btn-chat-fab" aria-label="Open chat">
+  <span class="chat-fab__icon">💬</span>
+  <span class="chat-fab__label">Chat</span>
+  <span id="chat-fab-badge" class="chat-fab__badge" style="display:none;">0</span>
+</button>
+
+<div id="chat-panel" class="chat-panel" role="dialog" aria-label="Team chat">
+  <div class="chat-head">
+    <div class="chat-head__title">Team Chat</div>
+    <button id="chat-close" class="chat-close" data-testid="btn-chat-close" aria-label="Close chat">×</button>
+  </div>
+  <div class="chat-tabs">
+    <button class="chat-tab active" data-scope="group" data-testid="tab-chat-group">Group</button>
+    <button class="chat-tab" data-scope="farm" data-testid="tab-chat-farm">Per-farm</button>
+  </div>
+  <div class="chat-farm-row" id="chat-farm-row" style="display:none;">
+    <select id="chat-farm-select" data-testid="select-chat-farm">
+      <option value="">— select farm —</option>
+    </select>
+  </div>
+  <div id="chat-messages" class="chat-messages" data-testid="chat-messages">
+    <div class="chat-empty">Loading…</div>
+  </div>
+  <div class="chat-input-row">
+    <input id="chat-input" class="chat-input" type="text" placeholder="Type a message…" data-testid="input-chat-msg" maxlength="4000" />
+    <button id="chat-send-btn" class="chat-send-btn" data-testid="btn-chat-send">Send</button>
+  </div>
+</div>
 
 <script>
   // ── Helpers ───────────────────────────────────────────────────
@@ -517,6 +638,164 @@
 
   // Initial load
   loadAll();
+
+  // ── Chat widget ──────────────────────────────────────────────
+  const chatState = { open: false, scope: "group", farm: "", pollTimer: null, lastIds: new Set() };
+
+  function chatEl(id) { return document.getElementById(id); }
+
+  function escHtml(s) {
+    return String(s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+  }
+
+  function fmtChatTime(iso) {
+    if (!iso) return "";
+    const d = new Date(iso);
+    if (isNaN(d)) return "";
+    const today = new Date();
+    const sameDay = d.toDateString() === today.toDateString();
+    return sameDay
+      ? d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
+      : d.toLocaleString([], { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" });
+  }
+
+  function populateFarmSelect(farms) {
+    const sel = chatEl("chat-farm-select");
+    if (!sel) return;
+    const current = sel.value;
+    sel.innerHTML = '<option value="">— select farm —</option>' +
+      farms.map(f => `<option value="${f.slug}">${escHtml(f.name || f.slug)}</option>`).join("");
+    if (current && farms.some(f => f.slug === current)) sel.value = current;
+  }
+
+  async function loadChatMessages() {
+    if (chatState.scope === "farm" && !chatState.farm) {
+      chatEl("chat-messages").innerHTML = '<div class="chat-empty">Pick a farm above to view its chat.</div>';
+      return;
+    }
+    const url = chatState.scope === "farm"
+      ? `/api/chat/farm?farm=${encodeURIComponent(chatState.farm)}`
+      : "/api/chat/group";
+    let msgs;
+    try { msgs = await getJSON(url); }
+    catch (e) {
+      chatEl("chat-messages").innerHTML = `<div class="chat-empty">Could not load: ${escHtml(e.message)}</div>`;
+      return;
+    }
+    if (!msgs.length) {
+      chatEl("chat-messages").innerHTML = '<div class="chat-empty">No messages yet — say hi 👋</div>';
+      chatState.lastIds = new Set();
+      return;
+    }
+    const meEmail = (window.__meEmail || "").toLowerCase();
+    const html = msgs.map(m => {
+      const mine = (m.sender_email || "").toLowerCase() === meEmail;
+      const cls  = mine ? "chat-msg mine" : "chat-msg";
+      const tag  = m.sender_role === "ops" ? '<span class="chat-tag">Ops</span>' : "";
+      return `
+        <div class="${cls}">
+          <div class="chat-meta">${escHtml(m.sender_name || m.sender_email || "User")}${tag}<span class="chat-time">${fmtChatTime(m.created_at)}</span></div>
+          <div class="chat-bubble">${escHtml(m.text)}</div>
+        </div>`;
+    }).join("");
+    chatEl("chat-messages").innerHTML = html;
+    chatEl("chat-messages").scrollTop = chatEl("chat-messages").scrollHeight;
+    chatState.lastIds = new Set(msgs.map(m => m.id));
+  }
+
+  async function loadUnread() {
+    try {
+      const u = await getJSON("/api/chat-unread");
+      const total = (u.group || 0) + Object.values(u.farms || {}).reduce((a, b) => a + b, 0);
+      const badge = chatEl("chat-fab-badge");
+      if (badge) {
+        if (total > 0) { badge.textContent = total > 99 ? "99+" : String(total); badge.style.display = "inline-flex"; }
+        else { badge.style.display = "none"; }
+      }
+    } catch (e) { /* silently ignore (e.g. not logged in) */ }
+  }
+
+  async function sendChat() {
+    const input = chatEl("chat-input");
+    const text = (input.value || "").trim();
+    if (!text) return;
+    if (chatState.scope === "farm" && !chatState.farm) { alert("Pick a farm first."); return; }
+    const url = chatState.scope === "farm"
+      ? `/api/chat/farm?farm=${encodeURIComponent(chatState.farm)}`
+      : "/api/chat/group";
+    const btn = chatEl("chat-send-btn");
+    btn.disabled = true;
+    try {
+      const res = await fetch(url, {
+        method: "POST", credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text }),
+      });
+      if (!res.ok) throw new Error(await res.text());
+      input.value = "";
+      await loadChatMessages();
+    } catch (e) {
+      alert("Send failed: " + e.message);
+    } finally { btn.disabled = false; input.focus(); }
+  }
+
+  function openChat() {
+    chatState.open = true;
+    chatEl("chat-panel").classList.add("open");
+    loadChatMessages();
+    if (chatState.pollTimer) clearInterval(chatState.pollTimer);
+    chatState.pollTimer = setInterval(() => { if (chatState.open) loadChatMessages(); }, 10000);
+    loadUnread();
+  }
+  function closeChat() {
+    chatState.open = false;
+    chatEl("chat-panel").classList.remove("open");
+    if (chatState.pollTimer) { clearInterval(chatState.pollTimer); chatState.pollTimer = null; }
+    loadUnread();
+  }
+
+  // Wire chat events
+  chatEl("chat-fab").addEventListener("click", () => chatState.open ? closeChat() : openChat());
+  chatEl("chat-close").addEventListener("click", closeChat);
+  chatEl("chat-send-btn").addEventListener("click", sendChat);
+  chatEl("chat-input").addEventListener("keydown", e => {
+    if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendChat(); }
+  });
+  document.querySelectorAll(".chat-tab").forEach(t => {
+    t.addEventListener("click", () => {
+      document.querySelectorAll(".chat-tab").forEach(x => x.classList.remove("active"));
+      t.classList.add("active");
+      chatState.scope = t.dataset.scope;
+      chatEl("chat-farm-row").style.display = chatState.scope === "farm" ? "flex" : "none";
+      loadChatMessages();
+    });
+  });
+  chatEl("chat-farm-select").addEventListener("change", e => {
+    chatState.farm = e.target.value;
+    loadChatMessages();
+  });
+
+  // Resolve current user email (so we can style own bubbles)
+  fetch("/api/auth/me", { credentials: "include" })
+    .then(r => r.ok ? r.json() : null)
+    .then(u => { window.__meEmail = (u && u.email) ? u.email : ""; })
+    .catch(() => {});
+
+  // Hook into farms load to populate the chat farm dropdown
+  const _origLoadAll = loadAll;
+  loadAll = async function () {
+    await _origLoadAll.apply(this, arguments);
+    try {
+      const farms = await getJSON("/api/farms");
+      populateFarmSelect(farms);
+    } catch (e) { /* ignore */ }
+  };
+  // Re-run once for initial population (data already loaded above)
+  getJSON("/api/farms").then(populateFarmSelect).catch(() => {});
+
+  // Periodic unread badge refresh
+  loadUnread();
+  setInterval(loadUnread, 30000);
 </script>
 </body>
 </html>
