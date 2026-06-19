@@ -3,247 +3,520 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Ops Dashboard — Broiler Base Mate</title>
-<link rel="icon" type="image/png" href="/reader-assets/icon-64.png">
+<title>Ops Dashboard · Broiler Base Mate</title>
+<link rel="icon" href="/api/static-asset/favicon.svg" type="image/svg+xml">
+<script src="/api/static-asset/auth-guard.js" defer></script>
 <style>
-  :root {
-    --green-900:#0a2818; --green-800:#0f3d24; --green-700:#1a5c36; --green-500:#2dbd5e;
-    --gold:#C9A227; --gold-dark:#8b6f0c;
-    --ink:#1a1a1a; --muted:#5a7268; --line:#e8ecea; --paper:#fbfaf4;
+  :root, [data-theme="light"] {
+    --bg:         #f4f6f5;
+    --card:       #fff;
+    --paper:      #fafcfb;
+    --ink:        #0f3d24;
+    --ink-soft:   #1a2622;
+    --muted:      #5a7268;
+    --line:       #e0e8e4;
+    --green-50:   #f0faf4;
+    --green-700:  #1a5c36;
+    --green-800:  #0f3d24;
+    --gold:       #C9A227;
+    --good:       #16a085;
+    --warn:       #e67e22;
+    --bad:        #c0392b;
+    --info:       #2980b9;
+    --shadow:     0 1px 3px rgba(0,0,0,.05), 0 4px 14px rgba(0,0,0,.04);
+    --alert-crit-bg:  #fef2f2;
+    --alert-crit-fg:  #7f1d1d;
+    --alert-crit-bd:  #fecaca;
+    --alert-warn-bg:  #fffbeb;
+    --alert-warn-fg:  #78350f;
+    --alert-warn-bd:  #fde68a;
+    --alert-ok-bg:    #f0fdf4;
+    --alert-ok-fg:    #166534;
+    --alert-ok-bd:    #bbf7d0;
+    --next-del-bg:    linear-gradient(135deg, #fef3c7, #fff7e0);
+    --next-del-bd:    #fde68a;
+    --next-del-head:  #92400e;
+    --next-del-body:  #78350f;
   }
-  *{box-sizing:border-box;margin:0;padding:0}
-  body{font-family:system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;background:#f6f8f6;color:var(--ink);min-height:100vh;}
-  header{background:var(--green-800);color:#fff;padding:20px 24px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;border-bottom:3px solid var(--gold);}
-  header h1{font-size:22px;font-weight:900;letter-spacing:-0.5px;}
-  header h1 .accent{color:var(--gold)}
-  header .links a{color:#bdd3c4;text-decoration:none;margin-left:18px;font-size:13px;font-weight:700;}
-  header .links a:hover{color:var(--gold);}
-  main{max-width:1100px;margin:0 auto;padding:32px 24px;}
-  .summary{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:14px;margin-bottom:32px;}
-  .stat{background:#fff;border:1px solid var(--line);border-radius:14px;padding:18px 20px;}
-  .stat .v{font-size:30px;font-weight:900;color:var(--green-800);letter-spacing:-1px;}
-  .stat .l{font-size:11px;letter-spacing:1.5px;font-weight:700;color:var(--muted);margin-top:4px;}
-  .panel{background:#fff;border:1px solid var(--line);border-radius:16px;padding:24px;margin-bottom:24px;}
-  .panel h2{font-size:18px;font-weight:900;margin-bottom:16px;color:var(--green-800);}
-  .panel h2 .accent{color:var(--gold);}
-  .farm-row{display:grid;grid-template-columns:1fr 120px 120px 220px;gap:14px;padding:14px 0;border-bottom:1px solid var(--line);align-items:center;}
-  .farm-row:last-child{border-bottom:0;}
-  .farm-name{font-weight:800;font-size:15px;}
-  .farm-slug{font-size:11px;color:var(--muted);font-weight:600;font-family:ui-monospace,Menlo,monospace;}
-  .farm-meta{font-size:13px;color:var(--muted);}
-  .actions{display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap;}
-  button{background:var(--green-700);color:#fff;border:0;padding:10px 16px;border-radius:99px;font-weight:800;font-size:13px;cursor:pointer;letter-spacing:0.3px;}
-  button:hover{background:var(--green-800);}
-  button.gold{background:var(--gold);color:#000;}
-  button.gold:hover{background:var(--gold-dark);color:#fff;}
-  button.ghost{background:transparent;color:var(--muted);border:1px solid var(--line);}
-  button.ghost:hover{color:#b91c1c;border-color:#b91c1c;background:#fff5f5;}
-  button:disabled{opacity:0.5;cursor:not-allowed;}
-  input,select{padding:11px 14px;border:1px solid var(--line);border-radius:10px;font-size:14px;font-weight:600;background:var(--paper);font-family:inherit;width:100%;}
-  input:focus,select:focus{outline:0;border-color:var(--gold);}
-  .form-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;align-items:end;}
-  .badge{display:inline-block;padding:3px 10px;background:var(--gold);color:#000;border-radius:99px;font-size:10px;font-weight:900;letter-spacing:1px;margin-left:8px;}
-  .empty{text-align:center;padding:32px 12px;color:var(--muted);font-size:14px;}
-  .toast{position:fixed;left:50%;bottom:30px;transform:translateX(-50%) translateY(80px);background:var(--green-800);color:#fff;padding:14px 20px;border-radius:99px;font-weight:800;font-size:14px;box-shadow:0 8px 24px rgba(0,0,0,.2);transition:transform .3s;z-index:99;}
-  .toast.show{transform:translateX(-50%) translateY(0);}
-  .toast.err{background:#b91c1c;}
-  dialog{border:0;border-radius:18px;padding:0;max-width:460px;width:calc(100% - 32px);box-shadow:0 24px 64px rgba(0,0,0,.3);}
-  dialog::backdrop{background:rgba(10,40,24,.6);backdrop-filter:blur(4px);}
-  .dlg{padding:28px;}
-  .dlg h3{font-size:18px;font-weight:900;margin-bottom:6px;color:var(--green-800);}
-  .dlg p{font-size:13px;color:var(--muted);margin-bottom:18px;line-height:1.5;}
-  .dlg .row{margin-bottom:12px;}
-  .dlg .row label{display:block;font-size:11px;font-weight:800;letter-spacing:1px;color:var(--muted);margin-bottom:6px;}
-  .dlg-actions{display:flex;justify-content:flex-end;gap:10px;margin-top:18px;}
-  @media (max-width: 768px){
-    .farm-row{grid-template-columns:1fr;gap:8px;}
-    .actions{justify-content:flex-start;}
+  [data-theme="dark"] {
+    --bg:         #0a1410;
+    --card:       #122118;
+    --paper:      #0f1c14;
+    --ink:        #e0f0e6;
+    --ink-soft:   #d8e8dc;
+    --muted:      #8aa094;
+    --line:       #1f2f25;
+    --green-50:   #112418;
+    --green-700:  #2dbd5e;
+    --green-800:  #1a5c36;
+    --gold:       #C9A227;
+    --good:       #34d399;
+    --warn:       #fbbf24;
+    --bad:        #f87171;
+    --info:       #60a5fa;
+    --shadow:     0 1px 3px rgba(0,0,0,.4), 0 8px 22px rgba(0,0,0,.35);
+    --alert-crit-bg:  rgba(248,113,113,.1);
+    --alert-crit-fg:  #fca5a5;
+    --alert-crit-bd:  rgba(248,113,113,.3);
+    --alert-warn-bg:  rgba(251,191,36,.1);
+    --alert-warn-fg:  #fcd34d;
+    --alert-warn-bd:  rgba(251,191,36,.3);
+    --alert-ok-bg:    rgba(52,211,153,.08);
+    --alert-ok-fg:    #6ee7b7;
+    --alert-ok-bd:    rgba(52,211,153,.25);
+    --next-del-bg:    linear-gradient(135deg, rgba(201,162,39,.15), rgba(251,191,36,.05));
+    --next-del-bd:    rgba(201,162,39,.3);
+    --next-del-head:  #fcd34d;
+    --next-del-body:  #fde68a;
   }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; }
+  body { font-family: system-ui, -apple-system, "Segoe UI", sans-serif; background: var(--bg); color: var(--ink-soft); }
+
+  /* ── Topbar ───────────────────────────────────────── */
+  header.top {
+    position: sticky; top: 0; z-index: 30;
+    background: linear-gradient(135deg, var(--green-800), var(--green-700));
+    color: #fff; border-bottom: 1px solid rgba(255,255,255,.08);
+  }
+  .top__inner { max-width: 1280px; margin: 0 auto; padding: 0 24px; height: 60px; display: flex; align-items: center; justify-content: space-between; }
+  .top__brand { display: flex; align-items: center; gap: 12px; }
+  .top__logo { width: 36px; height: 36px; border-radius: 9px; background: linear-gradient(135deg, var(--gold), #8b6f0c); display: grid; place-items: center; font-weight: 900; color: #000; }
+  .top__title { font-weight: 800; font-size: 16px; letter-spacing: -0.2px; }
+  .top__sub { color: #bdd3c4; font-size: 11px; font-weight: 600; letter-spacing: 1px; text-transform: uppercase; }
+  .top__actions { display: flex; gap: 8px; align-items: center; }
+  .pill { background: rgba(255,255,255,.1); color: #fff; border: 0; border-radius: 99px; padding: 6px 14px; font-weight: 700; font-size: 12px; cursor: pointer; transition: background .15s; display: inline-flex; align-items: center; gap: 6px; text-decoration: none; }
+  .pill:hover { background: rgba(255,255,255,.2); }
+
+  main { max-width: 1280px; margin: 0 auto; padding: 22px 24px 60px; }
+
+  /* ── Global KPI tiles ─────────────────────────────── */
+  .kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 14px; margin-bottom: 22px; }
+  .kpi { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 16px 18px; box-shadow: var(--shadow); position: relative; overflow: hidden; }
+  .kpi__label { font-size: 10px; letter-spacing: 1.5px; color: var(--muted); font-weight: 800; text-transform: uppercase; margin-bottom: 8px; }
+  .kpi__value { font-size: 32px; font-weight: 900; letter-spacing: -1px; color: var(--green-700); line-height: 1; }
+  .kpi__sub { font-size: 11px; color: var(--muted); margin-top: 4px; }
+  .kpi.bad .kpi__value  { color: var(--bad); }
+  .kpi.warn .kpi__value { color: var(--warn); }
+  .kpi.good .kpi__value { color: var(--good); }
+  .kpi__icon { position: absolute; top: 16px; right: 16px; opacity: 0.12; font-size: 36px; }
+
+  /* ── Section heading ─────────────────────────────── */
+  .section-head { display: flex; align-items: center; justify-content: space-between; margin: 8px 0 14px; flex-wrap: wrap; gap: 10px; }
+  .section-head h2 { font-size: 18px; font-weight: 900; margin: 0; letter-spacing: -0.3px; color: var(--ink); }
+  .legend { display: flex; gap: 14px; font-size: 11px; color: var(--muted); font-weight: 600; flex-wrap: wrap; }
+  .legend span { display: inline-flex; align-items: center; gap: 5px; }
+  .dot { width: 8px; height: 8px; border-radius: 99px; display: inline-block; }
+  .dot.green { background: var(--good); }
+  .dot.amber { background: var(--warn); }
+  .dot.red   { background: var(--bad); }
+
+  /* ── Per-farm cards grid ──────────────────────────── */
+  .farms-grid { display: grid; grid-template-columns: 1fr; gap: 18px; }
+  @media (min-width: 900px) { .farms-grid { grid-template-columns: 1fr 1fr; } }
+
+  .farm-card { background: var(--card); border: 1px solid var(--line); border-radius: 16px; box-shadow: var(--shadow); overflow: hidden; }
+  .farm-card__head { background: linear-gradient(135deg, var(--green-800), var(--green-700)); color: #fff; padding: 14px 18px; display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .farm-card__name { font-weight: 900; font-size: 17px; letter-spacing: -0.2px; }
+  .farm-card__sub  { font-size: 11px; color: #bdd3c4; margin-top: 2px; }
+  .tier-badge { background: rgba(255,255,255,.12); border: 1px solid rgba(255,255,255,.2); border-radius: 99px; padding: 3px 11px; font-size: 11px; font-weight: 800; letter-spacing: 0.3px; }
+  .tier-badge.platinum { background: rgba(125, 211, 252, 0.2); border-color: #7dd3fc; color: #7dd3fc; }
+  .tier-badge.gold     { background: rgba(201, 162, 39, 0.25); border-color: var(--gold); color: var(--gold); }
+  .tier-badge.silver   { background: rgba(203, 213, 225, 0.2); border-color: #cbd5e1; color: #cbd5e1; }
+  .tier-badge.bronze   { background: rgba(251, 146, 60, 0.2); border-color: #fb923c; color: #fb923c; }
+
+  .farm-card__body { padding: 16px 18px; }
+  .farm-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 14px; }
+  .stat-box { background: var(--paper); border: 1px solid var(--line); border-radius: 10px; padding: 9px 11px; text-align: center; }
+  .stat-box__v { font-size: 19px; font-weight: 900; color: var(--ink); line-height: 1; }
+  .stat-box__l { font-size: 9px; color: var(--muted); letter-spacing: 1px; font-weight: 700; text-transform: uppercase; margin-top: 4px; }
+  .stat-box.good .stat-box__v { color: var(--good); }
+  .stat-box.warn .stat-box__v { color: var(--warn); }
+  .stat-box.bad  .stat-box__v { color: var(--bad); }
+
+  /* Per-shed silo bars */
+  .sheds-list { display: flex; flex-direction: column; gap: 10px; margin-bottom: 12px; }
+  .shed-row { background: var(--paper); border: 1px solid var(--line); border-radius: 10px; padding: 9px 12px; }
+  .shed-row__name { display: flex; justify-content: space-between; align-items: center; font-size: 12px; font-weight: 800; color: var(--ink); margin-bottom: 6px; }
+  .shed-row__feed { font-size: 10px; color: var(--muted); font-weight: 600; }
+  .silos { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 6px; }
+  .silo { background: var(--card); border: 1px solid var(--line); border-radius: 7px; padding: 6px 8px; text-align: left; }
+  .silo__head { display: flex; justify-content: space-between; align-items: center; gap: 4px; }
+  .silo__letter { width: 18px; height: 18px; border-radius: 5px; color: #fff; font-size: 10px; font-weight: 900; display: grid; place-items: center; }
+  .silo__letter.green { background: var(--good); }
+  .silo__letter.amber { background: var(--warn); }
+  .silo__letter.red   { background: var(--bad); }
+  .silo__letter.gray  { background: #cbd5d1; }
+  .silo__amount { font-size: 13px; font-weight: 800; color: var(--ink); }
+  .silo__amount.muted { color: #cbd5d1; font-weight: 500; }
+  .silo__bar { height: 4px; background: rgba(0,0,0,.06); border-radius: 99px; overflow: hidden; margin-top: 6px; }
+  .silo__fill { height: 100%; border-radius: 99px; transition: width 0.6s ease; }
+  .silo__fill.green { background: var(--good); }
+  .silo__fill.amber { background: var(--warn); }
+  .silo__fill.red   { background: var(--bad); }
+
+  /* Alert banner */
+  .alert { display: flex; align-items: flex-start; gap: 10px; padding: 10px 14px; border-radius: 10px; font-size: 13px; font-weight: 600; margin-bottom: 10px; line-height: 1.4; }
+  .alert.critical { background: var(--alert-crit-bg); color: var(--alert-crit-fg); border: 1px solid var(--alert-crit-bd); }
+  .alert.warning  { background: var(--alert-warn-bg); color: var(--alert-warn-fg); border: 1px solid var(--alert-warn-bd); }
+  .alert.success  { background: var(--alert-ok-bg);   color: var(--alert-ok-fg);   border: 1px solid var(--alert-ok-bd); }
+  .alert__icon { font-size: 17px; line-height: 1; flex-shrink: 0; }
+
+  /* Next delivery box */
+  .next-delivery { background: var(--next-del-bg); border: 1px solid var(--next-del-bd); border-radius: 10px; padding: 10px 13px; margin-bottom: 12px; }
+  .next-delivery__head { font-size: 10px; letter-spacing: 1.5px; color: var(--next-del-head); font-weight: 800; text-transform: uppercase; margin-bottom: 4px; }
+  .next-delivery__body { font-size: 13px; color: var(--next-del-body); font-weight: 700; }
+
+  .farm-card__footer { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding-top: 10px; border-top: 1px solid var(--line); font-size: 11px; color: var(--muted); }
+  .btn-open { background: var(--green-700); color: #fff; border: 0; border-radius: 99px; padding: 7px 14px; font-weight: 800; font-size: 12px; text-decoration: none; display: inline-flex; align-items: center; gap: 4px; transition: background .15s; }
+  .btn-open:hover { background: var(--green-800); }
+
+  /* Empty / loading states */
+  .center-box { text-align: center; padding: 60px 20px; }
+  .center-box h3 { margin: 0 0 8px; font-size: 18px; font-weight: 800; color: var(--ink); }
+  .center-box p  { margin: 0; color: var(--muted); font-size: 14px; }
+  .loader { width: 36px; height: 36px; border: 4px solid var(--line); border-top-color: var(--green-700); border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto 16px; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* Add-farm form */
+  .add-farm { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 16px 18px; margin-bottom: 22px; box-shadow: var(--shadow); }
+  .add-farm__title { font-weight: 800; font-size: 13px; color: var(--ink); margin-bottom: 10px; letter-spacing: 0.3px; }
+  .add-farm__row { display: grid; grid-template-columns: 1.5fr 1fr 1fr auto; gap: 8px; align-items: center; }
+  @media (max-width: 700px) { .add-farm__row { grid-template-columns: 1fr; } }
+  .add-farm input { padding: 10px 12px; border: 1px solid var(--line); border-radius: 8px; font-size: 13px; font-family: inherit; }
+  .btn-primary { background: var(--gold); color: #000; border: 0; border-radius: 99px; padding: 10px 18px; font-weight: 800; font-size: 13px; cursor: pointer; transition: filter .15s; }
+  .btn-primary:hover { filter: brightness(1.06); }
+
+  details.add-farm-collapse summary { cursor: pointer; font-weight: 800; color: var(--green-700); font-size: 13px; list-style: none; display: flex; align-items: center; gap: 8px; }
+  details.add-farm-collapse summary::-webkit-details-marker { display: none; }
+  details.add-farm-collapse[open] summary { margin-bottom: 12px; }
 </style>
 </head>
 <body data-page="ops-dashboard">
-<script src="/reader-assets/auth-guard.js"></script>
-<header>
-  <h1>🌾 Ops <span class="accent">Dashboard</span></h1>
-  <div class="links">
-    <a href="/landing">Landing</a>
-    <a href="/">Feed Program</a>
-    <a href="/reader">Field Reader</a>
+<header class="top">
+  <div class="top__inner">
+    <div class="top__brand">
+      <div class="top__logo">BB</div>
+      <div>
+        <div class="top__title">Broiler Base Mate</div>
+        <div class="top__sub">Ops Dashboard</div>
+      </div>
+    </div>
+    <div class="top__actions">
+      <a href="/landing"     class="pill" data-testid="link-landing">Landing</a>
+      <a href="/"            class="pill" data-testid="link-feed-program">Feed Program ↗</a>
+      <a href="/reader"      class="pill" data-testid="link-reader">📱 Reader</a>
+      <button class="pill" id="theme-toggle" data-testid="btn-theme" title="Toggle light/dark mode"><span id="theme-icon">🌙</span> <span id="theme-label">Dark</span></button>
+      <button class="pill" id="refresh-btn" data-testid="refresh-btn">🔄 Refresh</button>
+    </div>
   </div>
 </header>
 
 <main>
-  <div class="summary" id="summary">
-    <div class="stat"><div class="v" id="stat-farms" data-testid="stat-farms">0</div><div class="l">FARMS</div></div>
-    <div class="stat"><div class="v" id="stat-readings" data-testid="stat-readings">0</div><div class="l">TOTAL READINGS</div></div>
-    <div class="stat"><div class="v" id="stat-deliveries" data-testid="stat-deliveries">0</div><div class="l">TOTAL DELIVERIES</div></div>
-    <div class="stat"><div class="v" id="stat-demos" data-testid="stat-demos">0</div><div class="l">DEMO REQUESTS</div></div>
+  <!-- 4 Global KPI tiles -->
+  <div class="kpis" id="kpis">
+    <div class="kpi">      <div class="kpi__icon">📦</div><div class="kpi__label">Total Feed On Hand</div><div class="kpi__value" id="kpi-feed">—</div>   <div class="kpi__sub" id="kpi-feed-sub">across all sheds</div></div>
+    <div class="kpi good"> <div class="kpi__icon">📋</div><div class="kpi__label">Farms Reporting Today</div><div class="kpi__value" id="kpi-report">—</div><div class="kpi__sub" id="kpi-report-sub">of all your farms</div></div>
+    <div class="kpi">      <div class="kpi__icon">🚚</div><div class="kpi__label">Deliveries This Week</div><div class="kpi__value" id="kpi-deliv">—</div>  <div class="kpi__sub" id="kpi-deliv-sub">scheduled + recent</div></div>
+    <div class="kpi bad">  <div class="kpi__icon">🚨</div><div class="kpi__label">Critical Alerts</div><div class="kpi__value" id="kpi-alerts">—</div><div class="kpi__sub" id="kpi-alerts-sub">silos &lt;5t · low feed</div></div>
   </div>
 
-  <div class="panel">
-    <h2>➕ Add a <span class="accent">new farm</span></h2>
-    <form id="add-form" class="form-grid">
-      <input required name="name" placeholder="Farm name (e.g. Double B Farm)" data-testid="new-farm-name" />
-      <input name="slug" placeholder="URL slug (optional)" data-testid="new-farm-slug" />
-      <input type="email" name="ownerEmail" placeholder="Owner email (optional)" data-testid="new-farm-email" />
-      <button type="submit" class="gold" data-testid="new-farm-submit">Create farm →</button>
-    </form>
+  <!-- Add farm (collapsible) -->
+  <details class="add-farm-collapse add-farm" id="add-farm-detail">
+    <summary>➕ Add a new farm</summary>
+    <div class="add-farm__row">
+      <input type="text"  id="add-farm-name"  placeholder="Farm name (e.g. Double B Farm)" data-testid="input-farm-name" />
+      <input type="text"  id="add-farm-slug"  placeholder="URL slug (optional)"            data-testid="input-farm-slug" />
+      <input type="email" id="add-farm-owner" placeholder="Owner email (optional)"          data-testid="input-farm-owner" />
+      <button class="btn-primary" id="add-farm-btn" data-testid="btn-create-farm">Create farm →</button>
+    </div>
+  </details>
+
+  <div class="section-head">
+    <h2>All Farms <span style="color:var(--muted);font-weight:700;font-size:13px;" id="farm-count"></span></h2>
+    <div class="legend">
+      <span><span class="dot green"></span>≥15t good</span>
+      <span><span class="dot amber"></span>5–15t low</span>
+      <span><span class="dot red"></span>&lt;5t critical</span>
+    </div>
   </div>
 
-  <div class="panel">
-    <h2>🚜 Your <span class="accent">farms</span></h2>
-    <div id="farms-list" data-testid="farms-list">
-      <div class="empty">Loading…</div>
+  <div id="farms-area">
+    <div class="center-box">
+      <div class="loader"></div>
+      <p>Loading farms…</p>
     </div>
   </div>
 </main>
 
-<dialog id="invite-dialog">
-  <div class="dlg">
-    <h3>📲 Invite a farm operator</h3>
-    <p>We'll email them a link to the Field Reader pre-configured for this farm. They open it on their phone, tap "Add to Home Screen", and they're set.</p>
-    <form id="invite-form">
-      <input type="hidden" name="slug" />
-      <div class="row"><label>Operator name (optional)</label><input name="operatorName" data-testid="invite-operator-name" /></div>
-      <div class="row"><label>Operator email</label><input required type="email" name="operatorEmail" data-testid="invite-operator-email" placeholder="worker@example.com" /></div>
-      <div class="row"><label>Your name (Ops Manager)</label><input name="opsManagerName" data-testid="invite-ops-name" placeholder="e.g. Jock B." /></div>
-      <div class="dlg-actions">
-        <button type="button" class="ghost" id="invite-cancel">Cancel</button>
-        <button type="submit" class="gold" data-testid="invite-submit">Send invite →</button>
-      </div>
-    </form>
-  </div>
-</dialog>
-
-<div class="toast" id="toast"></div>
-
 <script>
-const toast = (m, err) => {
-  const t = document.getElementById("toast");
-  t.textContent = m; t.className = "toast show" + (err ? " err" : "");
-  clearTimeout(toast._); toast._ = setTimeout(() => t.className = "toast", 4000);
-};
+  // ── Helpers ───────────────────────────────────────────────────
+  const SILO_MAX_T = 30;
 
-async function loadFarms() {
-  const res = await fetch("/api/farms");
-  const farms = await res.json();
-  const list = document.getElementById("farms-list");
-  let totalR = 0, totalD = 0;
-  if (!farms.length) {
-    list.innerHTML = '<div class="empty">No farms yet — create one above.</div>';
-  } else {
-    list.innerHTML = farms.map(f => {
-      totalR += f.stats.readings; totalD += f.stats.deliveries;
-      const readerUrl = `/reader?farm=${encodeURIComponent(f.slug)}`;
+  // Theme toggle ─ persistent in localStorage, respects OS preference on first visit
+  const THEME_KEY = "bbm-theme";
+  function applyTheme(theme) {
+    document.documentElement.setAttribute("data-theme", theme);
+    document.getElementById("theme-icon").textContent  = theme === "dark" ? "☀️" : "🌙";
+    document.getElementById("theme-label").textContent = theme === "dark" ? "Light" : "Dark";
+    try { localStorage.setItem(THEME_KEY, theme); } catch (e) {}
+  }
+  (function initTheme() {
+    let saved = null;
+    try { saved = localStorage.getItem(THEME_KEY); } catch (e) {}
+    const prefersDark = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches;
+    applyTheme(saved || (prefersDark ? "dark" : "light"));
+  })();
+  document.getElementById("theme-toggle").addEventListener("click", () => {
+    const current = document.documentElement.getAttribute("data-theme") || "light";
+    applyTheme(current === "dark" ? "light" : "dark");
+  });
+  const TIER_INFO = {
+    bronze:   { label: "🥉 Bronze",   cls: "bronze"   },
+    silver:   { label: "🥈 Silver",   cls: "silver"   },
+    gold:     { label: "🥇 Gold",     cls: "gold"     },
+    platinum: { label: "💎 Platinum", cls: "platinum" },
+  };
+  function siloColor(t) {
+    if (t == null) return "gray";
+    if (t >= 15)   return "green";
+    if (t >= 5)    return "amber";
+    return "red";
+  }
+  function fmtDate(s) {
+    if (!s) return "—";
+    const d = new Date(s);
+    return isNaN(d) ? "—" : d.toLocaleDateString("en-AU", { day: "numeric", month: "short" });
+  }
+  function fmtRelative(iso) {
+    if (!iso) return "never";
+    const ms = Date.now() - new Date(iso).getTime();
+    if (isNaN(ms)) return "—";
+    const s = Math.floor(ms / 1000);
+    if (s < 60)    return "just now";
+    if (s < 3600)  return Math.floor(s / 60)   + "m ago";
+    if (s < 86400) return Math.floor(s / 3600) + "h ago";
+    return Math.floor(s / 86400) + "d ago";
+  }
+
+  async function getJSON(url) {
+    const res = await fetch(url, { credentials: "include" });
+    if (!res.ok) throw new Error(`${url} → HTTP ${res.status}`);
+    return res.json();
+  }
+
+  // ── Main render ───────────────────────────────────────────────
+  async function loadAll() {
+    document.getElementById("farms-area").innerHTML = '<div class="center-box"><div class="loader"></div><p>Loading farms…</p></div>';
+
+    let farms;
+    try { farms = await getJSON("/api/farms"); }
+    catch (e) {
+      document.getElementById("farms-area").innerHTML =
+        `<div class="center-box"><h3>Could not load farms</h3><p>${e.message}</p></div>`;
+      return;
+    }
+
+    document.getElementById("farm-count").textContent =
+      farms.length ? `(${farms.length} ${farms.length === 1 ? "farm" : "farms"})` : "";
+
+    if (!farms.length) {
+      document.getElementById("farms-area").innerHTML = `
+        <div class="center-box">
+          <h3>No farms yet</h3>
+          <p>Add your first farm above. Once placed, your Feed Program + mobile reader will sync instantly.</p>
+        </div>`;
+      // Reset KPI tiles
+      ["feed","report","deliv","alerts"].forEach(k => document.getElementById("kpi-"+k).textContent = "0");
+      return;
+    }
+
+    // Fetch per-farm details concurrently
+    const farmDetails = await Promise.all(farms.map(async f => {
+      const farmQS = "?farm=" + encodeURIComponent(f.slug);
+      const [today, config, deliveries] = await Promise.all([
+        getJSON("/api/readings/today" + farmQS).catch(() => null),
+        getJSON("/api/farm-config"    + farmQS).catch(() => null),
+        getJSON("/api/deliveries"     + farmQS).catch(() => []),
+      ]);
+      return { farm: f, today, config, deliveries: Array.isArray(deliveries) ? deliveries : [] };
+    }));
+
+    // Compute globals
+    let totalFeedT      = 0;
+    let farmsReported   = 0;
+    let critAlerts      = 0;
+    let weekDeliveries  = 0;
+    const oneWeekAgo = Date.now() - 7 * 86400 * 1000;
+    const oneWeekAhead = Date.now() + 7 * 86400 * 1000;
+    farmDetails.forEach(({ today, deliveries }) => {
+      if (!today) return;
+      let farmFeed = 0;
+      let hasSaved = false;
+      (today.sheds || []).forEach(sh => {
+        (sh.silos || []).forEach(s => {
+          if (s.saved && s.amountRemaining != null) {
+            farmFeed += Number(s.amountRemaining);
+            hasSaved = true;
+            if (Number(s.amountRemaining) < 5) critAlerts += 1;
+          }
+        });
+      });
+      totalFeedT += farmFeed;
+      if (hasSaved) farmsReported += 1;
+      deliveries.forEach(d => {
+        const t = new Date(d.deliveryDate || d.date || d.createdAt || 0).getTime();
+        if (!isNaN(t) && t >= oneWeekAgo && t <= oneWeekAhead) weekDeliveries += 1;
+      });
+    });
+    document.getElementById("kpi-feed").textContent       = totalFeedT > 0 ? totalFeedT.toFixed(1) + "t" : "0t";
+    document.getElementById("kpi-feed-sub").textContent   = `across ${farms.length} farm${farms.length === 1 ? "" : "s"}`;
+    document.getElementById("kpi-report").textContent     = `${farmsReported}/${farms.length}`;
+    document.getElementById("kpi-report-sub").textContent = farmsReported === farms.length ? "all reporting ✓" : "today's readings";
+    document.getElementById("kpi-deliv").textContent      = weekDeliveries;
+    document.getElementById("kpi-deliv-sub").textContent  = "± 7 days from today";
+    document.getElementById("kpi-alerts").textContent     = critAlerts;
+    document.getElementById("kpi-alerts-sub").textContent = critAlerts > 0 ? "needs attention" : "all good";
+
+    // Render farm cards
+    const html = farmDetails.map(({ farm, today, config, deliveries }) => renderFarmCard(farm, today, config, deliveries)).join("");
+    document.getElementById("farms-area").innerHTML = `<div class="farms-grid">${html}</div>`;
+  }
+
+  function renderFarmCard(farm, today, config, deliveries) {
+    const tier = TIER_INFO[(farm.tier || farm.planTier || "bronze").toLowerCase()] || TIER_INFO.bronze;
+    const farmName = (config && config.farmName) || farm.name || "Farm";
+    const sheds = (today && today.sheds) || [];
+    const totalSheds = sheds.length;
+    const shedsDone = sheds.filter(s => s.allSaved).length;
+    let farmFeed = 0;
+    let critCount = 0;
+    sheds.forEach(sh => (sh.silos||[]).forEach(s => {
+      if (s.saved && s.amountRemaining != null) {
+        farmFeed += Number(s.amountRemaining);
+        if (Number(s.amountRemaining) < 5) critCount += 1;
+      }
+    }));
+
+    // Find next delivery (future-most-recent)
+    const now = Date.now();
+    const upcoming = (deliveries || [])
+      .map(d => ({ ...d, _t: new Date(d.deliveryDate || d.date || 0).getTime() }))
+      .filter(d => !isNaN(d._t) && d._t >= now - 86400 * 1000)
+      .sort((a, b) => a._t - b._t)[0];
+
+    // Sheds rendering
+    const shedsHtml = sheds.map(sh => {
+      const silos = (sh.silos || []).map(s => {
+        const c = siloColor(s.amountRemaining);
+        const fillPct = s.amountRemaining != null ? Math.min(100, (Number(s.amountRemaining) / SILO_MAX_T) * 100) : 0;
+        const amtTxt = s.amountRemaining != null
+          ? Number(s.amountRemaining).toFixed(1) + (s.unit === "kg" ? "kg" : "t")
+          : "—";
+        return `
+          <div class="silo">
+            <div class="silo__head">
+              <span class="silo__letter ${c}">${s.letter}</span>
+              <span class="silo__amount ${s.amountRemaining == null ? 'muted' : ''}">${amtTxt}</span>
+            </div>
+            <div class="silo__bar"><div class="silo__fill ${c}" style="width:${fillPct}%"></div></div>
+          </div>`;
+      }).join("");
       return `
-        <div class="farm-row" data-testid="farm-row-${f.slug}">
-          <div>
-            <div class="farm-name">${escapeHtml(f.name || f.slug)}${f.isDefault ? '<span class="badge">DEFAULT</span>' : ''}</div>
-            <div class="farm-slug">/${f.slug}${f.ownerEmail ? ' · ' + escapeHtml(f.ownerEmail) : ''}</div>
+        <div class="shed-row">
+          <div class="shed-row__name">
+            <span>${sh.shedGroupName || "Shed"}</span>
+            <span class="shed-row__feed">${sh.allSaved ? "✓ logged today" : "Awaiting today's reading"}</span>
           </div>
-          <div class="farm-meta">${f.stats.readings} readings</div>
-          <div class="farm-meta">${f.stats.deliveries} deliveries</div>
-          <div class="actions">
-            <a href="${readerUrl}" target="_blank"><button class="ghost" style="color:var(--green-700);border-color:var(--green-700)" data-testid="open-reader-${f.slug}">Open reader ↗</button></a>
-            <button class="gold" data-invite="${f.slug}" data-name="${escapeHtml(f.name || f.slug)}" data-testid="invite-${f.slug}">📲 Invite</button>
-            ${!f.isDefault ? `<button class="ghost" data-delete="${f.slug}" data-testid="delete-${f.slug}">Delete</button>` : ''}
-          </div>
+          <div class="silos">${silos}</div>
         </div>`;
     }).join("");
+
+    // Alerts
+    const alerts = [];
+    if (critCount > 0)
+      alerts.push(`<div class="alert critical"><span class="alert__icon">🚨</span><div><b>${critCount} silo${critCount===1?"":"s"} below 5t</b> — delivery needed soon.</div></div>`);
+    if (totalSheds > 0 && shedsDone === 0)
+      alerts.push(`<div class="alert warning"><span class="alert__icon">⚠️</span><div>No readings logged today — open the 📱 Reader on the phone.</div></div>`);
+    if (totalSheds > 0 && shedsDone === totalSheds)
+      alerts.push(`<div class="alert success"><span class="alert__icon">✅</span><div>All ${totalSheds} shed groups have today's readings logged.</div></div>`);
+
+    return `
+      <div class="farm-card" data-testid="farm-card-${farm.slug}">
+        <div class="farm-card__head">
+          <div>
+            <div class="farm-card__name">${farmName}</div>
+            <div class="farm-card__sub">/${farm.slug}${farm.ownerEmail ? " · " + farm.ownerEmail : ""}</div>
+          </div>
+          <div class="tier-badge ${tier.cls}">${tier.label}</div>
+        </div>
+        <div class="farm-card__body">
+          <div class="farm-stats">
+            <div class="stat-box ${farmFeed > 50 ? 'good' : farmFeed > 15 ? '' : 'bad'}">
+              <div class="stat-box__v">${farmFeed.toFixed(1)}t</div>
+              <div class="stat-box__l">Feed on hand</div>
+            </div>
+            <div class="stat-box ${shedsDone === totalSheds && totalSheds > 0 ? 'good' : shedsDone > 0 ? 'warn' : 'bad'}">
+              <div class="stat-box__v">${shedsDone}/${totalSheds || "—"}</div>
+              <div class="stat-box__l">Sheds Logged</div>
+            </div>
+            <div class="stat-box ${critCount > 0 ? 'bad' : 'good'}">
+              <div class="stat-box__v">${critCount}</div>
+              <div class="stat-box__l">Critical</div>
+            </div>
+          </div>
+
+          ${alerts.join("")}
+
+          ${upcoming ? `
+            <div class="next-delivery">
+              <div class="next-delivery__head">🚚 Next delivery</div>
+              <div class="next-delivery__body">${fmtDate(upcoming.deliveryDate || upcoming.date)} · ${upcoming.feedType || upcoming.feed_type || "Feed"} · ${upcoming.amountKg ? (upcoming.amountKg/1000).toFixed(1) + "t" : (upcoming.amount ? upcoming.amount + "t" : "")}</div>
+            </div>` : ""}
+
+          <div class="sheds-list">
+            ${shedsHtml || '<div class="center-box" style="padding:30px 10px;color:var(--muted);">No sheds configured yet — open the Reader to set up.</div>'}
+          </div>
+
+          <div class="farm-card__footer">
+            <span>Synced ${today ? fmtRelative(today.date ? today.date + "T00:00:00Z" : null) : "—"}</span>
+            <a href="/reader?farm=${encodeURIComponent(farm.slug)}" class="btn-open" data-testid="link-open-${farm.slug}">Open Reader ↗</a>
+          </div>
+        </div>
+      </div>`;
   }
-  document.getElementById("stat-farms").textContent = farms.length;
-  document.getElementById("stat-readings").textContent = totalR;
-  document.getElementById("stat-deliveries").textContent = totalD;
-  // Demo requests
-  try {
-    const d = await fetch("/api/demo-request");
-    const drows = await d.json();
-    document.getElementById("stat-demos").textContent = drows.length || 0;
-  } catch (e) { /* ignore */ }
-  // Wire actions
-  document.querySelectorAll("[data-invite]").forEach(btn => btn.onclick = () => openInvite(btn.dataset.invite, btn.dataset.name));
-  document.querySelectorAll("[data-delete]").forEach(btn => btn.onclick = () => deleteFarm(btn.dataset.delete));
-}
 
-function escapeHtml(s) {
-  return String(s || "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
-}
+  // ── Wire UI ───────────────────────────────────────────────────
+  document.getElementById("refresh-btn").addEventListener("click", () => loadAll());
 
-document.getElementById("add-form").onsubmit = async (e) => {
-  e.preventDefault();
-  const fd = new FormData(e.target);
-  const btn = e.target.querySelector("button[type=submit]");
-  btn.disabled = true; btn.textContent = "Creating…";
-  try {
-    const res = await fetch("/api/farms", {
-      method: "POST", headers: {"Content-Type": "application/json"},
-      body: JSON.stringify({
-        name: fd.get("name"),
-        slug: fd.get("slug") || null,
-        ownerEmail: fd.get("ownerEmail") || null,
-      })
-    });
-    if (!res.ok) { const t = await res.text(); throw new Error(t); }
-    e.target.reset();
-    toast("✓ Farm created");
-    await loadFarms();
-  } catch (err) {
-    toast("Couldn't create farm: " + err.message, true);
-  } finally {
-    btn.disabled = false; btn.textContent = "Create farm →";
-  }
-};
-
-function openInvite(slug, name) {
-  const d = document.getElementById("invite-dialog");
-  d.querySelector("[name=slug]").value = slug;
-  d.querySelector("h3").innerHTML = `📲 Invite operator to <span style="color:var(--gold)">${escapeHtml(name)}</span>`;
-  d.showModal();
-}
-document.getElementById("invite-cancel").onclick = () => document.getElementById("invite-dialog").close();
-document.getElementById("invite-form").onsubmit = async (e) => {
-  e.preventDefault();
-  const fd = new FormData(e.target);
-  const btn = e.target.querySelector("button[type=submit]");
-  btn.disabled = true; btn.textContent = "Sending…";
-  try {
-    const res = await fetch(`/api/farms/${encodeURIComponent(fd.get("slug"))}/invite`, {
-      method: "POST", headers: {"Content-Type": "application/json"},
-      body: JSON.stringify({
-        operatorEmail: fd.get("operatorEmail"),
-        operatorName: fd.get("operatorName") || null,
-        opsManagerName: fd.get("opsManagerName") || null,
-      })
-    });
-    if (!res.ok) throw new Error(await res.text());
-    const data = await res.json();
-    document.getElementById("invite-dialog").close();
-    e.target.reset();
-    if (data.email && data.email.skipped) {
-      toast("✓ Invite logged. Add RESEND_API_KEY in backend/.env to actually send.", false);
-    } else {
-      toast("✓ Invite sent to operator");
+  document.getElementById("add-farm-btn").addEventListener("click", async () => {
+    const name  = document.getElementById("add-farm-name").value.trim();
+    const slug  = document.getElementById("add-farm-slug").value.trim() || null;
+    const owner = document.getElementById("add-farm-owner").value.trim() || null;
+    if (!name) { alert("Enter a farm name first."); return; }
+    const btn = document.getElementById("add-farm-btn");
+    btn.disabled = true; btn.textContent = "Creating…";
+    try {
+      const res = await fetch("/api/farms", {
+        method: "POST", credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name, slug, ownerEmail: owner }),
+      });
+      if (!res.ok) throw new Error(await res.text());
+      document.getElementById("add-farm-name").value = "";
+      document.getElementById("add-farm-slug").value = "";
+      document.getElementById("add-farm-owner").value = "";
+      document.getElementById("add-farm-detail").open = false;
+      await loadAll();
+    } catch (e) {
+      alert("Create failed: " + e.message);
+    } finally {
+      btn.disabled = false; btn.textContent = "Create farm →";
     }
-  } catch (err) {
-    toast("Couldn't send invite: " + err.message, true);
-  } finally {
-    btn.disabled = false; btn.textContent = "Send invite →";
-  }
-};
+  });
 
-async function deleteFarm(slug) {
-  if (!confirm(`Delete farm "${slug}" and ALL its data? This cannot be undone.`)) return;
-  try {
-    const res = await fetch(`/api/farms/${encodeURIComponent(slug)}`, { method: "DELETE" });
-    if (!res.ok && res.status !== 204) throw new Error(await res.text());
-    toast("✓ Farm deleted");
-    await loadFarms();
-  } catch (e) {
-    toast("Delete failed: " + e.message, true);
-  }
-}
-
-loadFarms();
+  // Initial load
+  loadAll();
 </script>
 </body>
 </html>
