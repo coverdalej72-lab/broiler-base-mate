@@ -17,6 +17,7 @@ from typing import Optional
 
 import httpx
 from fastapi import APIRouter, HTTPException, Request, Response, Cookie, Header
+from fastapi.responses import RedirectResponse
 
 # REMINDER: DO NOT HARDCODE THE URL, OR ADD ANY FALLBACKS OR REDIRECT URLS, THIS BREAKS THE AUTH
 EMERGENT_SESSION_URL = "https://demobackend.emergentagent.com/auth/v1/env/oauth/session-data"
@@ -195,5 +196,59 @@ def build_router(db, app_url: Optional[str] = None) -> APIRouter:
             await db["user_sessions"].delete_one({"session_token": session_token})
         response.delete_cookie(COOKIE_NAME, path="/", samesite="none", secure=True)
         return {"ok": True}
+
+    @router.get("/owner-magic")
+    async def owner_magic(request: Request, response: Response, key: str = "", to: str = "/"):
+        """One-click owner login that skips Google OAuth — for the app owner only.
+
+        Bookmark `/api/auth/owner-magic?key=<OWNER_MAGIC_KEY>&to=/ops-dashboard`
+        to be auto-logged-in as `OWNER_EMAIL` on any computer/browser.
+        The OWNER_MAGIC_KEY env var must be set on the server. Anyone with the
+        key effectively owns the app — keep it like a password.
+        """
+        import os as _os
+        expected = (_os.environ.get("OWNER_MAGIC_KEY") or "").strip()
+        owner_email = (_os.environ.get("OWNER_EMAIL") or "").strip().lower()
+        if not expected or not owner_email:
+            raise HTTPException(503, "Owner magic link not configured on this server")
+        if not key or key != expected:
+            raise HTTPException(401, "Invalid magic key")
+
+        # Upsert owner user
+        existing = await db["users"].find_one({"email": owner_email}, {"_id": 0})
+        if existing:
+            user_id = existing["user_id"]
+            await db["users"].update_one(
+                {"user_id": user_id},
+                {"$set": {"last_login_at": datetime.now(timezone.utc)}},
+            )
+        else:
+            user_id = f"user_{uuid.uuid4().hex[:12]}"
+            await db["users"].insert_one({
+                "user_id": user_id,
+                "email": owner_email,
+                "name": "Owner",
+                "created_at": datetime.now(timezone.utc),
+                "last_login_at": datetime.now(timezone.utc),
+            })
+
+        # Create session
+        session_token = f"st_owner_{uuid.uuid4().hex}"
+        expires_at = datetime.now(timezone.utc) + timedelta(days=SESSION_TTL_DAYS)
+        await db["user_sessions"].insert_one({
+            "user_id": user_id,
+            "session_token": session_token,
+            "expires_at": expires_at,
+            "created_at": datetime.now(timezone.utc),
+        })
+
+        # Validate `to` is a same-origin relative path to avoid open-redirect abuse
+        safe_to = to if to.startswith("/") and not to.startswith("//") else "/"
+        redirect = RedirectResponse(safe_to, status_code=303)
+        redirect.set_cookie(
+            key=COOKIE_NAME, value=session_token, max_age=SESSION_TTL_DAYS * 86400,
+            httponly=True, secure=True, samesite="none", path="/",
+        )
+        return redirect
 
     return router
