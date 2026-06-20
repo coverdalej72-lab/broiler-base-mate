@@ -20,7 +20,7 @@ from fastapi import APIRouter, HTTPException, Request, Response, Cookie, Header
 
 # REMINDER: DO NOT HARDCODE THE URL, OR ADD ANY FALLBACKS OR REDIRECT URLS, THIS BREAKS THE AUTH
 EMERGENT_SESSION_URL = "https://demobackend.emergentagent.com/auth/v1/env/oauth/session-data"
-SESSION_TTL_DAYS = 7
+SESSION_TTL_DAYS = 30
 COOKIE_NAME = "session_token"
 
 
