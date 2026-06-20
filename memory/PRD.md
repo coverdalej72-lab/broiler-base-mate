@@ -100,6 +100,16 @@
   - **Auth-guard.js** extended with: (a) `window.onerror`/`unhandledrejection` → POSTs JS errors to `/api/error-report` (de-duped, max 50 per page); (b) global `fetch()` wrapper that detects mid-session 401 on `/api/*` calls, shows a toast, and re-routes to the OAuth login (debounced 5s).
   - **Offline-safe mobile reader** (`/reader`): every failed POST/PUT/PATCH/DELETE to `/api/*` now persists to `localStorage` queue and replays automatically on `online` event / every 30s. Floating banner shows "📡 Offline — N queued" or "🔄 Syncing N…". Drain bypass via `x-bbm-skip-queue: 1` header avoids recursion.
   - `.gitignore` updated to exclude `backups/` from git.
+- **2026-06-20 (Service Worker kill switch + Owner Magic Link)**:
+  - **Cause of "worked yesterday, broken today" production bug**: VitePWA shipped a Workbox service worker that aggressively cached the React bundle + API responses. On any deploy, browsers stubbornly served the cached old bundle → app appeared broken. Fix:
+    1. `vite.config.ts` — removed `VitePWA` plugin entirely. No more SW generation on future builds.
+    2. `src/App.tsx` — stubbed `useRegisterSW` / `PwaUpdateBanner` to no-op so existing UI refs still work.
+    3. `silo/artifacts/feed-program/dist/public/sw.js` — replaced workbox SW with a self-destruct script that unregisters itself and dumps every CacheStorage on `activate`. Any browser still polling the old SW URL gets nuked on the next update check.
+    4. `feed-program/index.html` — added a page-load kill switch that calls `navigator.serviceWorker.getRegistrations().then(r => r.unregister())` + `caches.keys().then(k => caches.delete(k))` for any browser that bypasses the SW update check (e.g., first-visit-after-deploy).
+    5. `server.py` — added FastAPI `GET /sw.js` route as fallback (same self-destruct payload) in case static server misses.
+  - **`/api/auth/owner-magic?key=...&to=/...` endpoint** — one-click owner login that skips Google OAuth entirely. Requires env vars `OWNER_EMAIL` and `OWNER_MAGIC_KEY` (32-byte URL-safe token). Sets a 30-day session cookie + redirects to the requested page. Owner can bookmark a single URL and log in from any device/browser without OAuth.
+  - **Session TTL bumped 7d → 30d** (`auth.py: SESSION_TTL_DAYS = 30`).
+  - Production rollout requires: (a) Deploy, (b) set `OWNER_EMAIL` + `OWNER_MAGIC_KEY` env vars in production via Emergent platform.
 
 ## Future / Backlog
 - 🟡 P1: Stripe LIVE mode — swap `sk_test_` for user's `sk_live_…` + real Price IDs (next session when user is home).

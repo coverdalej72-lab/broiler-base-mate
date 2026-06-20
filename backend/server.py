@@ -1546,6 +1546,31 @@ async def ops_dashboard():
     return FileResponse(os.path.join(STATIC_DIR, "ops-dashboard.html"))
 
 
+@app.get("/sw.js")
+async def kill_service_worker():
+    """Self-destruct service worker.
+    Any browser that previously installed the old Workbox SW will fetch this on
+    its next update check. The body unregisters itself and clears all caches,
+    permanently freeing users from the old cached bundle.
+    """
+    js = (
+        "self.addEventListener('install', () => { self.skipWaiting(); });\n"
+        "self.addEventListener('activate', (e) => {\n"
+        "  e.waitUntil((async () => {\n"
+        "    try {\n"
+        "      const keys = await caches.keys();\n"
+        "      await Promise.all(keys.map(k => caches.delete(k)));\n"
+        "    } catch (_) {}\n"
+        "    try { await self.registration.unregister(); } catch (_) {}\n"
+        "    const clientsList = await self.clients.matchAll({ type: 'window' });\n"
+        "    clientsList.forEach(c => { try { c.navigate(c.url); } catch (_) {} });\n"
+        "  })());\n"
+        "});\n"
+    )
+    return Response(content=js, media_type="application/javascript",
+                    headers={"Cache-Control": "no-store, no-cache, must-revalidate, max-age=0"})
+
+
 @app.get("/admin/health")
 @app.get("/admin")
 async def admin_health_page():
