@@ -87,3 +87,8 @@ silo/.git/objects/pack/pack-30726ecff119ae7648633859711fec842d9c7ea0.pack
 credentials.json
 *.key
 .credentials
+
+# Production hardening — never commit DB dumps
+/app/backups/
+backups/
+

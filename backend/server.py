@@ -108,6 +108,11 @@ async def _require_admin(request: Request) -> dict:
     return user
 
 
+# ─── Production hardening (error logging, daily backups, etc.) ──────────
+from hardening import init_hardening, log_error  # noqa: E402
+init_hardening(app, db, _require_admin)
+
+
 async def _require_outreach_admin(request: Request) -> dict:
     """Outreach tracker access — gated by OUTREACH_ADMIN_EMAILS so the platform
     owner can manage their cold-email pipeline without inheriting SUPERUSER
@@ -1016,7 +1021,23 @@ async def checkout_status(session_id: str):
     # Auto-onboarding: when payment first becomes 'paid', provision farms + email buyer
     onboarding = None
     if cur and s.payment_status == "paid" and not cur.get("provisioned"):
-        onboarding = await _provision_purchase(session_id)
+        try:
+            onboarding = await _provision_purchase(session_id)
+        except Exception as prov_err:
+            # Don't fail the status check the buyer is watching — log and let the
+            # next status poll / webhook retry. Admin gets emailed once per error.
+            import logging as _logging
+            _logging.exception("Status-check provisioning failed: %s", prov_err)
+            try:
+                await log_error(
+                    db,
+                    category="stripe_provision",
+                    message=f"Status-poll provisioning failed for session {session_id}: {prov_err}",
+                    details={"session_id": session_id},
+                )
+            except Exception:
+                pass
+            onboarding = {"error": "Provisioning will retry — admin notified."}
 
     return {"status": s.status, "payment_status": s.payment_status, "amount_total": s.amount_total,
             "currency": s.currency, "metadata": s.metadata, "onboarding": onboarding}
@@ -1166,10 +1187,33 @@ async def stripe_webhook(request: Request):
             try:
                 await _provision_purchase(evt.session_id)
             except Exception as prov_err:
-                # never fail the webhook just because onboarding hit an issue
-                import logging
-                logging.exception("Auto-onboarding from webhook failed: %s", prov_err)
+                # Never fail the webhook just because onboarding hit an issue —
+                # the user has paid, we must ack 200 so Stripe doesn't retry storm.
+                # Surface to admin so we can manually fix the missed provisioning.
+                import logging as _logging
+                _logging.exception("Auto-onboarding from webhook failed: %s", prov_err)
+                try:
+                    await log_error(
+                        db,
+                        category="stripe_provision",
+                        message=f"Webhook provisioning failed for session {evt.session_id}: {prov_err}",
+                        details={"session_id": evt.session_id, "event_type": evt.event_type},
+                        request=request,
+                    )
+                except Exception:
+                    pass
     except Exception as e:
+        # Webhook signature mismatch or library error — log loudly, but still 200
+        # so Stripe doesn't lock us out of future events. (Bad sig = nothing happened.)
+        try:
+            await log_error(
+                db,
+                category="stripe_webhook",
+                message=f"Webhook handler error: {e}",
+                request=request,
+            )
+        except Exception:
+            pass
         return JSONResponse({"ok": False, "error": str(e)}, status_code=200)
     return {"ok": True}
 

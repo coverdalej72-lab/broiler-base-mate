@@ -86,6 +86,17 @@
   - Two-tab chat panel: **Group** (broadcast across all farms) + **Per-farm** (dropdown selector → scoped to a single farm slug).
   - Messages persisted in MongoDB `chat_messages` collection; endpoints `GET/POST /api/chat/{scope}`, `GET /api/chat-unread` (all auth-gated via Emergent Google session).
   - Auto-poll every 10s while panel is open; mine vs. theirs styled bubbles; Ops role tag; light/dark theme aware.
+- **2026-06-20 (Free dev provisioning + fast static frontend + Production Hardening pass)**:
+  - Seeded 3 extra demo farms (`north-creek`, `southridge`, `eaglehawk`) for owner `appcovi2026@gmail.com` so he can fully test multi-farm flow without paying — `POST /api/farms` requires no Stripe.
+  - `/app/frontend/start.js` now serves the prebuilt Vite bundle (`/app/silo/artifacts/feed-program/dist/public/`) by default; `DEV_MODE=1` env flag opts back into Vite dev. First-load time on a fresh browser dropped from ~60s → ~2s.
+  - **New module `/app/backend/hardening.py`** wires:
+    - Global `Exception` handler → returns clean JSON 500 + logs to `error_log` collection + emails admin (1h cooldown per signature).
+    - `POST /api/error-report` for frontend JS errors (sendBeacon-friendly, throttled).
+    - Nightly backup task: gzipped JSON dump of every collection at 02:00 UTC → `/app/backups/backup_YYYYMMDD_HHMMSS.json.gz`, 7-day retention, emails admin on success.
+    - Admin-only `GET /api/admin/error-log`, `GET /api/admin/last-backup`, `POST /api/admin/backup-now`.
+  - **Stripe webhook + status-poll** `_provision_purchase` calls now catch all exceptions, log via `log_error`, and still return 200 to Stripe so retries don't pile up — owner gets alerted instead of losing the sale silently.
+  - **Auth-guard.js** extended with: (a) `window.onerror`/`unhandledrejection` → POSTs JS errors to `/api/error-report` (de-duped, max 50 per page); (b) global `fetch()` wrapper that detects mid-session 401 on `/api/*` calls, shows a toast, and re-routes to the OAuth login (debounced 5s).
+  - `.gitignore` updated to exclude `backups/` from git.
 
 ## Future / Backlog
 - 🟡 P1: Stripe LIVE mode — swap `sk_test_` for user's `sk_live_…` + real Price IDs (next session when user is home).

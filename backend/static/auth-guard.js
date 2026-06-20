@@ -147,4 +147,76 @@
   // before showing any sensitive data.
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", init);
   else init();
+
+  // ── Production safety nets ───────────────────────────────────────
+  // (a) Report unhandled JS errors to the backend so the owner sees them.
+  // (b) Intercept fetch() to detect mid-session 401s on /api/* and gracefully re-auth.
+  // Both are throttled client-side so a misbehaving page can't spam the server.
+
+  const reported = new Set();
+  function reportJsError(payload) {
+    const sig = (payload.message || "") + "|" + (payload.url || "");
+    if (reported.has(sig)) return;
+    reported.add(sig);
+    if (reported.size > 50) { reported.clear(); } // cap memory
+    try {
+      navigator.sendBeacon
+        ? navigator.sendBeacon("/api/error-report", new Blob([JSON.stringify(payload)], { type: "application/json" }))
+        : fetch("/api/error-report", {
+            method: "POST", credentials: "include",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload),
+            keepalive: true,
+          }).catch(() => {});
+    } catch (_) {}
+  }
+
+  window.addEventListener("error", e => {
+    if (!e || !e.message) return;
+    reportJsError({
+      message: String(e.message).slice(0, 500),
+      stack:   e.error && e.error.stack ? String(e.error.stack).slice(0, 1500) : "",
+      url:     (e.filename || "") + ":" + (e.lineno || ""),
+      page:    PROTECTED_PAGE,
+    });
+  });
+
+  window.addEventListener("unhandledrejection", e => {
+    const r = e && e.reason;
+    if (!r) return;
+    reportJsError({
+      message: String(r.message || r).slice(0, 500),
+      stack:   r.stack ? String(r.stack).slice(0, 1500) : "",
+      url:     window.location.href,
+      page:    PROTECTED_PAGE,
+    });
+  });
+
+  // Fetch interceptor: if any /api/* call returns 401 mid-session, prompt re-login.
+  // Avoids confusing silent failures (e.g. user idle for hours, cookie expires).
+  let _401HandledAt = 0;
+  const _origFetch = window.fetch.bind(window);
+  window.fetch = async function (input, init) {
+    const res = await _origFetch(input, init);
+    try {
+      const urlStr = typeof input === "string" ? input : (input && input.url) || "";
+      if (res && res.status === 401 && urlStr.includes("/api/")
+          && !urlStr.includes("/api/auth/")
+          && !urlStr.includes("/api/error-report")) {
+        const now = Date.now();
+        if (now - _401HandledAt > 5000) { // debounce
+          _401HandledAt = now;
+          // Show a quick toast then bounce to login keeping the user on their current page
+          try {
+            const t = document.createElement("div");
+            t.style.cssText = "position:fixed;top:14px;left:50%;transform:translateX(-50%);z-index:99999;background:#0f3d24;color:#fff;padding:10px 18px;border-radius:99px;font:600 13px system-ui,sans-serif;box-shadow:0 6px 22px rgba(0,0,0,.3);";
+            t.textContent = "Your session expired — redirecting to log in…";
+            document.body.appendChild(t);
+          } catch (_) {}
+          setTimeout(() => { window.location.replace(emergentLoginUrl()); }, 1400);
+        }
+      }
+    } catch (_) {}
+    return res;
+  };
 })();
