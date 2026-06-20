@@ -71,7 +71,51 @@ function devServer() {
   process.on("SIGINT", () => child.kill("SIGINT"));
 }
 
-if (fs.existsSync(path.join(SILO_DIR, "artifacts/feed-program/package.json"))) {
+// Resolve which directory to serve as a fast prebuilt SPA, in priority order:
+//   1. /app/frontend/build   (deploy-time build)
+//   2. /app/silo/artifacts/feed-program/dist/public  (preview-time pnpm build)
+function resolvePrebuiltDir() {
+  if (fs.existsSync(path.join(BUILD_DIR, "index.html"))) return BUILD_DIR;
+  const silo = path.join(SILO_DIR, "artifacts/feed-program/dist/public");
+  if (fs.existsSync(path.join(silo, "index.html"))) return silo;
+  return null;
+}
+
+function serveStaticDir(dir) {
+  console.log(`[start] Serving prebuilt static files from ${dir} on http://${HOST}:${PORT}`);
+  const srv = http.createServer((req, res) => {
+    let urlPath = decodeURIComponent((req.url || "/").split("?")[0]);
+    if (urlPath.endsWith("/")) urlPath += "index.html";
+    const filePath = path.join(dir, urlPath);
+    if (!filePath.startsWith(dir)) { res.writeHead(403); return res.end("forbidden"); }
+    fs.stat(filePath, (err, stat) => {
+      if (err || !stat.isFile()) {
+        const index = path.join(dir, "index.html");
+        fs.readFile(index, (e, d) => {
+          if (e) { res.writeHead(404); return res.end("not found"); }
+          res.writeHead(200, { "Content-Type": "text/html; charset=utf-8" });
+          res.end(d);
+        });
+        return;
+      }
+      const ext = path.extname(filePath).toLowerCase();
+      res.writeHead(200, { "Content-Type": MIME[ext] || "application/octet-stream" });
+      fs.createReadStream(filePath).pipe(res);
+    });
+  });
+  srv.listen(PORT, HOST, () => console.log(`[start] ✓ Listening on http://${HOST}:${PORT}`));
+}
+
+// Mode selection:
+//   DEV_MODE=1  → always launch Vite dev (hot reload, slow first-compile)
+//   otherwise   → serve the latest prebuilt bundle if available, else fall back to dev mode
+const FORCE_DEV = process.env.DEV_MODE === "1";
+const prebuilt = resolvePrebuiltDir();
+if (FORCE_DEV) {
+  devServer();
+} else if (prebuilt) {
+  serveStaticDir(prebuilt);
+} else if (fs.existsSync(path.join(SILO_DIR, "artifacts/feed-program/package.json"))) {
   devServer();
 } else {
   serveStatic();
