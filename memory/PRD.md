@@ -93,9 +93,12 @@
     - Global `Exception` handler → returns clean JSON 500 + logs to `error_log` collection + emails admin (1h cooldown per signature).
     - `POST /api/error-report` for frontend JS errors (sendBeacon-friendly, throttled).
     - Nightly backup task: gzipped JSON dump of every collection at 02:00 UTC → `/app/backups/backup_YYYYMMDD_HHMMSS.json.gz`, 7-day retention, emails admin on success.
-    - Admin-only `GET /api/admin/error-log`, `GET /api/admin/last-backup`, `POST /api/admin/backup-now`.
+    - In-memory rate limiter middleware: per-IP token bucket on hot endpoints — `/api/error-report` (60/min), `/api/auth/exchange-session` (10/min), `/api/demo-request` (5/10min), `/api/partner-request` (5/10min), `/api/outreach/send` (30/min), `/api/scan-docket/auto` (30/min — LLM cost guard).
+    - Admin-only `GET /api/admin/error-log`, `GET /api/admin/last-backup`, `POST /api/admin/backup-now`, `GET /api/admin/health` (single-call business pulse: error counts, last backup, farms, readings/chat 24h, paid orders, outreach pipeline).
+  - **New page `/admin` (and `/admin/health`)** — branded health dashboard pulling `/api/admin/health` & `/api/admin/error-log`. Shows error counts, last backup age, farm count, today's readings/chat volume, gross revenue, outreach pipeline. One-click "Backup now" button.
   - **Stripe webhook + status-poll** `_provision_purchase` calls now catch all exceptions, log via `log_error`, and still return 200 to Stripe so retries don't pile up — owner gets alerted instead of losing the sale silently.
   - **Auth-guard.js** extended with: (a) `window.onerror`/`unhandledrejection` → POSTs JS errors to `/api/error-report` (de-duped, max 50 per page); (b) global `fetch()` wrapper that detects mid-session 401 on `/api/*` calls, shows a toast, and re-routes to the OAuth login (debounced 5s).
+  - **Offline-safe mobile reader** (`/reader`): every failed POST/PUT/PATCH/DELETE to `/api/*` now persists to `localStorage` queue and replays automatically on `online` event / every 30s. Floating banner shows "📡 Offline — N queued" or "🔄 Syncing N…". Drain bypass via `x-bbm-skip-queue: 1` header avoids recursion.
   - `.gitignore` updated to exclude `backups/` from git.
 
 ## Future / Backlog

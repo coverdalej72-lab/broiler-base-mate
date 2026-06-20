@@ -431,6 +431,112 @@
       };
     })();
 
+    // ─── Offline write queue ──────────────────────────────────────────
+    // If the phone loses signal mid-save, readings/deliveries/photos must
+    // not be lost. We queue any failed POST/PUT/PATCH/DELETE in
+    // localStorage and replay on `online` events + every 30 seconds.
+    const QKEY = "bbm-reader-offline-queue";
+    const QSTATE_KEY = "bbm-reader-offline-banner";
+    function loadQueue() { try { return JSON.parse(localStorage.getItem(QKEY) || "[]"); } catch { return []; } }
+    function saveQueue(q) { try { localStorage.setItem(QKEY, JSON.stringify(q)); } catch (_) {} }
+    function pushToQueue(item) {
+      const q = loadQueue();
+      if (q.length > 200) q.shift(); // cap to avoid runaway memory on long offline
+      q.push(item);
+      saveQueue(q);
+      updateOfflineBanner();
+    }
+    function updateOfflineBanner() {
+      let banner = document.getElementById("bbm-offline-banner");
+      const q = loadQueue();
+      const showing = navigator.onLine === false || q.length > 0;
+      if (showing) {
+        if (!banner) {
+          banner = document.createElement("div");
+          banner.id = "bbm-offline-banner";
+          banner.style.cssText = "position:fixed;bottom:14px;left:50%;transform:translateX(-50%);z-index:9999;background:#0f3d24;color:#fff;padding:8px 14px;border-radius:99px;font:600 12px system-ui,sans-serif;box-shadow:0 6px 22px rgba(0,0,0,.3);max-width:90vw;text-align:center;";
+          banner.setAttribute("data-testid", "offline-queue-banner");
+          document.body.appendChild(banner);
+        }
+        const onl = navigator.onLine !== false;
+        banner.textContent = onl
+          ? `🔄 Syncing ${q.length} saved item${q.length === 1 ? "" : "s"}…`
+          : `📡 Offline — ${q.length} item${q.length === 1 ? "" : "s"} queued, will sync when back online`;
+      } else if (banner) {
+        banner.remove();
+      }
+    }
+
+    // Wrap fetch (again) to intercept failed writes and queue them
+    (function patchFetchForOffline() {
+      const orig = window.fetch.bind(window);
+      window.fetch = async function(input, init) {
+        const method = (init && init.method ? init.method : (typeof input !== "string" && input.method) || "GET").toUpperCase();
+        const urlStr = typeof input === "string" ? input : (input && input.url) || "";
+        const isWrite = ["POST","PUT","PATCH","DELETE"].includes(method) && urlStr.startsWith("/api/");
+        const isQueueable = isWrite && !urlStr.startsWith("/api/error-report") && !urlStr.includes("/api/auth/");
+
+        // Bypass: requests issued by drainQueue() include this marker so they don't loop
+        const hdrs = (init && init.headers) || {};
+        const bypass = (hdrs["x-bbm-skip-queue"] === "1" || (hdrs.get && hdrs.get("x-bbm-skip-queue") === "1"));
+        if (!isQueueable || bypass) return orig(input, init);
+
+        // Snapshot body for re-play (only if it's a string — uploads use base64 strings, OK)
+        let body = init && init.body;
+        if (body && typeof body !== "string") {
+          try { body = JSON.stringify(body); } catch { body = null; }
+        }
+
+        try {
+          const res = await orig(input, init);
+          if (res.status >= 500) {
+            // Server hiccup — queue and treat as success from the user's POV (mostly idempotent endpoints)
+            if (body != null) pushToQueue({ url: urlStr, method, body, headers: init && init.headers || {"Content-Type":"application/json"}, ts: Date.now() });
+            return new Response(JSON.stringify({ queued: true }), { status: 202, headers: { "Content-Type": "application/json" } });
+          }
+          return res;
+        } catch (e) {
+          // Network error (offline, DNS, CORS): queue + return a synthetic 202
+          if (body != null) pushToQueue({ url: urlStr, method, body, headers: init && init.headers || {"Content-Type":"application/json"}, ts: Date.now() });
+          return new Response(JSON.stringify({ queued: true }), { status: 202, headers: { "Content-Type": "application/json" } });
+        }
+      };
+    })();
+
+    async function drainQueue() {
+      const q = loadQueue();
+      if (!q.length) { updateOfflineBanner(); return; }
+      if (navigator.onLine === false) { updateOfflineBanner(); return; }
+      const item = q[0];
+      // Merge bypass marker into headers so the offline wrapper lets this through
+      const headers = Object.assign({}, item.headers || {}, { "x-bbm-skip-queue": "1" });
+      try {
+        const r = await window.fetch(item.url, {
+          method: item.method,
+          headers,
+          body: item.body,
+          credentials: "include",
+        });
+        if (r.status >= 500) {
+          updateOfflineBanner();
+          return;
+        }
+        // Success or definitive 4xx — pop & continue
+        q.shift();
+        saveQueue(q);
+        updateOfflineBanner();
+        if (q.length) setTimeout(drainQueue, 200);
+        else toast("✓ Queued items synced", "ok");
+      } catch (_) {
+        updateOfflineBanner();
+      }
+    }
+
+    window.addEventListener("online",  () => { updateOfflineBanner(); drainQueue(); });
+    window.addEventListener("offline", () => { updateOfflineBanner(); });
+    setInterval(drainQueue, 30000);
+    setTimeout(() => { updateOfflineBanner(); drainQueue(); }, 1500);
+
     const FEED_TYPES = ["Starter","Grower","Finisher","Withdrawal"];
     let groupsCache=[], progressCache=null, deliveriesCache=[], readingsHistory=[], photosCache=[], farmConfig={};
     let activeTab="today";

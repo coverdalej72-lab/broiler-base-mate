@@ -1546,6 +1546,13 @@ async def ops_dashboard():
     return FileResponse(os.path.join(STATIC_DIR, "ops-dashboard.html"))
 
 
+@app.get("/admin/health")
+@app.get("/admin")
+async def admin_health_page():
+    """Admin-only health dashboard. Auth gating happens client-side via /api/auth/me."""
+    return FileResponse(os.path.join(STATIC_DIR, "admin-health.html"))
+
+
 # ─── Static field reader ─────────────────────────────────────────────────
 STATIC_DIR = os.path.join(os.path.dirname(__file__), "static")
 if os.path.isdir(STATIC_DIR):
@@ -1570,6 +1577,8 @@ async def api_page(page_name: str):
         "reader": "reader.html",
         "ops-dashboard": "ops-dashboard.html",
         "ops-outreach": "ops-outreach.html",
+        "admin": "admin-health.html",
+        "admin/health": "admin-health.html",
     }
     if page_name not in allowed:
         raise HTTPException(404, "Page not found")

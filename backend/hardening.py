@@ -12,6 +12,9 @@ Wires three reliability nets into the FastAPI app:
                                keeps last 7 days at /app/backups, surfaces status via
                                GET /api/admin/last-backup.
   5. GET /api/admin/error-log — recent error visibility for the owner.
+  6. Rate limiter             — protects abusable endpoints (auth/exchange-session,
+                               error-report, demo-request, outreach send) from
+                               accidental floods or scraper-bot abuse.
 
 Designed to be:
   • Zero new dependencies — uses asyncio + stdlib only.
@@ -26,7 +29,9 @@ import hashlib
 import json
 import logging
 import os
+import time
 import traceback
+from collections import defaultdict
 from datetime import datetime, timezone, timedelta
 from pathlib import Path
 from typing import Any, Optional
@@ -44,6 +49,57 @@ BACKUP_HOUR_UTC = 2  # 02:00 UTC nightly
 ADMIN_EMAIL_COOLDOWN_S = 3600  # 1h between identical alert emails
 
 _email_cooldown: dict[str, datetime] = {}
+
+# ─── Rate limiter (in-memory token-bucket, per-IP per-path) ────────────
+# Designed for low traffic single-process FastAPI. If we ever scale to multi-
+# worker, swap this for Redis. For now (one Uvicorn worker), this is fine.
+
+# (per-path) max events per window-seconds
+RATE_LIMITS: dict[str, tuple[int, int]] = {
+    "/api/error-report":             (60, 60),     # 60 errors / min / IP — generous, individual page can burp
+    "/api/auth/exchange-session":    (10, 60),     # 10 OAuth exchanges / min / IP
+    "/api/demo-request":             (5, 600),     # 5 demo requests / 10min / IP
+    "/api/partner-request":          (5, 600),     # 5 partner submits / 10min / IP
+    "/api/outreach/send":            (30, 60),     # 30 outreach sends / min / IP (admin only anyway)
+    "/api/scan-docket/auto":         (30, 60),     # 30 AI docket scans / min / IP (LLM cost)
+}
+
+_rate_buckets: dict[str, list[float]] = defaultdict(list)
+
+
+def _client_ip(request: Request) -> str:
+    # Trust X-Forwarded-For when behind nginx; fall back to direct peer
+    xff = request.headers.get("x-forwarded-for", "")
+    if xff:
+        return xff.split(",")[0].strip()
+    return request.client.host if request.client else "unknown"
+
+
+def check_rate_limit(request: Request) -> Optional[JSONResponse]:
+    """Returns a 429 response if the caller exceeded the limit for this path,
+    else None (allow through). Called from middleware."""
+    path = request.url.path
+    cfg = RATE_LIMITS.get(path)
+    if not cfg:
+        return None
+    max_events, window_s = cfg
+    key = f"{path}|{_client_ip(request)}"
+    now = time.monotonic()
+    cutoff = now - window_s
+    bucket = _rate_buckets[key]
+    # Trim expired
+    while bucket and bucket[0] < cutoff:
+        bucket.pop(0)
+    if len(bucket) >= max_events:
+        retry_after = int(window_s - (now - bucket[0])) + 1
+        return JSONResponse(
+            {"detail": f"Too many requests — try again in {retry_after}s."},
+            status_code=429,
+            headers={"Retry-After": str(retry_after)},
+        )
+    bucket.append(now)
+    return None
+
 
 
 def _sig(category: str, message: str) -> str:
@@ -227,6 +283,14 @@ class FrontendError(BaseModel):
 def init_hardening(app: FastAPI, db, _require_admin) -> None:
     """Mount all hardening pieces into the FastAPI app."""
 
+    # 0) Rate limit middleware — protect hot endpoints from runaway floods
+    @app.middleware("http")
+    async def _rate_limit_mw(request: Request, call_next):
+        limited = check_rate_limit(request)
+        if limited is not None:
+            return limited
+        return await call_next(request)
+
     # 1) Global exception handler — clean JSON 500 + log
     @app.exception_handler(Exception)
     async def _global_exc_handler(request: Request, exc: Exception):
@@ -288,6 +352,71 @@ def init_hardening(app: FastAPI, db, _require_admin) -> None:
         await _require_admin(request)
         meta = await run_backup(db)
         return meta
+
+    # Admin "health pulse" — one JSON the dashboard can render for daily check-ins.
+    @app.get("/api/admin/health")
+    async def admin_health(request: Request):
+        await _require_admin(request)
+        now = datetime.now(timezone.utc)
+        day_ago  = now - timedelta(days=1)
+        week_ago = now - timedelta(days=7)
+
+        errors_24h = await db["error_log"].count_documents({"createdAt": {"$gte": day_ago}})
+        errors_7d  = await db["error_log"].count_documents({"createdAt": {"$gte": week_ago}})
+        last_err   = await db["error_log"].find_one(sort=[("createdAt", -1)])
+
+        last_backup = await db["backup_log"].find_one(sort=[("createdAt", -1)])
+        farm_count  = await db["farms"].count_documents({})
+        reading_24h = await db["readings"].count_documents({"createdAt": {"$gte": day_ago}})
+        chat_24h    = await db["chat_messages"].count_documents({"created_at": {"$gte": day_ago}})
+
+        paid_total  = 0.0
+        paid_count  = 0
+        cur = db["payment_transactions"].find({"payment_status": "paid"})
+        async for p in cur:
+            try:
+                paid_total += float(p.get("amount") or 0)
+                paid_count += 1
+            except Exception:
+                pass
+
+        # Active outreach pulse
+        out_pending = await db["outreach_contacts"].count_documents({"status": {"$in": ["pending", "in_progress"]}})
+        out_replied = await db["outreach_contacts"].count_documents({"status": "replied"})
+
+        def iso(v):
+            return v.isoformat() if isinstance(v, datetime) else v
+
+        return {
+            "now": now.isoformat(),
+            "errors": {
+                "last_24h": errors_24h,
+                "last_7d":  errors_7d,
+                "latest":   ({
+                    "category":  last_err.get("category"),
+                    "message":   (last_err.get("message") or "")[:200],
+                    "createdAt": iso(last_err.get("createdAt")),
+                } if last_err else None),
+            },
+            "backup": {
+                "last_run":   iso(last_backup.get("createdAt")) if last_backup else None,
+                "size_bytes": (last_backup or {}).get("size_bytes"),
+                "total_docs": (last_backup or {}).get("total_docs"),
+            },
+            "usage": {
+                "farms":         farm_count,
+                "readings_24h":  reading_24h,
+                "chat_msgs_24h": chat_24h,
+            },
+            "revenue": {
+                "paid_orders": paid_count,
+                "gross":       round(paid_total, 2),
+            },
+            "outreach": {
+                "pending": out_pending,
+                "replied": out_replied,
+            },
+        }
 
     # 4) Start the nightly backup loop on app startup
     @app.on_event("startup")

@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Health · Broiler Base Mate Admin</title>
+<link rel="icon" href="/api/static-asset/favicon.svg" type="image/svg+xml">
+<script src="/api/static-asset/auth-guard.js" defer></script>
+<style>
+  :root {
+    --bg:      #f4f6f5;
+    --card:    #ffffff;
+    --ink:     #0f3d24;
+    --ink-soft:#1a2622;
+    --muted:   #5a7268;
+    --line:    #e0e8e4;
+    --green-700:#1a5c36;
+    --green-800:#0f3d24;
+    --gold:    #C9A227;
+    --good:    #16a085;
+    --warn:    #e67e22;
+    --bad:     #c0392b;
+    --shadow:  0 1px 3px rgba(0,0,0,.05), 0 4px 14px rgba(0,0,0,.04);
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; }
+  body { font-family: system-ui, -apple-system, "Segoe UI", sans-serif; background: var(--bg); color: var(--ink-soft); }
+
+  header.top {
+    background: linear-gradient(135deg, var(--green-800), var(--green-700));
+    color: #fff; padding: 14px 22px;
+    display: flex; align-items: center; gap: 14px;
+  }
+  header.top h1 { font-size: 17px; margin: 0; letter-spacing: .3px; }
+  header.top .sub { color: rgba(255,255,255,.6); font-size: 12px; margin-left: 8px; }
+  .nav { margin-left: auto; display: flex; gap: 8px; }
+  .nav a {
+    color: #fff; background: rgba(255,255,255,.12); border-radius: 99px;
+    text-decoration: none; padding: 5px 12px; font-size: 12px; font-weight: 700;
+  }
+  .nav a:hover { background: rgba(255,255,255,.22); }
+
+  main { max-width: 1100px; margin: 22px auto; padding: 0 18px; }
+
+  .grid {
+    display: grid; gap: 14px;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    margin-bottom: 18px;
+  }
+  .kpi {
+    background: var(--card); border: 1px solid var(--line); border-radius: 12px;
+    padding: 16px; box-shadow: var(--shadow);
+  }
+  .kpi__label { font-size: 11px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .5px; }
+  .kpi__value { font-size: 28px; font-weight: 800; color: var(--ink); margin-top: 4px; }
+  .kpi__sub   { font-size: 12px; color: var(--muted); margin-top: 4px; }
+  .kpi.good   .kpi__value { color: var(--good); }
+  .kpi.warn   .kpi__value { color: var(--warn); }
+  .kpi.bad    .kpi__value { color: var(--bad); }
+
+  .section {
+    background: var(--card); border: 1px solid var(--line); border-radius: 12px;
+    padding: 18px 20px; box-shadow: var(--shadow); margin-bottom: 14px;
+  }
+  .section h2 { margin: 0 0 12px; font-size: 14px; letter-spacing: .3px; color: var(--green-800); }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--line); }
+  th { font-size: 11px; text-transform: uppercase; color: var(--muted); font-weight: 700; }
+  tr:last-child td { border-bottom: 0; }
+  .pill {
+    display: inline-block; padding: 2px 8px; border-radius: 99px;
+    font-size: 11px; font-weight: 800; text-transform: uppercase;
+  }
+  .pill.backend_500   { background: #fde7e7; color: #c0392b; }
+  .pill.frontend_js   { background: #fff3d8; color: #b7791f; }
+  .pill.stripe_provision { background: #ffe2e2; color: #8a1f1f; }
+  .pill.stripe_webhook   { background: #fee2e2; color: #8a1f1f; }
+  .pill.backup_job    { background: #fef0f0; color: #b91c1c; }
+  .actions { display: flex; gap: 10px; }
+  .btn {
+    background: var(--gold); color: #000; border: 0; border-radius: 99px;
+    padding: 8px 18px; font-weight: 800; font-size: 13px; cursor: pointer;
+    transition: filter .15s;
+  }
+  .btn:hover { filter: brightness(1.06); }
+  .btn.ghost { background: transparent; color: var(--green-800); border: 1px solid var(--line); }
+
+  .empty { color: var(--muted); padding: 18px 0; text-align: center; font-size: 13px; }
+  .loader { width: 28px; height: 28px; border-radius: 50%; border: 3px solid var(--line); border-top-color: var(--gold); animation: spin .8s linear infinite; margin: 30px auto; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+</style>
+</head>
+<body data-page="admin">
+<header class="top">
+  <h1>Broiler Base Mate — Health Pulse</h1>
+  <span class="sub" id="updated-at">loading…</span>
+  <nav class="nav">
+    <a href="/ops-dashboard">Ops</a>
+    <a href="/ops-outreach">Outreach</a>
+    <a href="/landing">Landing</a>
+  </nav>
+</header>
+
+<main>
+  <div id="loader" class="loader"></div>
+  <div id="content" style="display:none;">
+    <div class="grid" id="kpis"></div>
+
+    <div class="section">
+      <h2>Recent errors</h2>
+      <table>
+        <thead><tr><th>When</th><th>Category</th><th>Message</th></tr></thead>
+        <tbody id="err-rows"><tr><td colspan="3" class="empty">none</td></tr></tbody>
+      </table>
+    </div>
+
+    <div class="section">
+      <h2>Backup</h2>
+      <div id="backup-summary" class="empty">…</div>
+      <div class="actions" style="margin-top: 12px;">
+        <button class="btn" id="btn-backup-now" data-testid="btn-backup-now">📦 Backup now</button>
+        <button class="btn ghost" id="btn-refresh" data-testid="btn-refresh">↻ Refresh</button>
+      </div>
+    </div>
+  </div>
+</main>
+
+<script>
+  const $ = s => document.querySelector(s);
+  function fmt(n) { return n == null ? "—" : (typeof n === "number" ? n.toLocaleString() : n); }
+  function fmtBytes(n) { if (!n) return "—"; if (n < 1024) return n + " B"; if (n < 1024*1024) return (n/1024).toFixed(1) + " KB"; return (n/1024/1024).toFixed(2) + " MB"; }
+  function fmtTime(iso) { if (!iso) return "—"; try { return new Date(iso).toLocaleString(); } catch { return iso; } }
+  function fmtAgo(iso) {
+    if (!iso) return "—";
+    const d = new Date(iso); if (isNaN(d)) return iso;
+    const s = (Date.now() - d.getTime()) / 1000;
+    if (s < 60) return Math.floor(s) + "s ago";
+    if (s < 3600) return Math.floor(s/60) + "m ago";
+    if (s < 86400) return Math.floor(s/3600) + "h ago";
+    return Math.floor(s/86400) + "d ago";
+  }
+
+  function classifyErrors(n24) {
+    if (n24 === 0) return "good";
+    if (n24 < 5)   return "";
+    if (n24 < 20)  return "warn";
+    return "bad";
+  }
+
+  async function load() {
+    $("#loader").style.display = "";
+    $("#content").style.display = "none";
+    try {
+      const res = await fetch("/api/admin/health", { credentials: "include" });
+      if (!res.ok) throw new Error(await res.text());
+      const h = await res.json();
+      render(h);
+    } catch (e) {
+      $("#loader").style.display = "none";
+      $("#content").style.display = "";
+      $("#kpis").innerHTML = `<div class="kpi bad"><div class="kpi__label">Health endpoint</div><div class="kpi__value">Error</div><div class="kpi__sub">${e.message}</div></div>`;
+    }
+  }
+
+  function render(h) {
+    $("#updated-at").textContent = "updated " + fmtAgo(h.now);
+
+    const errCls = classifyErrors(h.errors.last_24h);
+    const lastBackupAgo = h.backup.last_run ? fmtAgo(h.backup.last_run) : "never";
+    const backupCls = !h.backup.last_run ? "bad" : (new Date() - new Date(h.backup.last_run)) > 48*3600*1000 ? "warn" : "good";
+
+    $("#kpis").innerHTML = `
+      <div class="kpi ${errCls}">
+        <div class="kpi__label">Errors · 24h</div>
+        <div class="kpi__value">${fmt(h.errors.last_24h)}</div>
+        <div class="kpi__sub">${fmt(h.errors.last_7d)} in last 7 days</div>
+      </div>
+      <div class="kpi ${backupCls}">
+        <div class="kpi__label">Last backup</div>
+        <div class="kpi__value">${lastBackupAgo}</div>
+        <div class="kpi__sub">${fmtBytes(h.backup.size_bytes)} · ${fmt(h.backup.total_docs)} docs</div>
+      </div>
+      <div class="kpi good">
+        <div class="kpi__label">Farms active</div>
+        <div class="kpi__value">${fmt(h.usage.farms)}</div>
+        <div class="kpi__sub">${fmt(h.usage.readings_24h)} readings logged today</div>
+      </div>
+      <div class="kpi good">
+        <div class="kpi__label">Revenue · paid orders</div>
+        <div class="kpi__value">$${fmt(h.revenue.gross)}</div>
+        <div class="kpi__sub">${fmt(h.revenue.paid_orders)} successful checkouts</div>
+      </div>
+      <div class="kpi">
+        <div class="kpi__label">Outreach pipeline</div>
+        <div class="kpi__value">${fmt(h.outreach.pending)}</div>
+        <div class="kpi__sub">${fmt(h.outreach.replied)} prospects replied</div>
+      </div>
+      <div class="kpi">
+        <div class="kpi__label">Chat · 24h</div>
+        <div class="kpi__value">${fmt(h.usage.chat_msgs_24h)}</div>
+        <div class="kpi__sub">team messages sent today</div>
+      </div>
+    `;
+
+    // Recent errors
+    fetch("/api/admin/error-log?limit=10", { credentials: "include" })
+      .then(r => r.ok ? r.json() : [])
+      .then(rows => {
+        if (!rows.length) {
+          $("#err-rows").innerHTML = '<tr><td colspan="3" class="empty">no recent errors 🎉</td></tr>';
+          return;
+        }
+        $("#err-rows").innerHTML = rows.map(r => `
+          <tr>
+            <td style="white-space:nowrap;">${fmtTime(r.createdAt)}</td>
+            <td><span class="pill ${r.category}">${r.category}</span></td>
+            <td style="font-family:monospace;font-size:12px;color:var(--ink-soft);">${(r.message || "").replace(/</g,"&lt;").slice(0,160)}</td>
+          </tr>`).join("");
+      })
+      .catch(() => {});
+
+    $("#backup-summary").innerHTML = h.backup.last_run
+      ? `Last successful backup: <b>${fmtTime(h.backup.last_run)}</b> · ${fmtBytes(h.backup.size_bytes)} · ${fmt(h.backup.total_docs)} documents. Next auto-run at 02:00 UTC.`
+      : `<span style="color:var(--warn);">No backups yet — first one runs at 02:00 UTC, or click below to run one now.</span>`;
+
+    $("#loader").style.display = "none";
+    $("#content").style.display = "";
+  }
+
+  document.addEventListener("bbm-auth-ready", load);
+  document.getElementById("btn-refresh").addEventListener("click", load);
+  document.getElementById("btn-backup-now").addEventListener("click", async () => {
+    const btn = document.getElementById("btn-backup-now");
+    btn.disabled = true; btn.textContent = "Backing up…";
+    try {
+      const r = await fetch("/api/admin/backup-now", { method: "POST", credentials: "include" });
+      if (!r.ok) throw new Error(await r.text());
+      const meta = await r.json();
+      alert(`✓ Backup OK — ${meta.total_docs} docs (${(meta.size_bytes/1024).toFixed(1)} KB) written to ${meta.file}`);
+      await load();
+    } catch (e) {
+      alert("Backup failed: " + e.message);
+    } finally {
+      btn.disabled = false; btn.textContent = "📦 Backup now";
+    }
+  });
+</script>
+</body>
+</html>
