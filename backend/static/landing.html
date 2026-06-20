@@ -741,7 +741,7 @@
     // REMINDER: DO NOT HARDCODE THE URL, OR ADD ANY FALLBACKS OR REDIRECT URLS, THIS BREAKS THE AUTH
     document.getElementById("google-signin").addEventListener("click", (e) => {
       e.preventDefault();
-      const redirect = window.location.origin + "/";  // After login, land on the Feed Program which gates by role
+      const redirect = window.location.origin + "/feed-program";  // After login, land directly on the Feed Program
       window.location.href = "https://auth.emergentagent.com/?redirect=" + encodeURIComponent(redirect);
     });
 
