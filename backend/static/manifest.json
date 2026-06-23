@@ -3,7 +3,7 @@
   "short_name": "Silo Reader",
   "description": "Field reader for Broiler Base Mate: silo readings, deliveries & AI docket scanner.",
   "start_url": "/reader",
-  "scope": "/reader",
+  "scope": "/",
   "display": "standalone",
   "orientation": "portrait",
   "background_color": "#f7faf6",
