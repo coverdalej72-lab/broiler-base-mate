@@ -33,6 +33,7 @@ readings_col = db["readings"]
 deliveries_col = db["deliveries"]
 photos_col = db["photos"]
 farm_config_col = db["farm_config"]
+feed_program_state_col = db["feed_program_state"]
 payments_col = db["payment_transactions"]
 farms_col = db["farms"]
 
@@ -885,6 +886,39 @@ async def patch_farm_config(body: FarmConfigBody, farm: str = Query(default=DEFA
     await farm_config_col.update_one({"id": farm}, op, upsert=True)
     doc = await farm_config_col.find_one({"id": farm})
     return clean(doc)
+
+
+# ── Feed-Program State (placement dates, bird counts, mortality — all spreadsheet edits) ───
+# Persists the React Feed-Program's `edits` map (serialized) + sheet names to MongoDB
+# per farm, so placement dates and batch info survive computer shutdown / different browser.
+# The state is kept as an opaque string blob; the frontend serializes/deserializes it.
+class FeedProgramStateBody(BaseModel):
+    edits: str  # serializeEdits() output — opaque JSON string of cell edits per sheet
+    sheetNames: List[str]
+
+
+@api.get("/feed-program/state")
+async def get_feed_program_state(farm: str = Query(default=DEFAULT_FARM_ID)):
+    doc = await feed_program_state_col.find_one({"farmId": farm})
+    if not doc:
+        return {"edits": None, "sheetNames": None, "updatedAt": None}
+    return {
+        "edits": doc.get("edits"),
+        "sheetNames": doc.get("sheetNames") or [],
+        "updatedAt": doc.get("updatedAt"),
+    }
+
+
+@api.put("/feed-program/state")
+async def put_feed_program_state(body: FeedProgramStateBody, farm: str = Query(default=DEFAULT_FARM_ID)):
+    now = datetime.now(timezone.utc).isoformat()
+    await feed_program_state_col.update_one(
+        {"farmId": farm},
+        {"$set": {"edits": body.edits, "sheetNames": body.sheetNames, "updatedAt": now},
+         "$setOnInsert": {"farmId": farm}},
+        upsert=True,
+    )
+    return {"ok": True, "updatedAt": now}
 
 
 # ── Photos (Mort Sheet + Bird Weight) ────────────────────────────────────

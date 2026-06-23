@@ -128,6 +128,14 @@
   - Added **8-question FAQ** with collapsible `<details>` cards (tech-savvy, processor contracts, offline, security, pricing, PWA install, Excel migration, who built it).
   - Added bottom CTA card. Text-to-HTML ratio raised from 0.09 → **0.38** (parsed from raw HTML, well above 10% threshold).
   - Added **Efficiency Rating (`AN6`)** and **Payment / bird (`AN8`)** tiles to Feed-Program Results page. New fields on `BatchSummary` interface with fallback math: `ER = (1.78/cFCR)×0.7 + (39.5/correctedAge)×0.3`, `Payment = ER × 0.005`. Live in screenshot at 1.162 / $0.0058.
+- **2026-06-23 (Feed-Program state persists to MongoDB — placement-date data-loss bug fix)**:
+  - **Root cause**: every spreadsheet edit (placement dates, bird counts, mortality, feed orders, silo readings, etc) was stored only in browser `localStorage`. When the computer shut down or the user opened a different browser, the cache was cleared and the app fell back to whatever defaults were baked in when the spreadsheet was first imported — so dates reverted to month-old values.
+  - **Backend**: added `GET /api/feed-program/state` and `PUT /api/feed-program/state` on collection `feed_program_state`, keyed by `farmId`, storing the serialized `edits` blob + `sheetNames` + `updatedAt` ISO timestamp.
+  - **Frontend (`App.tsx`)**:
+    - Autosave (debounced 2 s) now writes to **both** localStorage and the backend.
+    - Stamps `EDITS_SAVED_AT_KEY` localStorage timestamp on every save.
+    - On load, hydration `useEffect` fetches backend state once and merges in if `backend.updatedAt > localStorage.savedAt` — i.e. backend wins on a fresh browser / cleared cache, local wins if the user has edited since the last successful backend round-trip (offline-safe).
+  - **Verified live**: ~55 KB of edits (9 sheets) saved to MongoDB on first page-load smoke test.
 
 ## Future / Backlog
 - 🟡 P1: Stripe LIVE mode — swap `sk_test_` for user's `sk_live_…` + real Price IDs (next session when user is home).
