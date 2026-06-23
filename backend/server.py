@@ -112,6 +112,10 @@ async def _require_admin(request: Request) -> dict:
 from hardening import init_hardening, log_error  # noqa: E402
 init_hardening(app, db, _require_admin)
 
+# ─── Farm Buddy AI advisor ───────────────────────────────────────────────
+from farm_buddy import init_farm_buddy  # noqa: E402
+init_farm_buddy(app, db)
+
 
 async def _require_outreach_admin(request: Request) -> dict:
     """Outreach tracker access — gated by OUTREACH_ADMIN_EMAILS so the platform
