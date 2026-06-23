@@ -358,6 +358,18 @@
   </header>
   <div class="progress-bar"></div>
 
+  <!-- Persistent sync status pill — always visible, no more guessing if data made it to the cloud -->
+  <div id="sync-status-bar" style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:8px 14px;background:rgba(46,204,113,0.08);border-bottom:1px solid rgba(46,204,113,0.18);font:600 12px system-ui,-apple-system,sans-serif;">
+    <div style="display:flex;align-items:center;gap:8px;color:#1c6b3a;" id="sync-status">
+      <span id="sync-dot" style="width:10px;height:10px;border-radius:50%;background:#27ae60;display:inline-block;box-shadow:0 0 6px rgba(39,174,96,0.7);animation:syncPulse 2s ease-in-out infinite;"></span>
+      <span id="sync-label">☁️ Synced</span>
+    </div>
+    <div id="sync-sub" style="color:#6b7c70;font-weight:500;font-size:11px;">checking…</div>
+  </div>
+
+  <!-- Farm Buddy proactive alerts banner — appears ONLY when a shed needs feed -->
+  <div id="fb-alerts-bar" style="display:none;padding:10px 14px;background:linear-gradient(180deg,#fff5e6,#ffe9c8);border-bottom:2px solid #f39c12;color:#7c4a00;font:600 13px system-ui,-apple-system,sans-serif;line-height:1.5;"></div>
+
   <nav class="tabs">
     <div class="tab active" data-tab="today"><span class="ico">📋</span>Today</div>
     <div class="tab" data-tab="history"><span class="ico">🕐</span>History</div>
@@ -1010,6 +1022,135 @@
     // ── Boot ──
     loadAll().catch(e=>{console.error(e);toast("Failed to load","err")});
     setInterval(()=>{ if(activeTab==="today") loadAll().catch(()=>{}); }, 30000);
+
+    // ─── Persistent Sync Status pill + Farm Buddy proactive alerts ─────────
+    // The pill at the top tells the field manager at a glance whether their
+    // last reading made it to the Feed Program / cloud, or if it's still
+    // queued offline. The Farm Buddy banner pushes "order feed" alerts straight
+    // to the phone instead of buried in the desktop Feed Program.
+    (function setupSyncAndAlerts(){
+      const dot   = document.getElementById("sync-dot");
+      const label = document.getElementById("sync-label");
+      const sub   = document.getElementById("sync-sub");
+      const bar   = document.getElementById("sync-status-bar");
+      const fb    = document.getElementById("fb-alerts-bar");
+      if (!dot || !label || !sub || !bar || !fb) return;
+
+      const ageStr = (ms) => {
+        const s = Math.floor(ms / 1000);
+        if (s < 5) return "just now";
+        if (s < 60) return s + "s ago";
+        if (s < 3600) return Math.floor(s / 60) + "m ago";
+        return Math.floor(s / 3600) + "h ago";
+      };
+
+      let lastSyncAt = 0;        // last successful health check
+      let lastSavedAt = 0;       // last successful reading save (POST /readings/batch)
+      const LAST_SAVED_KEY = "bbm-reader-last-saved-at";
+      try { lastSavedAt = parseInt(localStorage.getItem(LAST_SAVED_KEY) || "0", 10) || 0; } catch {}
+
+      function paint() {
+        const q = loadQueue();
+        const online = navigator.onLine !== false;
+        if (!online) {
+          dot.style.background   = "#e74c3c";
+          dot.style.boxShadow    = "0 0 6px rgba(231,76,60,0.7)";
+          bar.style.background   = "rgba(231,76,60,0.10)";
+          bar.style.borderBottomColor = "rgba(231,76,60,0.3)";
+          label.textContent      = "📡 Offline";
+          sub.textContent        = q.length ? `${q.length} queued — will sync when back online` : "no internet — readings stored on phone";
+        } else if (q.length > 0) {
+          dot.style.background   = "#f39c12";
+          dot.style.boxShadow    = "0 0 6px rgba(243,156,18,0.7)";
+          bar.style.background   = "rgba(243,156,18,0.10)";
+          bar.style.borderBottomColor = "rgba(243,156,18,0.3)";
+          label.textContent      = `🔄 Syncing ${q.length} saved item${q.length===1?"":"s"}…`;
+          sub.textContent        = "uploading to Feed Program";
+        } else {
+          dot.style.background   = "#27ae60";
+          dot.style.boxShadow    = "0 0 6px rgba(39,174,96,0.7)";
+          bar.style.background   = "rgba(46,204,113,0.08)";
+          bar.style.borderBottomColor = "rgba(46,204,113,0.18)";
+          label.textContent      = "☁️ Synced to Feed Program";
+          if (lastSavedAt > 0) {
+            sub.textContent = "last reading: " + ageStr(Date.now() - lastSavedAt);
+          } else {
+            sub.textContent = lastSyncAt > 0 ? ("checked " + ageStr(Date.now() - lastSyncAt)) : "ready";
+          }
+        }
+      }
+
+      async function healthCheck() {
+        try {
+          const r = await fetch("/api/readings/today", { cache: "no-store" });
+          if (r.ok) lastSyncAt = Date.now();
+        } catch {}
+        paint();
+      }
+
+      async function loadFarmBuddyAlerts() {
+        try {
+          const r = await fetch("/api/farm-buddy/alerts", { cache: "no-store" });
+          if (!r.ok) return;
+          const d = await r.json();
+          const alerts = Array.isArray(d.alerts) ? d.alerts : [];
+          if (!alerts.length) { fb.style.display = "none"; fb.innerHTML = ""; return; }
+          fb.style.display = "block";
+          const critical = alerts.filter(a => a.level === "critical");
+          const tone = critical.length ? "#a83e00" : "#7c4a00";
+          const bg   = critical.length
+            ? "linear-gradient(180deg,#ffe2c8,#ffc99b)"
+            : "linear-gradient(180deg,#fff5e6,#ffe9c8)";
+          const border = critical.length ? "#d35400" : "#f39c12";
+          fb.style.color = tone;
+          fb.style.background = bg;
+          fb.style.borderBottomColor = border;
+          fb.innerHTML = `
+            <div style="font-size:11px;font-weight:800;letter-spacing:0.5px;opacity:0.7;margin-bottom:4px;text-transform:uppercase;">🤖 Farm Buddy says</div>
+            ${alerts.map(a => `<div data-testid="fb-alert" style="margin:3px 0;">${escapeHtml(a.message)}</div>`).join("")}
+          `;
+        } catch {}
+      }
+
+      function escapeHtml(s) {
+        return String(s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+      }
+
+      // Track every successful POST to /api/readings/batch as a "saved" event
+      const origFetch = window.fetch;
+      window.fetch = async function(input, init){
+        const url = typeof input === "string" ? input : (input && input.url) || "";
+        const isReadingSave = url.indexOf("/api/readings/batch") !== -1 && init && /post/i.test(init.method || "");
+        const res = await origFetch.apply(this, arguments);
+        try {
+          if (isReadingSave && res && res.ok) {
+            lastSavedAt = Date.now();
+            try { localStorage.setItem(LAST_SAVED_KEY, String(lastSavedAt)); } catch {}
+            paint();
+            // Refresh Farm Buddy alerts the moment a new reading lands.
+            loadFarmBuddyAlerts();
+          }
+        } catch {}
+        return res;
+      };
+
+      window.addEventListener("online",  paint);
+      window.addEventListener("offline", paint);
+
+      paint();
+      healthCheck();
+      loadFarmBuddyAlerts();
+      setInterval(paint, 5000);              // tick the "ago" text
+      setInterval(() => { if(!document.hidden) healthCheck(); }, 30000);
+      setInterval(() => { if(!document.hidden) loadFarmBuddyAlerts(); }, 60000);
+    })();
+
+    // Pulse animation for sync dot
+    (function injectSyncCss(){
+      const s = document.createElement("style");
+      s.textContent = "@keyframes syncPulse { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.55; transform: scale(0.8); } }";
+      document.head.appendChild(s);
+    })();
   </script>
 </body>
 </html>

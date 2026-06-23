@@ -141,6 +141,12 @@
   - **Ops Dashboard** previously never auto-refreshed silo readings. Now polls `loadAll()` every 30 s when tab is visible, fires immediately on visibility-change (tab-back), pauses when hidden.
   - Live indicator pill `[data-testid="live-status"]` in header: pulsing green dot + ticking "Live · 9s ago" label, switches to grey "Paused (tab hidden)" in background.
   - End-to-end latency field-manager Save → Ops Dashboard visible: **~30 s worst case**, ~2 s best case.
+- **2026-06-23 (Reader: persistent sync indicator + proactive Farm Buddy feed alerts)**:
+  - **Backend**: new `GET /api/farm-buddy/alerts?farm={slug}` endpoint. Lightweight (no LLM) — aggregates the most recent silo readings per shed group and flags any group whose total stored feed is `< 5 t` (`critical`) or `< 10 t` (`watch`). Returns `{riskLevel, alerts: [{shedGroupId, shedGroupName, totalT, level, message}], checkedAt}`.
+  - **Reader UI** (`reader.html`):
+    - **Persistent sync-status pill** in the header — pulsing dot + label that flips between `☁️ Synced to Feed Program` (green) / `🔄 Syncing N items…` (amber) / `📡 Offline` (red). Sub-text shows `last reading: 4m ago` so the field manager always sees how fresh the cloud copy is. Hooks `window.fetch` to detect successful `/api/readings/batch` POSTs and update the timestamp on the fly. Polls `/api/readings/today` every 30 s as a health probe.
+    - **Farm Buddy alerts banner** between header and tabs. Hidden by default. Shows up the moment a shed group drops below 10 t with a clear `🚨 ORDER FEED NOW — Sheds 1 & 2 only has 3.0 t left` message. Auto-refreshes every 60 s and also fires immediately after any successful reading save (so the message updates the instant the manager finishes their walk-around).
+  - **Verified**: inserted a `3.0 t` reading via curl → the orange Farm Buddy banner appeared with the correct message; cleaned up the test data afterward.
 
 ## Future / Backlog
 - 🟡 P1: Stripe LIVE mode — swap `sk_test_` for user's `sk_live_…` + real Price IDs (next session when user is home).

@@ -528,6 +528,67 @@ async def readings_today(localDate: Optional[str] = Query(default=None), farm: s
     }
 
 
+# ── Farm Buddy "quick alerts" for the mobile Reader ────────────────────────
+# Lightweight threshold-based alerts (no LLM) — fast enough to call from the
+# Reader every 30 s. Flags any shed-group whose total stored feed is critical
+# (<5 t) or low (<10 t) based on the most recent silo readings.
+# Used by the Reader to push proactive "🚨 Order feed for Sheds 3 & 4" banners
+# straight to the field manager's phone so they don't have to remember to
+# check the Feed Program on the desktop.
+@api.get("/farm-buddy/alerts")
+async def farm_buddy_alerts(farm: str = Query(default=DEFAULT_FARM_ID)):
+    groups = await shed_groups_col.find(_farm_filter(farm)).sort("displayOrder", 1).to_list(length=200)
+    silos = await silos_col.find(_farm_filter(farm)).sort("letter", 1).to_list(length=1000)
+    # Latest reading per silo (most recent saved value, regardless of date)
+    latest_by_silo: dict[str, float] = {}
+    pipeline = [
+        {"$match": _farm_filter(farm)},
+        {"$sort": {"readingDate": -1}},
+        {"$group": {
+            "_id": "$siloId",
+            "amountRemaining": {"$first": "$amountRemaining"},
+            "unit": {"$first": "$unit"},
+            "readingDate": {"$first": "$readingDate"},
+        }},
+    ]
+    async for doc in readings_col.aggregate(pipeline):
+        amt = float(doc.get("amountRemaining") or 0)
+        # Normalize kg → t for any legacy rows still stored in kg.
+        if (doc.get("unit") or "").lower() == "kg":
+            amt = amt / 1000.0
+        latest_by_silo[doc["_id"]] = amt
+
+    alerts: list[dict] = []
+    for g in groups:
+        group_silos = [s for s in silos if s.get("shedGroupId") == g["id"]]
+        if not group_silos:
+            continue
+        total_t = sum(latest_by_silo.get(s["id"], 0.0) for s in group_silos)
+        # Only flag groups that have at least one real reading on file.
+        if not any(s["id"] in latest_by_silo for s in group_silos):
+            continue
+        if total_t < 5:
+            level = "critical"
+            msg = f"🚨 ORDER FEED NOW — {g['name']} only has {total_t:.1f} t left"
+        elif total_t < 10:
+            level = "watch"
+            msg = f"⚠️ Getting low — {g['name']} down to {total_t:.1f} t"
+        else:
+            continue
+        alerts.append({
+            "shedGroupId": g["id"],
+            "shedGroupName": g["name"],
+            "totalT": round(total_t, 2),
+            "level": level,
+            "message": msg,
+        })
+
+    # Sort critical first, then watch
+    alerts.sort(key=lambda a: (0 if a["level"] == "critical" else 1, a["totalT"]))
+    risk = "critical" if any(a["level"] == "critical" for a in alerts) else ("watch" if alerts else "ok")
+    return {"riskLevel": risk, "alerts": alerts, "checkedAt": datetime.now(timezone.utc).isoformat()}
+
+
 @api.post("/readings/batch", status_code=201)
 async def batch_create_readings(body: BatchCreateReadingsBody, farm: str = Query(default=DEFAULT_FARM_ID)):
     if not body.readings:
