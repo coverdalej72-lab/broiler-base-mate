@@ -110,6 +110,11 @@
   - **`/api/auth/owner-magic?key=...&to=/...` endpoint** — one-click owner login that skips Google OAuth entirely. Requires env vars `OWNER_EMAIL` and `OWNER_MAGIC_KEY` (32-byte URL-safe token). Sets a 30-day session cookie + redirects to the requested page. Owner can bookmark a single URL and log in from any device/browser without OAuth.
   - **Session TTL bumped 7d → 30d** (`auth.py: SESSION_TTL_DAYS = 30`).
   - Production rollout requires: (a) Deploy, (b) set `OWNER_EMAIL` + `OWNER_MAGIC_KEY` env vars in production via Emergent platform.
+- **2026-06-23 (Results tab math alignment with `result 121 (1).xlsx`)**:
+  - **cFCR slope fixed `0.40` → `0.27`** in `App.tsx` (`loadBatchResultsXlsx`, both farm-summary and per-shed fallbacks). User's spreadsheet uses formula `cFCR = FCR − (AveWt − 2.45) × 0.27`. Verified: spreadsheet cached cFCR = 1.297; new code computes 1.297; old code with 0.40 would have computed 1.234.
+  - **cFCR source cell corrected** — was reading `AN4` (= 1.78/cFCR efficiency ratio, value ~1.37) and displaying it as cFCR. Now reads `AL10` (the actual cFCR formula `=AL8-((AH8-2.45)*0.27)`).
+  - **Added `aveWeight` fallback** `= totalWeight / totalOut` for cases where `AH8` formula cell reads as 0 in SheetJS.
+  - **"Cage Age … days" tile relabeled to "Cage Rating"** — `AN5` (`=39.5/AH11`) is a unitless efficiency ratio, not a day count. Now displays as `1.309` (decimal) instead of `1.31 days`.
 
 ## Future / Backlog
 - 🟡 P1: Stripe LIVE mode — swap `sk_test_` for user's `sk_live_…` + real Price IDs (next session when user is home).
