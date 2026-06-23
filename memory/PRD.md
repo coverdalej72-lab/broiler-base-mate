@@ -115,6 +115,19 @@
   - **cFCR source cell corrected** — was reading `AN4` (= 1.78/cFCR efficiency ratio, value ~1.37) and displaying it as cFCR. Now reads `AL10` (the actual cFCR formula `=AL8-((AH8-2.45)*0.27)`).
   - **Added `aveWeight` fallback** `= totalWeight / totalOut` for cases where `AH8` formula cell reads as 0 in SheetJS.
   - **"Cage Age … days" tile relabeled to "Cage Rating"** — `AN5` (`=39.5/AH11`) is a unitless efficiency ratio, not a day count. Now displays as `1.309` (decimal) instead of `1.31 days`.
+- **2026-06-23 (SEO Quick Wins)**:
+  - Created `/sitemap.xml` (5 URLs on broilerbasemate.com.au) at `silo/artifacts/feed-program/public/sitemap.xml`.
+  - Fixed `/robots.txt` — sitemap reference now correctly points to broilerbasemate.com.au (was farmbuddy.com.au).
+  - Rewrote `/llms.txt` in proper markdown spec format (was being intercepted by SPA fallback → returning HTML).
+  - Added homepage meta description, OG tags, Twitter cards to `landing.html` using correct domain.
+  - Added `alt="Broiler Base Mate logo"` to landing header logo.
+  - Replaced all `farmbuddy.com.au` references with `broilerbasemate.com.au` in feed-program `index.html` (canonical, OG, JSON-LD).
+  - **DNS fix (user-side)**: user updated `www.broilerbasemate.com.au` CNAME from self-referential loop → apex domain.
+- **2026-06-23 (Landing page content expansion + Results page tiles)**:
+  - Added **"Why Australian broiler growers switched"** section to `landing.html` with 6 feature paragraphs (the exact maths, AI docket scanning, offline reader, Farm Buddy, end-of-batch, multi-farm Ops).
+  - Added **8-question FAQ** with collapsible `<details>` cards (tech-savvy, processor contracts, offline, security, pricing, PWA install, Excel migration, who built it).
+  - Added bottom CTA card. Text-to-HTML ratio raised from 0.09 → **0.38** (parsed from raw HTML, well above 10% threshold).
+  - Added **Efficiency Rating (`AN6`)** and **Payment / bird (`AN8`)** tiles to Feed-Program Results page. New fields on `BatchSummary` interface with fallback math: `ER = (1.78/cFCR)×0.7 + (39.5/correctedAge)×0.3`, `Payment = ER × 0.005`. Live in screenshot at 1.162 / $0.0058.
 
 ## Future / Backlog
 - 🟡 P1: Stripe LIVE mode — swap `sk_test_` for user's `sk_live_…` + real Price IDs (next session when user is home).
