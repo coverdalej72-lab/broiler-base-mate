@@ -237,6 +237,109 @@
 </head>
 <body data-page="reader">
 <script src="/reader-assets/auth-guard.js"></script>
+
+<!-- ── PWA install enabler ─────────────────────────────────────────
+     Registers a minimal non-caching service worker so Android Chrome
+     considers the page installable. Then exposes a small "Install App"
+     banner that uses beforeinstallprompt on Android, and gives
+     iOS-specific instructions on iOS Safari (which has no JS install API).
+-->
+<div id="install-banner" style="display:none;position:fixed;bottom:14px;left:14px;right:14px;z-index:9000;background:linear-gradient(135deg,#0f3d24,#1a5c36);color:#fff;padding:12px 16px;border-radius:14px;box-shadow:0 8px 24px rgba(0,0,0,.35);font-family:system-ui,sans-serif;font-size:13px;line-height:1.45;">
+  <div style="display:flex;align-items:center;gap:12px;">
+    <div style="font-size:24px;">📲</div>
+    <div style="flex:1;min-width:0;">
+      <div style="font-weight:800;margin-bottom:2px;">Install Silo Reader</div>
+      <div id="install-msg" style="opacity:.85;font-size:12px;">Add to your phone home screen for one-tap access.</div>
+    </div>
+    <button id="install-btn" data-testid="btn-install-app" style="background:#C9A227;color:#000;border:0;border-radius:99px;padding:7px 14px;font-weight:800;font-size:12px;cursor:pointer;white-space:nowrap;">Install</button>
+    <button id="install-dismiss" data-testid="btn-install-dismiss" aria-label="Dismiss" style="background:rgba(255,255,255,.18);border:0;color:#fff;width:26px;height:26px;border-radius:99px;cursor:pointer;font-size:16px;line-height:1;">×</button>
+  </div>
+</div>
+<script>
+(function(){
+  // Register minimal install-only SW (does NOT cache anything — see /sw.js)
+  if ("serviceWorker" in navigator) {
+    try {
+      navigator.serviceWorker.register("/sw.js", { scope: "/" })
+        .catch(function(e){ console.warn("SW register failed (non-fatal):", e); });
+    } catch (_) {}
+  }
+
+  var ua = navigator.userAgent || "";
+  var isStandalone =
+    window.matchMedia && window.matchMedia("(display-mode: standalone)").matches ||
+    window.navigator.standalone === true;
+  if (isStandalone) return; // already installed — don't show banner
+
+  var dismissedAt = 0;
+  try { dismissedAt = parseInt(localStorage.getItem("bbm-install-dismissed") || "0", 10); } catch (_) {}
+  // Re-show after 7 days
+  var weekMs = 7 * 24 * 60 * 60 * 1000;
+  if (dismissedAt && (Date.now() - dismissedAt) < weekMs) return;
+
+  var isIOS = /iPad|iPhone|iPod/.test(ua) && !window.MSStream;
+  var isAndroid = /Android/.test(ua);
+  var banner   = document.getElementById("install-banner");
+  var btn      = document.getElementById("install-btn");
+  var msg      = document.getElementById("install-msg");
+  var dismiss  = document.getElementById("install-dismiss");
+  if (!banner || !btn) return;
+
+  function show() { banner.style.display = "block"; }
+  function hide(remember) {
+    banner.style.display = "none";
+    if (remember) {
+      try { localStorage.setItem("bbm-install-dismissed", String(Date.now())); } catch (_) {}
+    }
+  }
+  dismiss.addEventListener("click", function(){ hide(true); });
+
+  if (isIOS) {
+    // iOS Safari has no JS install API. Tell the user how to do it manually.
+    msg.textContent = "Tap Share ⤴ then 'Add to Home Screen'";
+    btn.textContent = "How?";
+    btn.addEventListener("click", function(){
+      alert("To install Silo Reader:\n\n1. Tap the Share button (⤴) at the bottom\n2. Scroll and tap 'Add to Home Screen'\n3. Tap 'Add'\n\nYou'll get an icon you can launch like a normal app.");
+    });
+    show();
+    return;
+  }
+
+  // Android (Chrome / Edge / Samsung Internet) — use beforeinstallprompt
+  var deferredPrompt = null;
+  window.addEventListener("beforeinstallprompt", function(e){
+    e.preventDefault();
+    deferredPrompt = e;
+    show();
+  });
+  btn.addEventListener("click", async function(){
+    if (deferredPrompt) {
+      try {
+        deferredPrompt.prompt();
+        var choice = await deferredPrompt.userChoice;
+        if (choice && choice.outcome === "accepted") hide(true);
+      } catch (_) {}
+      deferredPrompt = null;
+    } else if (isAndroid) {
+      alert("To install:\n1. Tap the ⋮ menu (top-right)\n2. Tap 'Install app' or 'Add to Home Screen'");
+    } else {
+      // Desktop or unknown browser — show generic instructions
+      alert("Look for an 'Install' or 'Add to Home Screen' option in your browser's menu.");
+    }
+  });
+
+  // Fallback: if no beforeinstallprompt fires (e.g. Samsung Internet), show
+  // banner anyway on Android with manual instructions after a short delay.
+  if (isAndroid) {
+    setTimeout(function(){
+      if (banner.style.display === "none" && !deferredPrompt) {
+        msg.textContent = "Tap to add Silo Reader to your home screen.";
+        show();
+      }
+    }, 3000);
+  }
+})();
+</script>
   <div class="status-bar"></div>
   <header class="app-header">
     <div class="app-icon"><img src="/reader-assets/logo.svg" alt="" /></div>
