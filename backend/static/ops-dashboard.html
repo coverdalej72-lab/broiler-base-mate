@@ -298,6 +298,10 @@
       <a href="/"            class="pill" data-testid="link-feed-program">Feed Program ↗</a>
       <a href="/reader"      class="pill" data-testid="link-reader">📱 Reader</a>
       <button class="pill" id="theme-toggle" data-testid="btn-theme" title="Toggle light/dark mode"><span id="theme-icon">🌙</span> <span id="theme-label">Dark</span></button>
+      <span class="pill" id="live-status" data-testid="live-status" style="display:inline-flex;align-items:center;gap:6px;background:rgba(46,204,113,0.15);border-color:rgba(46,204,113,0.4);color:#27ae60;font-weight:600;" title="Auto-refreshes every 30 seconds when this tab is visible">
+        <span id="live-dot" style="width:8px;height:8px;border-radius:50%;background:#27ae60;display:inline-block;box-shadow:0 0 6px #27ae60;animation:pulseDot 2s ease-in-out infinite;"></span>
+        <span id="live-label">Live · just now</span>
+      </span>
       <button class="pill" id="refresh-btn" data-testid="refresh-btn">🔄 Refresh</button>
     </div>
   </div>
@@ -638,6 +642,54 @@
 
   // Initial load
   loadAll();
+
+  // ── Auto-refresh silo readings + dashboard data every 30 s ─────────────
+  // Pauses when the tab is hidden (no Chrome battery drain when you've left
+  // the tab open in the background) and resumes the second you bring it back.
+  // Live indicator in the header counts seconds since the last successful sync
+  // so Ops Managers always know how fresh the data is.
+  let lastAutoRefreshTs = Date.now();
+  const liveLabel = document.getElementById("live-label");
+  const liveDot   = document.getElementById("live-dot");
+  function fmtAge(ms) {
+    const s = Math.floor(ms / 1000);
+    if (s < 5)    return "just now";
+    if (s < 60)   return s + "s ago";
+    if (s < 3600) return Math.floor(s / 60) + "m ago";
+    return Math.floor(s / 3600) + "h ago";
+  }
+  function updateLiveLabel() {
+    if (!liveLabel) return;
+    if (document.hidden) {
+      liveLabel.textContent = "Paused (tab hidden)";
+      if (liveDot) liveDot.style.background = "#999";
+    } else {
+      liveLabel.textContent = "Live · " + fmtAge(Date.now() - lastAutoRefreshTs);
+      if (liveDot) liveDot.style.background = "#27ae60";
+    }
+  }
+  // Tick the "age" label every 5 seconds so users see the timer move.
+  setInterval(updateLiveLabel, 5000);
+  // Patch loadAll to update the timestamp on every successful refresh
+  // (manual button + auto-poll both count).
+  const _origLoadAllForLive = loadAll;
+  loadAll = async function () {
+    const ret = await _origLoadAllForLive.apply(this, arguments);
+    lastAutoRefreshTs = Date.now();
+    updateLiveLabel();
+    return ret;
+  };
+  // Auto-poll silo readings + KPIs every 30 s when the tab is visible.
+  setInterval(() => { if (!document.hidden) loadAll(); }, 30 * 1000);
+  // Refresh immediately when the user comes back to the tab after switching away.
+  document.addEventListener("visibilitychange", () => {
+    if (!document.hidden) loadAll();
+    updateLiveLabel();
+  });
+  // Pulse-dot CSS keyframes
+  const pulseStyle = document.createElement("style");
+  pulseStyle.textContent = "@keyframes pulseDot { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.6; transform: scale(0.85); } }";
+  document.head.appendChild(pulseStyle);
 
   // ── Chat widget ──────────────────────────────────────────────
   const chatState = { open: false, scope: "group", farm: "", pollTimer: null, lastIds: new Set() };

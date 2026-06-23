@@ -136,6 +136,11 @@
     - Stamps `EDITS_SAVED_AT_KEY` localStorage timestamp on every save.
     - On load, hydration `useEffect` fetches backend state once and merges in if `backend.updatedAt > localStorage.savedAt` — i.e. backend wins on a fresh browser / cleared cache, local wins if the user has edited since the last successful backend round-trip (offline-safe).
   - **Verified live**: ~55 KB of edits (9 sheets) saved to MongoDB on first page-load smoke test.
+- **2026-06-23 (Live sync — Ops Dashboard auto-refresh + Feed Program poll speed-up)**:
+  - **Feed Program** silo-reading auto-sync interval reduced from **3 minutes → 30 seconds** (still skips when tab hidden).
+  - **Ops Dashboard** previously never auto-refreshed silo readings. Now polls `loadAll()` every 30 s when tab is visible, fires immediately on visibility-change (tab-back), pauses when hidden.
+  - Live indicator pill `[data-testid="live-status"]` in header: pulsing green dot + ticking "Live · 9s ago" label, switches to grey "Paused (tab hidden)" in background.
+  - End-to-end latency field-manager Save → Ops Dashboard visible: **~30 s worst case**, ~2 s best case.
 
 ## Future / Backlog
 - 🟡 P1: Stripe LIVE mode — swap `sk_test_` for user's `sk_live_…` + real Price IDs (next session when user is home).
