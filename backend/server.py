@@ -117,6 +117,79 @@ from farm_buddy import init_farm_buddy  # noqa: E402
 init_farm_buddy(app, db)
 
 
+# ─── End-of-Batch email report sender ───────────────────────────────────
+# Many users don't have a default mail client configured on phones/PCs,
+# so mailto: links open a blank tab and frustrate them. This endpoint
+# sends the report directly via Resend instead.
+
+class EobEmailRequest(BaseModel):
+    to:       List[str]
+    subject:  str
+    body:     str
+    farmName: Optional[str] = None
+
+@app.post("/api/eob/send-report")
+async def send_eob_report(req: EobEmailRequest, request: Request):
+    import logging as _logging
+    _log = _logging.getLogger("eob_email")
+    user = await _user_from_request(request)
+    if not user:
+        raise HTTPException(401, "Authentication required")
+    if not req.to:
+        raise HTTPException(400, "No recipients provided")
+    if len(req.to) > 20:
+        raise HTTPException(400, "Too many recipients (max 20)")
+
+    from email_service import send_email
+
+    # Plain-text body wrapped in <pre> for a clean monospaced report look,
+    # then a small footer.
+    safe_body = (
+        req.body
+        .replace("&", "&amp;")
+        .replace("<", "&lt;")
+        .replace(">", "&gt;")
+    )
+    farm_label = req.farmName or "your farm"
+    html = (
+        "<div style=\"font-family:system-ui,sans-serif;max-width:700px;margin:0 auto;\">"
+        f"<h2 style=\"color:#0f3d24;margin-bottom:4px;\">End of Batch Report</h2>"
+        f"<p style=\"color:#64748b;font-size:13px;margin:0 0 14px;\">{farm_label} · sent by {user.get('email')}</p>"
+        "<pre style=\"background:#f7faf6;border:1px solid #d4e0d8;border-radius:8px;padding:16px;"
+        "font-family:monospace;font-size:12px;line-height:1.5;white-space:pre-wrap;color:#1f2937;\">"
+        f"{safe_body}"
+        "</pre>"
+        "<p style=\"color:#9ca3af;font-size:11px;margin-top:18px;\">"
+        "Sent by Broiler Base Mate — broilerbasemate.com.au"
+        "</p>"
+        "</div>"
+    )
+
+    sent_to: list[str] = []
+    failed_to: list[str] = []
+    for addr in req.to:
+        addr = addr.strip()
+        if not addr or "@" not in addr:
+            failed_to.append(addr)
+            continue
+        try:
+            await send_email(
+                to=addr,
+                subject=req.subject,
+                html=html,
+                reply_to=user.get("email"),
+            )
+            sent_to.append(addr)
+        except Exception as e:
+            _log.warning("EOB email send failed for %s: %s", addr, e)
+            failed_to.append(addr)
+
+    if not sent_to:
+        raise HTTPException(500, "Could not send to any of the recipients. Check the email service is configured.")
+
+    return {"ok": True, "sent": sent_to, "failed": failed_to}
+
+
 async def _require_outreach_admin(request: Request) -> dict:
     """Outreach tracker access — gated by OUTREACH_ADMIN_EMAILS so the platform
     owner can manage their cold-email pipeline without inheriting SUPERUSER
