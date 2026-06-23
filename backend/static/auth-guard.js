@@ -109,8 +109,12 @@
       return;
     }
 
-    // No farms at all → bounce to landing (probably a Google user with no plan yet)
-    bounceTo("/landing");
+    // No farms at all → for the marketing front door (PROTECTED_PAGE === "app")
+    // we send them to /landing (probably a Google user with no plan yet).
+    // For ANY internal app page (reader, ops-dashboard, ops-outreach, admin)
+    // we send them to Emergent OAuth login — paying customers should NEVER be
+    // bounced to the marketing site mid-session.
+    bounceTo(anonymousBounceUrl());
   }
 
   async function init() {
