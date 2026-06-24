@@ -177,6 +177,9 @@
     - Batch in progress → today + 14 rows
     - Batch ended (today way past last input) → lastInputRow + 3 rows (kills the ghost rows)
     - Empty sheet → first 14 rows minimum so a fresh batch doesn't look broken
+- **2026-06-24 (Hard cap shed rendering at "Total Morts" / "Total Birds Caught" labels)**:
+  - User screenshot showed 3 ghost rows still appearing *below* the Total Morts and Total Birds Caught labels with values like `-543,300`, `-225,621`, `0` — formula scaffolding rolling over template rows 75-77.
+  - Added a `totalsLabelRow` lookup that scans the first 5 columns of each shed sheet for any cell matching `/total\s+(morts|birds|feed)/i`. The last such row becomes the absolute hard cap for `shedDisplayEndRow`. Nothing renders past it. If no totals labels are found we fall back to `shedDataStartRow + 62`.
 
 ## Future / Backlog
 - 🟡 P1: Stripe LIVE mode — swap `sk_test_` for user's `sk_live_…` + real Price IDs (next session when user is home).
