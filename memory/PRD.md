@@ -151,6 +151,11 @@
   - Added a **Ross 308 / Cobb 500** dropdown next to each shed's bird-count field on the Summary page (12 dropdowns: 2 per shed group × 6 groups).
   - Backed by the same `FLOCK_BREEDS_KEY` localStorage entry the Flock Forecast tab uses, so the choice flows through to projected weight, target FCR comparisons and `getRoss308Standard()` / `BREED_STANDARDS.cobb500` curves automatically.
   - New helper component `BreedPickerRow` reused for both sheds in each card. `data-testid="breed-picker-<label>"` on each dropdown for QA.
+- **2026-06-24 (EOB feed-delivery doubling bug fix)**:
+  - **Root cause**: `EndOfBatchContent.syncDeliveries()` deduplicated only by the `eob-synced-delivery-ids` list in localStorage. If localStorage was cleared (cache wipe, switching browsers, restored backup, fresh device), every delivery looked "unsynced" and got re-appended to the next free row in the EOB sheet — doubling everything.
+  - **Fix**: added a **content-fingerprint** dedupe layer. Before writing a delivery, build `${dateCol}|${dateStr}|${docket}|${kgRounded}` for every existing row in the sheet, then skip any incoming delivery whose fingerprint already matches. The localStorage `syncedIds` is still the fast first-pass; the fingerprint check is the safety net that survives any cache reset.
+  - **One-time cleanup sweep** on mount (`cleanupDuplicateDeliveries`, gated by `eob-dedupe-cleanup-v1` localStorage flag) — scans every delivery row, clears any row whose `date + docket + kg` already exists in the same feed-type column. Skips rows without a docket number so legit same-day deliveries are never touched. Runs exactly once per browser, posts a banner with the number cleared.
+  - Existing customers will see their doubled rows tidy up automatically the next time they open the EOB tab; new sync writes will never double again.
 
 ## Future / Backlog
 - 🟡 P1: Stripe LIVE mode — swap `sk_test_` for user's `sk_live_…` + real Price IDs (next session when user is home).
