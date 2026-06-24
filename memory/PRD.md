@@ -147,6 +147,10 @@
     - **Persistent sync-status pill** in the header — pulsing dot + label that flips between `☁️ Synced to Feed Program` (green) / `🔄 Syncing N items…` (amber) / `📡 Offline` (red). Sub-text shows `last reading: 4m ago` so the field manager always sees how fresh the cloud copy is. Hooks `window.fetch` to detect successful `/api/readings/batch` POSTs and update the timestamp on the fly. Polls `/api/readings/today` every 30 s as a health probe.
     - **Farm Buddy alerts banner** between header and tabs. Hidden by default. Shows up the moment a shed group drops below 10 t with a clear `🚨 ORDER FEED NOW — Sheds 1 & 2 only has 3.0 t left` message. Auto-refreshes every 60 s and also fires immediately after any successful reading save (so the message updates the instant the manager finishes their walk-around).
   - **Verified**: inserted a `3.0 t` reading via curl → the orange Farm Buddy banner appeared with the correct message; cleaned up the test data afterward.
+- **2026-06-24 (Summary tab: breed picker per shed)**:
+  - Added a **Ross 308 / Cobb 500** dropdown next to each shed's bird-count field on the Summary page (12 dropdowns: 2 per shed group × 6 groups).
+  - Backed by the same `FLOCK_BREEDS_KEY` localStorage entry the Flock Forecast tab uses, so the choice flows through to projected weight, target FCR comparisons and `getRoss308Standard()` / `BREED_STANDARDS.cobb500` curves automatically.
+  - New helper component `BreedPickerRow` reused for both sheds in each card. `data-testid="breed-picker-<label>"` on each dropdown for QA.
 
 ## Future / Backlog
 - 🟡 P1: Stripe LIVE mode — swap `sk_test_` for user's `sk_live_…` + real Price IDs (next session when user is home).
