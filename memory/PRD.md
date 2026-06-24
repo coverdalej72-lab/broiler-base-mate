@@ -180,6 +180,10 @@
 - **2026-06-24 (Hard cap shed rendering at "Total Morts" / "Total Birds Caught" labels)**:
   - User screenshot showed 3 ghost rows still appearing *below* the Total Morts and Total Birds Caught labels with values like `-543,300`, `-225,621`, `0` — formula scaffolding rolling over template rows 75-77.
   - Added a `totalsLabelRow` lookup that scans the first 5 columns of each shed sheet for any cell matching `/total\s+(morts|birds|feed)/i`. The last such row becomes the absolute hard cap for `shedDisplayEndRow`. Nothing renders past it. If no totals labels are found we fall back to `shedDataStartRow + 62`.
+- **2026-06-24 (Weight-sheet upload auto-populates Planning Catches)**:
+  - User asked: "can we make the weight sheet update the plan catches on the date they're going to pick".
+  - **Fix**: added a new `useEffect` inside `BatchResultsView` that, on every xlsx parse, mirrors each catch row into `weighPlanMap` (the Planning Catches map). Uses `xlsx-weigh-plan-synced-v1` localStorage set for fingerprint-based idempotency so re-uploads never double up. Skips dates the user has already entered manually (manual entries win).
+  - Calls `saveWeighPlanMap` → fires `weighPlanUpdated` custom event → the App-level `weighPlanMap` listener picks it up → `planningCatchMap` (catchMap merged on top of weighPlanMap) refreshes → `farmBuddySheds` recomputes with the new upcoming catches → Farm Buddy's next-7-days projection shrinks the flock on the right dates.
 
 ## Future / Backlog
 - 🟡 P1: Stripe LIVE mode — swap `sk_test_` for user's `sk_live_…` + real Price IDs (next session when user is home).
