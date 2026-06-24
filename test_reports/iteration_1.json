@@ -1,0 +1,41 @@
+{
+  "summary": "Tested both URGENT regressions end-to-end: (1) Reader → /api/readings/batch → /api/readings/today sync chain, and (2) Farm Buddy threshold-based critical alerts + Feed Program state persistence. All 6 backend pytest cases PASS. Frontend Reader page verified manually via Playwright: persistent sync pill renders 'Synced to Feed Program' (green), sub-label shows recent check time, and after posting a sub-5t reading the Farm Buddy banner #fb-alerts-bar correctly shows 'ORDER FEED NOW — Sheds 19 & 20 only has 3.0 t left'. End-to-end sync IS working — a posted 18.5t reading on Silo A in Sheds 1&2 immediately appeared in /api/readings/today with saved=true and rendered as 'SAVED' in the Reader UI. EOB doubling bug was NOT directly testable from the backend (it's pure frontend dedupe logic in EndOfBatchContent.tsx) — see action items.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "reader.html sync pill", "issue": "Missing data-testid='sync-status' attribute requested by spec. The element has id='sync-status' but not data-testid. Tests still passed by falling back to the #id selector, but adding data-testid='sync-status' on the inner div (line 363) and data-testid='sync-status-bar' on the outer div (line 362) would make tests more robust.", "selector": "#sync-status", "priority": "LOW"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "reader.html service worker", "issues": ["Console warning: 'SW register failed (non-fatal): The script has an unsupported MIME type (text/html)'. /sw.js returns HTML instead of JS. Non-blocking but pollutes the console."]}
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_sync_and_alerts.py",
+    "/app/test_reports/pytest/sync_alerts.xml"
+  ],
+  "action_items": [
+    "Add data-testid='sync-status' (inner) and data-testid='sync-status-bar' (outer) on reader.html line 362-363, and data-testid='fb-alerts-bar' on line 371, so future automated tests are not coupled to CSS IDs.",
+    "Fix /sw.js MIME type — currently returns text/html, should be application/javascript (causes a console warning on every Reader page load).",
+    "EOB-doubling bug (EndOfBatchContent.tsx syncDeliveries + cleanupDuplicateDeliveries) was NOT directly verified by this iteration because it lives entirely in the Feed Program React SPA and requires a multi-step UI scenario (load Feed Program, trigger sync twice, observe deliveries list). Main agent should add a Playwright test that: (a) opens /feed-program, (b) creates an EOB delivery, (c) refreshes the page or triggers another sync, and (d) asserts the delivery count did NOT double. The fix description says the localStorage gate was removed so cleanupDuplicateDeliveries runs every render — this needs visual verification.",
+    "The sync-status sub-label uses 'last reading: just now' phrasing only AFTER a save via the Reader UI itself (it relies on lastSavedAt set when POST /readings/batch fires from inside the Reader). Saves made through the backend API directly will only update lastSyncAt → sub-label shows 'checked Xs ago'. This matches the spec but worth documenting."
+  ],
+  "critical_code_review_comments": [
+    "/app/backend/server.py is 1845 lines — exceeds the 700-line recommendation. Recommend splitting into modules: readings.py, deliveries.py, farm_buddy_alerts.py, feed_program_state.py, photos.py, scan_docket.py.",
+    "readings_today endpoint (server.py:482) accepts localDate but doesn't validate against today's date in farm-buddy/alerts which always uses 'latest' — consistent behaviour but worth a comment.",
+    "feed_program_state PUT (server.py:973) does not validate edits JSON shape — accepts any string. If a malformed payload corrupts edits, the Feed Program SPA may crash on next load. Suggest wrapping JSON.parse on the frontend with a try/catch (likely already done at line 7837)."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_sync_and_alerts.py (new pytest module)"
+  ],
+  "success_rate": {"backend": "100% (6/6)", "frontend": "100% on Reader page elements (sync pill + FB alert banner). EOB dedupe not tested."},
+  "test_credentials": "Owner magic link: https://harvest-hub-634.preview.emergentagent.com/api/auth/owner-magic?key=VO1Jd3ZFNuEdk69SX-7AzfgzHgtUuqB86_HB8sXS14Q&to=/reader — works.",
+  "seed_data_creation": "Posted readings to silos in the first and last shed-groups of farm=default: 18.5t in Silo A (Sheds 1&2), 7.0t in Silo B (Sheds 1&2) dated 2025-01-01, and 1.0t each in all silos of the last shed-group (Sheds 19 & 20) — used to trigger critical alert. All tagged with TEST_ prefixed notes. Also posted a feed-program state row with edits='[{...TEST_placement...}]'.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "The 6 backend regression tests in /app/backend/tests/test_sync_and_alerts.py cover: readings sync round-trip, date-filtering of today's readings, /api/farm-buddy/alerts shape + critical-threshold trigger, /api/farm-buddy/recommend accepting new ShedSnapshot fields, and /api/feed-program/state PUT→GET round-trip. Run with: pytest /app/backend/tests/test_sync_and_alerts.py -v. The Reader page UI was visually verified — sync pill and Farm Buddy banner both render and integrate correctly with the backend. The EOB-doubling bug fix in /app/silo/artifacts/feed-program/src/components/EndOfBatchContent.tsx was NOT exercised in this iteration and requires a Playwright test against the Feed Program SPA (separate Vite app, may need its own dev-server). Test data left behind: 1.0t readings in last shed-group's silos will keep triggering critical alerts — clear them by overwriting with higher readings before demo-ing to user.",
+  "rca_of_the_issue": "Bug 1 (readings not syncing): Could not reproduce. Backend correctly persists POST /api/readings/batch and surfaces saved=true in /api/readings/today with the documented sheds[].silos[].saved shape. Frontend polling effect at App.tsx:7832 receives that response. The original user complaint may have been caused by the now-fixed hash-collision bug (line 7844 not including the date) which prevented re-polls after midnight rollovers. Verification: posted reading, GET /api/readings/today shows saved=true, Reader UI shows 'SAVED' badge under Silo A — chain works end-to-end. Bug 2 (EOB doubling): NOT exercised by this iteration; requires Feed Program SPA Playwright run — see action items."
+}
