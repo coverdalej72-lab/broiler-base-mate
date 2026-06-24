@@ -28,7 +28,11 @@ log = logging.getLogger("farm_buddy")
 class ShedSnapshot(BaseModel):
     shedNum: int
     name: Optional[str] = None
-    birdsPlaced: Optional[float] = None
+    birdsPlaced: Optional[float] = None       # LIVE count (placement − morts − caught)
+    birdsOriginalPlaced: Optional[float] = None
+    mortsToDate: Optional[float] = None
+    birdsCaught: Optional[float] = None
+    upcomingCatches: Optional[list[dict]] = None  # [{date, birds}, ...] next 7-14 days
     dayAge: Optional[int] = None
     mortalityPct: Optional[float] = None
     siloA: Optional[float] = None  # tonnes
@@ -95,7 +99,14 @@ def _build_user_prompt(ctx: FarmContext, question: Optional[str]) -> str:
             line += f" ({s.name})"
         parts = []
         if s.birdsPlaced:
-            parts.append(f"{int(s.birdsPlaced):,} birds")
+            parts.append(f"{int(s.birdsPlaced):,} live birds")
+        if s.birdsOriginalPlaced and s.birdsCaught:
+            parts.append(f"({int(s.birdsCaught):,} already caught of {int(s.birdsOriginalPlaced):,} placed)")
+        elif s.birdsOriginalPlaced and s.mortsToDate:
+            parts.append(f"({int(s.birdsOriginalPlaced):,} placed − {int(s.mortsToDate):,} morts)")
+        if s.upcomingCatches:
+            uc_str = ", ".join(f"{int(c.get('birds') or 0):,} on {c.get('date')}" for c in s.upcomingCatches[:5])
+            parts.append(f"upcoming catches: {uc_str}")
         if s.dayAge is not None:
             parts.append(f"day {s.dayAge}")
         if s.mortalityPct is not None:

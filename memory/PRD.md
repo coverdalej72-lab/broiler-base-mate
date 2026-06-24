@@ -162,6 +162,14 @@
   - **Fix #2** — added a new `ShedLiveCountsRow` strip under each shed's bird-count + breed row on the Summary tab. Renders red `−234 morts` and green `✓ 12,345 caught` pills the moment data is available. Hidden when both are zero. `data-testid="shed-morts"` and `shed-caught` for QA.
   - **Fix #3** — passed the App-level `catchMap` state through `SummaryView` → `ShedSummaryCard` so the caught counts update live as the user pastes a Baiada/Adelaide Weighbridge email, uploads a new weight-sheet xlsx, or edits the Catches tab manually.
   - Build clean, smoke-screenshotted. With no batch loaded the pills stay hidden (correct behaviour); once the user uploads their weight sheet they'll appear instantly per shed.
+- **2026-06-24 (Farm Buddy + days-of-feed projection now use LIVE bird count)**:
+  - **Root cause #2 of "feed planning ignores my pickups"**: `farmBuddySheds` was emitting `birdsPlaced = original placement` and computing `daysOfFeedLeft = siloTotal / dailyUsageT` — both assumed a constant flock size for the whole batch. After a pickup of 4,500 of 13,500 birds Farm Buddy was still projecting feed demand for 13,500.
+  - **Fix (frontend)** — `farmBuddySheds` now computes:
+    - `LIVE birdsPlaced = original placement − morts (from EOB col 24) − birds caught in the past (from catchMap)`.
+    - `upcomingCatches: [{date, birds}, ...]` for any planning entries in the next 14 days.
+    - `daysOfFeedLeft` is now a **day-by-day projection** that subtracts upcoming catches from the live flock on the scheduled catch dates before computing each day's feed demand — so after a big pickup the projection automatically lengthens.
+  - **Fix (backend)** — `farm_buddy.py` `ShedSnapshot` gained `birdsOriginalPlaced`, `mortsToDate`, `birdsCaught`, `upcomingCatches`. The prompt builder now feeds the LLM lines like *"18,000 live birds (5,500 already caught of 24,000 placed), upcoming catches: 6,000 on 26/06/2026, 12,000 on 01/07/2026, day 42, silos 15.0t"* so advice scales with the shrinking flock instead of over-ordering.
+  - Verified end-to-end: `POST /api/farm-buddy/recommend` returns a sensible response with the new payload shape; React build clean; page renders with no console errors.
 
 ## Future / Backlog
 - 🟡 P1: Stripe LIVE mode — swap `sk_test_` for user's `sk_live_…` + real Price IDs (next session when user is home).
