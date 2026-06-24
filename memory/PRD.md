@@ -170,6 +170,13 @@
     - `daysOfFeedLeft` is now a **day-by-day projection** that subtracts upcoming catches from the live flock on the scheduled catch dates before computing each day's feed demand — so after a big pickup the projection automatically lengthens.
   - **Fix (backend)** — `farm_buddy.py` `ShedSnapshot` gained `birdsOriginalPlaced`, `mortsToDate`, `birdsCaught`, `upcomingCatches`. The prompt builder now feeds the LLM lines like *"18,000 live birds (5,500 already caught of 24,000 placed), upcoming catches: 6,000 on 26/06/2026, 12,000 on 01/07/2026, day 42, silos 15.0t"* so advice scales with the shrinking flock instead of over-ordering.
   - Verified end-to-end: `POST /api/farm-buddy/recommend` returns a sensible response with the new payload shape; React build clean; page renders with no console errors.
+- **2026-06-24 (Weight-sheet upload now drops BIRDS LEFT column per-day + trims trailing ghost rows)**:
+  - **Root cause #3 — bird-count display wasn't dropping**: each shed sheet's "BIRDS LEFT" column (col 14) is computed by `birdsLeftByRow` = `placement − sum(col 13 entries on or before this row)`. Previous fix wrote catches only to the EOB sheet and the catchMap — but never to the per-day **col 13** on the individual shed tab. So the grower saw the EOB updated and the Summary card pills updated but the spreadsheet's BIRDS LEFT column stayed at the full placement number on every row.
+  - **Fix** — added `onShedSheetCatch(shedNum, dateSerial, birds)` prop on `BatchResultsView`. Called once per catch row during xlsx seeding. The parent finds the matching SHED tab (via `SHED_SHEET_ORDER`), locates the row by date (col B/C), and adds the catch's bird count into col 13 of that row. **Tracked with localStorage key `xlsx-shed-catches-synced-v1`** so re-uploading the same weight sheet never double-counts.
+  - **Trailing "ghost rows" trim**: the shed template auto-fills cols D/G/H/I/J with formulas for the entire 60-day range, so `lastNonEmptyRow` always returned row 72 — the user saw rows past the batch with negative feed alloc and constant 80,000 birds. Added a stricter `lastInputRow` that only counts user-input columns (ORDERED, silo readings, catch/morts). `shedDisplayEndRow` now:
+    - Batch in progress → today + 14 rows
+    - Batch ended (today way past last input) → lastInputRow + 3 rows (kills the ghost rows)
+    - Empty sheet → first 14 rows minimum so a fresh batch doesn't look broken
 
 ## Future / Backlog
 - 🟡 P1: Stripe LIVE mode — swap `sk_test_` for user's `sk_live_…` + real Price IDs (next session when user is home).
