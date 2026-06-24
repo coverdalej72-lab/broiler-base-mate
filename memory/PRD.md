@@ -193,6 +193,12 @@
     4. Added a fallback that synthesises dates from "MON/TUES/WED" labels anchored to the upcoming Monday when no real date cells exist.
     5. Shed-label detection now accepts plain numbers like `1` as well as `1(CB)`, `3 (CB)`, etc.
   - **Verified end-to-end against the user's actual `Double B Weigh Sheet - 2026-06-24` file**: 22 pickup events extracted across 2 weeks (Shed 3 → 7000 birds on 29/06, Shed 12 → 11500 on 29/06, Shed 1 → 13533 on 03/07 ... all the way through Week 2). Python test reproduces the JS logic exactly.
+- **2026-06-24 (Re-upload now AUTO-CORRECTS broken data from prior parser)**:
+  - User asked: "the system already has the weight sheet in it but has not done what it needed before — when uploaded again it needs to auto correct it some how".
+  - **Problem**: previous logic deduped by `xlsx-weigh-plan-synced-v1` fingerprints and `existing + birds` accumulation on shed-sheet col 13. If a prior (broken-parser) upload had left wrong/stale values behind, re-uploading would either skip the entries or ADD on top of the bad data.
+  - **Fix #1 — Planning Catches map**: dropped the localStorage dedupe tracker. Every fresh xlsx parse now **fully replaces** each shed's `weighPlanMap` entries with what the new xlsx says (sheds not in the xlsx keep their existing data). Manual entries live in `catchMap` so they're untouched.
+  - **Fix #2 — Shed-sheet col 13 (CATCH/MORTS)**: dropped the `existing + birds` accumulation. Each catch from a fresh xlsx now **overwrites** the matching `(row, 13)` cell on the shed tab. If the catcher amends a count and the grower re-uploads, the cell shows the new number cleanly — no stale-data leftovers.
+  - End result: any re-upload is now the source of truth. Wipes and rebuilds, no manual cleanup needed.
 
 ## Future / Backlog
 - 🟡 P1: Stripe LIVE mode — swap `sk_test_` for user's `sk_live_…` + real Price IDs (next session when user is home).
