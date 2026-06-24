@@ -184,6 +184,15 @@
   - User asked: "can we make the weight sheet update the plan catches on the date they're going to pick".
   - **Fix**: added a new `useEffect` inside `BatchResultsView` that, on every xlsx parse, mirrors each catch row into `weighPlanMap` (the Planning Catches map). Uses `xlsx-weigh-plan-synced-v1` localStorage set for fingerprint-based idempotency so re-uploads never double up. Skips dates the user has already entered manually (manual entries win).
   - Calls `saveWeighPlanMap` → fires `weighPlanUpdated` custom event → the App-level `weighPlanMap` listener picks it up → `planningCatchMap` (catchMap merged on top of weighPlanMap) refreshes → `farmBuddySheds` recomputes with the new upcoming catches → Farm Buddy's next-7-days projection shrinks the flock on the right dates.
+- **2026-06-24 (Critical fix — parseWeighSheetBuffer was returning 0 rows for Double-B format)**:
+  - **Root cause** of "weight sheet upload not changing any bird numbers across all sheds": the parser at line 2918 only accepted date cells stored as Excel serial numbers (`typeof v === "number" && v > 40000`). The user's actual weight sheet (`Double B Weigh Sheet`) stores dates as **datetime objects**, which xlsx returns as JS `Date` instances → the parser found zero day-columns → returned `[]` → nothing imported, no shed numbers updated.
+  - **Fix**:
+    1. Switched `XLSX.read` to use `cellDates: true` so all date cells normalise to JS `Date`.
+    2. Added a `toDDMMYYYY()` helper that accepts JS Date, Excel-serial number, AND ISO/DD-MM-YYYY strings.
+    3. The parser now finds EVERY MON/TUES-style header row in the file (the Double-B layout has 2 weeks stacked vertically — old parser only found the first one), parses each block until the next header, and merges all pickup events.
+    4. Added a fallback that synthesises dates from "MON/TUES/WED" labels anchored to the upcoming Monday when no real date cells exist.
+    5. Shed-label detection now accepts plain numbers like `1` as well as `1(CB)`, `3 (CB)`, etc.
+  - **Verified end-to-end against the user's actual `Double B Weigh Sheet - 2026-06-24` file**: 22 pickup events extracted across 2 weeks (Shed 3 → 7000 birds on 29/06, Shed 12 → 11500 on 29/06, Shed 1 → 13533 on 03/07 ... all the way through Week 2). Python test reproduces the JS logic exactly.
 
 ## Future / Backlog
 - 🟡 P1: Stripe LIVE mode — swap `sk_test_` for user's `sk_live_…` + real Price IDs (next session when user is home).
