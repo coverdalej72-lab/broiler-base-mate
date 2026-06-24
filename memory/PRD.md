@@ -156,6 +156,12 @@
   - **Fix**: added a **content-fingerprint** dedupe layer. Before writing a delivery, build `${dateCol}|${dateStr}|${docket}|${kgRounded}` for every existing row in the sheet, then skip any incoming delivery whose fingerprint already matches. The localStorage `syncedIds` is still the fast first-pass; the fingerprint check is the safety net that survives any cache reset.
   - **One-time cleanup sweep** on mount (`cleanupDuplicateDeliveries`, gated by `eob-dedupe-cleanup-v1` localStorage flag) — scans every delivery row, clears any row whose `date + docket + kg` already exists in the same feed-type column. Skips rows without a docket number so legit same-day deliveries are never touched. Runs exactly once per browser, posts a banner with the number cleared.
   - Existing customers will see their doubled rows tidy up automatically the next time they open the EOB tab; new sync writes will never double again.
+- **2026-06-24 (Weight-sheet upload: morts + caught now flow to shed cards & EOB)**:
+  - **Root cause**: `loadBatchResultsXlsx()` already parsed `morts` and `catches` per shed, but only `catches` were pushed to the EOB sheet via `onEobCatch`. The `morts` value was dropped on the floor, and neither value appeared on the Summary tab's per-shed cards. So growers uploading a weight sheet saw the global Bird-Summary row update on EOB but the individual shed cards (where they plan feed) stayed stale.
+  - **Fix #1** — added `onEobMorts(shedNum, morts)` prop to `BatchResultsView`. Called in the same xlsx-seed `useEffect` that already seeds catchMap, so every weight-sheet upload now writes morts into EOB cell `(shedRow, 24)` as well as catches into `(shedRow, 23)`.
+  - **Fix #2** — added a new `ShedLiveCountsRow` strip under each shed's bird-count + breed row on the Summary tab. Renders red `−234 morts` and green `✓ 12,345 caught` pills the moment data is available. Hidden when both are zero. `data-testid="shed-morts"` and `shed-caught` for QA.
+  - **Fix #3** — passed the App-level `catchMap` state through `SummaryView` → `ShedSummaryCard` so the caught counts update live as the user pastes a Baiada/Adelaide Weighbridge email, uploads a new weight-sheet xlsx, or edits the Catches tab manually.
+  - Build clean, smoke-screenshotted. With no batch loaded the pills stay hidden (correct behaviour); once the user uploads their weight sheet they'll appear instantly per shed.
 
 ## Future / Backlog
 - 🟡 P1: Stripe LIVE mode — swap `sk_test_` for user's `sk_live_…` + real Price IDs (next session when user is home).
