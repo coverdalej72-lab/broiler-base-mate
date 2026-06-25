@@ -1201,7 +1201,7 @@ async def create_checkout(body: CheckoutRequest):
         amount = sum(tier_prices.get((f.tier or "bronze").lower(), 50.0) for f in body.farms)
 
     req = CheckoutSessionRequest(
-        amount=amount, currency="usd",
+        amount=amount, currency="aud",
         success_url=success_url, cancel_url=cancel_url, metadata=meta,
     )
     session = await checkout.create_checkout_session(req)
@@ -1211,7 +1211,7 @@ async def create_checkout(body: CheckoutRequest):
         "session_id": session.session_id,
         "package_id": body.packageId,
         "amount": amount,
-        "currency": "usd",
+        "currency": "aud",
         "kind": pkg["kind"],
         "email": body.email,
         "buyerName": body.buyerName,
@@ -1376,7 +1376,7 @@ async def _provision_purchase(session_id: str) -> Optional[dict]:
                     f"<p>New paid checkout:<br>"
                     f"<b>Buyer:</b> {buyer_name} &lt;{buyer_email}&gt;<br>"
                     f"<b>Package:</b> {cur.get('package_id')} ({cur.get('kind')})<br>"
-                    f"<b>Amount:</b> ${cur.get('amount')} {cur.get('currency','usd').upper()}<br>"
+                    f"<b>Amount:</b> ${cur.get('amount')} {cur.get('currency','aud').upper()}<br>"
                     f"<b>Farms created:</b> {', '.join(fc['slug'] for fc in created_farms) or 'none'}<br>"
                     f"<b>Session:</b> {session_id}</p>"
                 ),
