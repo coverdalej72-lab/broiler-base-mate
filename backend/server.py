@@ -360,6 +360,56 @@ async def seed_if_empty() -> None:
 @app.on_event("startup")
 async def _startup():
     await seed_if_empty()
+    await _ensure_indexes()
+
+
+async def _ensure_indexes():
+    """Create indexes on hot collections so queries stay fast as data grows.
+
+    Mongo's createIndex is idempotent: safe to call on every startup. Most
+    queries here filter by `farmId` + a date/sort field, so we index those
+    pairs. Single-field indexes are added where the collection is also queried
+    standalone (e.g. id lookups, hash dedupe).
+    """
+    try:
+        # readings: every /api/readings/today scan & /api/farm-buddy aggregations
+        await readings_col.create_index([("farmId", 1), ("readingDate", -1)])
+        await readings_col.create_index([("farmId", 1), ("siloId", 1), ("readingDate", -1)])
+        await readings_col.create_index([("hash", 1)])
+        await readings_col.create_index([("id", 1)], unique=True, sparse=True)
+
+        # deliveries: dashboard + reader history + dedupe
+        await deliveries_col.create_index([("farmId", 1), ("deliveryDate", -1)])
+        await deliveries_col.create_index([("hash", 1)])
+        await deliveries_col.create_index([("id", 1)], unique=True, sparse=True)
+
+        # silos & shed_groups: small but read on every endpoint
+        await silos_col.create_index([("farmId", 1), ("letter", 1)])
+        await silos_col.create_index([("id", 1)], unique=True, sparse=True)
+        await shed_groups_col.create_index([("farmId", 1), ("displayOrder", 1)])
+        await shed_groups_col.create_index([("id", 1)], unique=True, sparse=True)
+
+        # feed_program_state — keyed by farmId in PUT/GET
+        await feed_program_state_col.create_index([("farmId", 1)], unique=True)
+
+        # farms — looked up by slug & ownerEmail (auth flow)
+        await farms_col.create_index([("slug", 1)], unique=True)
+        await farms_col.create_index([("ownerEmail", 1)])
+
+        # farm_config — keyed by id (which is farmId)
+        await farm_config_col.create_index([("id", 1)], unique=True)
+
+        # photos — bulk listings by farm
+        await photos_col.create_index([("farmId", 1), ("createdAt", -1)])
+
+        # chat_messages (Farm Buddy / owner-admin chat) — per-farm timeline
+        await db["chat_messages"].create_index([("farm_id", 1), ("created_at", -1)])
+
+        # payments — Stripe webhook lookups
+        await payments_col.create_index([("session_id", 1)], unique=True, sparse=True)
+    except Exception as e:  # pragma: no cover — never block startup on index errors
+        import logging
+        logging.getLogger("server").warning(f"Index creation skipped: {e}")
 
 
 # ─── Router ────────────────────────────────────────────────────────────────
@@ -506,7 +556,7 @@ async def readings_today(localDate: Optional[str] = Query(default=None), farm: s
             silo_statuses.append({
                 "siloId": s["id"],
                 "letter": s.get("letter", ""),
-                "name": s["name"],
+                "name": s.get("name", s.get("letter", "Silo")),
                 "saved": reading is not None,
                 "readingId": reading["id"] if reading else None,
                 "amountRemaining": float(reading["amountRemaining"]) if reading else None,

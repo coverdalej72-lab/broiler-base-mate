@@ -199,6 +199,17 @@
   - **Fix #1 — Planning Catches map**: dropped the localStorage dedupe tracker. Every fresh xlsx parse now **fully replaces** each shed's `weighPlanMap` entries with what the new xlsx says (sheds not in the xlsx keep their existing data). Manual entries live in `catchMap` so they're untouched.
   - **Fix #2 — Shed-sheet col 13 (CATCH/MORTS)**: dropped the `existing + birds` accumulation. Each catch from a fresh xlsx now **overwrites** the matching `(row, 13)` cell on the shed tab. If the catcher amends a count and the grower re-uploads, the cell shows the new number cleanly — no stale-data leftovers.
   - End result: any re-upload is now the source of truth. Wipes and rebuilds, no manual cleanup needed.
+- **2026-06-25 (System health sweep — backend stability + DB indexes + unified branding)**:
+  - User asked: "can you check the whole system find fixes how to make better" + "app needs a matching logo on it" + "all same logo program and app and user wants there own logo same deal do what needs to be done".
+  - **Backend fix #1 — `KeyError: 'name'` in `/api/readings/today`**: silos created without a `name` field were crashing the endpoint with `KeyError: 'name'` at `server.py:509`. Changed to `s.get("name", s.get("letter", "Silo"))` so legacy/letter-only silos render cleanly.
+  - **Backend fix #2 — `RuntimeError: Response content longer than Content-Length`**: the rate-limiter was a `BaseHTTPMiddleware` (`@app.middleware("http")`) which wraps every response in a Starlette TaskGroup and breaks FastAPI's auto-Content-Length on streaming/file responses. Rewrote it as a pure ASGI middleware (`_RateLimitASGI` in `hardening.py`) that only intercepts when the path is in `RATE_LIMITS` — every other request passes straight through unwrapped. Zero Content-Length errors after restart.
+  - **Backend fix #3 — Mongo indexes on hot collections**: added a startup hook `_ensure_indexes()` in `server.py` that creates compound indexes on `readings (farmId, readingDate desc)`, `deliveries (farmId, deliveryDate desc)`, `silos`, `shed_groups`, `feed_program_state (farmId unique)`, `farms (slug unique, ownerEmail)`, `farm_config (id unique)`, `photos (farmId, createdAt desc)`, `chat_messages (farm_id, created_at desc)`, `payments (session_id unique)`. Verified all 9 collections now have the new indexes.
+  - **Branding fix — unified logo across Reader, Feed Program, Landing**:
+    - Synced `icon-192.png`, `icon-512.png`, `apple-touch-icon.png`, `logo.png`, `logo-small.png` between `/app/backend/static/` (Reader) and `/app/silo/artifacts/feed-program/public/` + `dist/public/` (Feed Program). All MD5s now match.
+    - Updated `theme-color` to `#0f3d24` (brand green) in `reader.html`, `silo/artifacts/feed-program/index.html` + `dist/public/index.html`, `backend/static/manifest.json`, and `silo/.../public/manifest.json`.
+    - Repointed the Reader's top "status-bar" strip from orange → brand green so the page chrome matches the silo+rooster logo.
+    - Custom logo data flow (already in place): user uploads via Reader Settings → stored in `farm_config.logoData` (base64) → Feed Program's `App.tsx` polls `/api/farm-config` and renders `customLogo` in the SPA header. So a user's uploaded logo now appears in BOTH the Reader and the Feed Program automatically.
+  - **Verified**: `curl /api/readings/today`, `curl /api/farm-buddy/alerts`, `curl /api/error-report` × 5 (rate-limited) all return 200. Backend logs are clean — 0 KeyError / 0 Content-Length errors after the fix.
 
 ## Future / Backlog
 - 🟡 P1: Stripe LIVE mode — swap `sk_test_` for user's `sk_live_…` + real Price IDs (next session when user is home).
@@ -209,5 +220,8 @@
 - P2: Feed Program UI farm-picker (currently always uses `default`; can be added once Ops have farms).
 - P2: PDF / CSV export of full history.
 - P2: Search / filter in History (by supplier, date range, feed type, docket #).
+- P3: Custom-domain email via Resend (DNS for `broilerbasemate.com.au`).
+- P3: Refactor monolithic `server.py` (>1800 lines) and `App.tsx` (>10000 lines).
+- P3: Multi-worker Uvicorn + CDN for 10k+ user scale.
 - P3: Google Drive / OneDrive cloud sync (needs user OAuth tokens).
 - P3: Restore companion Silo Tracker PWA (needs Clerk publishable key).

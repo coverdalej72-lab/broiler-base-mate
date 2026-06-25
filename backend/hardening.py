@@ -283,13 +283,30 @@ class FrontendError(BaseModel):
 def init_hardening(app: FastAPI, db, _require_admin) -> None:
     """Mount all hardening pieces into the FastAPI app."""
 
-    # 0) Rate limit middleware — protect hot endpoints from runaway floods
-    @app.middleware("http")
-    async def _rate_limit_mw(request: Request, call_next):
-        limited = check_rate_limit(request)
-        if limited is not None:
-            return limited
-        return await call_next(request)
+    # 0) Rate limit middleware — protect hot endpoints from runaway floods.
+    #
+    # IMPORTANT: We use a *pure ASGI* middleware (not BaseHTTPMiddleware /
+    # @app.middleware("http")) because BaseHTTPMiddleware wraps the response in
+    # an anyio TaskGroup that breaks FastAPI's automatic Content-Length on
+    # streaming/file responses, surfacing as:
+    #   RuntimeError: Response content longer than Content-Length
+    # The ASGI form below only intercepts requests whose path is rate-limited;
+    # everything else passes straight through to the next app with no wrapping.
+    class _RateLimitASGI:
+        def __init__(self, inner): self.inner = inner
+        async def __call__(self, scope, receive, send):
+            if scope["type"] == "http":
+                path = scope.get("path", "")
+                if path in RATE_LIMITS:
+                    # Build a lightweight Request just to read headers/client IP.
+                    req = Request(scope, receive=receive)
+                    limited = check_rate_limit(req)
+                    if limited is not None:
+                        await limited(scope, receive, send)
+                        return
+            await self.inner(scope, receive, send)
+
+    app.add_middleware(_RateLimitASGI)
 
     # 1) Global exception handler — clean JSON 500 + log
     @app.exception_handler(Exception)

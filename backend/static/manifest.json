@@ -6,8 +6,8 @@
   "scope": "/",
   "display": "standalone",
   "orientation": "portrait",
-  "background_color": "#f7faf6",
-  "theme_color": "#1a5c36",
+  "background_color": "#0f3d24",
+  "theme_color": "#0f3d24",
   "icons": [
     {
       "src": "/reader-assets/icon-192.png",
