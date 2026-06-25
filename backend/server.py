@@ -1168,6 +1168,7 @@ class CheckoutRequest(BaseModel):
     email: Optional[str] = None
     farms: Optional[List[CheckoutFarmConfig]] = None  # for ops_* bundles
     buyerName: Optional[str] = None
+    ref: Optional[str] = None  # referral code (farm slug) of the grower who referred this buyer
 
 
 @app.post("/api/checkout")
@@ -1193,6 +1194,7 @@ async def create_checkout(body: CheckoutRequest):
 
     meta = {"package_id": body.packageId, "kind": pkg["kind"], "label": pkg["label"]}
     if body.email: meta["email"] = body.email
+    if body.ref: meta["ref"] = body.ref.strip().lower()
 
     # Calculate dynamic amount for ops_bundle if farms list is provided
     amount = float(pkg["amount"])
@@ -1215,6 +1217,7 @@ async def create_checkout(body: CheckoutRequest):
         "kind": pkg["kind"],
         "email": body.email,
         "buyerName": body.buyerName,
+        "ref": (body.ref.strip().lower() if body.ref else None),
         "farms": [f.model_dump() for f in body.farms] if body.farms else None,
         "provisioned": False,
         "payment_status": "initiated",
@@ -1222,6 +1225,38 @@ async def create_checkout(body: CheckoutRequest):
         "createdAt": datetime.now(timezone.utc),
     })
     return {"url": session.url, "session_id": session.session_id}
+
+
+# ──────────── Referral stats ──────────────────────────────────────────────
+# Each successful paid checkout that carries metadata.ref == <farm-slug>
+# credits that farm A$10 (one-month sponsor_10 equivalent). The Reader's
+# Settings tile shows the count + total credit + the shareable referral link.
+
+REFERRAL_CREDIT_AUD = 10.0  # A$ per successful referral
+
+@app.get("/api/referrals/stats")
+async def referral_stats(farm: str = "default"):
+    code = farm.strip().lower()
+    # Count paid transactions whose stored `ref` matches this farm's code.
+    cur = payments_col.find({
+        "ref": code,
+        "payment_status": {"$in": ["paid", "complete"]},
+    }, {"_id": 0, "email": 1, "createdAt": 1, "amount": 1, "package_id": 1})
+    signups = []
+    async for d in cur:
+        signups.append({
+            "email": d.get("email") or "—",
+            "package": d.get("package_id"),
+            "createdAt": (d.get("createdAt").isoformat() if d.get("createdAt") else None),
+        })
+    count = len(signups)
+    return {
+        "referralCode": code,
+        "signupCount": count,
+        "creditAud": round(count * REFERRAL_CREDIT_AUD, 2),
+        "signups": signups[-10:],  # last 10 only, keep payload tiny
+        "shareUrl": f"https://broilerbasemate.com.au?ref={code}",
+    }
 
 
 @app.get("/api/checkout/status/{session_id}")

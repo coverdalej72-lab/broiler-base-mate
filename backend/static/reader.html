@@ -445,6 +445,27 @@
       </div>
       <div id="shed-toggles"></div>
 
+      <!-- Referrals tile -->
+      <div class="section-label" style="margin-top: 28px;">REFER A GROWER · EARN A$10/MONTH CREDIT</div>
+      <div class="set-row" id="referral-tile" style="flex-direction:column;align-items:stretch;gap:12px;background:linear-gradient(135deg,rgba(15,61,36,0.06),rgba(201,162,39,0.08));border:1px solid rgba(201,162,39,0.4);">
+        <div style="display:flex;gap:14px;align-items:center;flex-wrap:wrap;">
+          <div style="flex:1;min-width:140px;">
+            <div style="font-size:28px;font-weight:900;color:var(--green-700,#0f3d24);line-height:1;" id="ref-count">0</div>
+            <div class="desc" style="margin-top:2px;">mates joined</div>
+          </div>
+          <div style="flex:1;min-width:140px;text-align:right;">
+            <div style="font-size:28px;font-weight:900;color:#C9A227;line-height:1;" id="ref-credit">A$0</div>
+            <div class="desc" style="margin-top:2px;">credit on next invoice</div>
+          </div>
+        </div>
+        <div class="desc" id="ref-blurb" style="line-height:1.45;">Share your farm's link. Every grower who joins gets a 30-day free trial — you get A$10/mo credit for the life of their subscription.</div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;">
+          <button class="pill green" id="ref-share-btn" data-testid="reader-share-btn" style="flex:1;border:1px solid var(--green-600);min-width:120px;">📤 Share with a mate</button>
+          <button class="pill" id="ref-copy-btn" data-testid="reader-copy-ref-btn" style="flex:1;border:1px solid var(--line);min-width:120px;">🔗 Copy link</button>
+        </div>
+        <div class="desc" id="ref-link" style="text-align:center;padding:8px;background:rgba(0,0,0,0.03);border-radius:6px;font-family:'SF Mono',Menlo,monospace;font-size:11px;word-break:break-all;">broilerbasemate.com.au</div>
+      </div>
+
       <div class="section-label" style="margin-top: 28px;">DANGER ZONE</div>
       <div class="set-row" style="border-color: var(--danger);">
         <div>
@@ -972,7 +993,43 @@
         await fetch("/api/farm-config",{method:"PATCH",headers:{"Content-Type":"application/json"},body:JSON.stringify({enabledGroupIds:farmConfig.enabledGroupIds})});
         renderSettings(); loadAll();
       }));
+      loadReferralStats();
     }
+
+    // ── Referral tile
+    let refShareUrl = "https://broilerbasemate.com.au";
+    async function loadReferralStats(){
+      try {
+        const farm = (farmConfig.id || "default");
+        const r = await fetch("/api/referrals/stats?farm=" + encodeURIComponent(farm));
+        const d = await r.json();
+        $("#ref-count").textContent  = d.signupCount || 0;
+        $("#ref-credit").textContent = "A$" + (d.creditAud || 0);
+        $("#ref-link").textContent   = (d.shareUrl || "").replace(/^https?:\/\//, "");
+        refShareUrl = d.shareUrl || refShareUrl;
+        if (d.signupCount > 0) {
+          $("#ref-blurb").innerHTML =
+            `🎉 <b>${d.signupCount}</b> grower${d.signupCount===1?"":"s"} joined through you — A$${d.creditAud}/mo lands on your next invoice. Keep sharing!`;
+        }
+      } catch(_) {/* offline / first load — keep defaults */}
+    }
+    function refShareMessage(){
+      return "Hey — you should check out Broiler Base Mate. It replaced my paper feed sheets and runs live on my phone. Reads silos, scans dockets with AI, tracks the whole batch. Give it a go: " + refShareUrl;
+    }
+    $("#ref-share-btn").addEventListener("click", async () => {
+      const msg = refShareMessage();
+      if (navigator.share) {
+        try { await navigator.share({ title: "Broiler Base Mate", text: msg, url: refShareUrl }); return; } catch(_){}
+      }
+      // Fallback: SMS deep link (works on every phone)
+      window.location.href = "sms:?&body=" + encodeURIComponent(msg);
+    });
+    $("#ref-copy-btn").addEventListener("click", async () => {
+      try {
+        await navigator.clipboard.writeText(refShareMessage());
+        toast("✓ Message copied — paste anywhere","ok");
+      } catch(_) { toast("Long-press the link to copy","warn"); }
+    });
     $("#set-farm-name").addEventListener("change", async()=>{ farmConfig.farmName=$("#set-farm-name").value; await fetch("/api/farm-config",{method:"PATCH",headers:{"Content-Type":"application/json"},body:JSON.stringify({farmName:farmConfig.farmName})}); $("#farm-name").textContent=farmConfig.farmName; toast("✓ Saved","ok"); });
     $("#set-total-sheds").addEventListener("change", async()=>{ farmConfig.totalSheds=parseInt($("#set-total-sheds").value)||20; await fetch("/api/farm-config",{method:"PATCH",headers:{"Content-Type":"application/json"},body:JSON.stringify({totalSheds:farmConfig.totalSheds})}); toast("✓ Saved","ok"); });
     $("#new-batch-btn").addEventListener("click",async()=>{
