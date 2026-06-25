@@ -1827,6 +1827,7 @@ async def api_page(page_name: str):
         "ops-outreach": "ops-outreach.html",
         "admin": "admin-health.html",
         "admin/health": "admin-health.html",
+        "onboarding-guide": "onboarding-guide.html",
     }
     if page_name not in allowed:
         raise HTTPException(404, "Page not found")
@@ -1839,6 +1840,14 @@ async def api_page(page_name: str):
     html = html.replace("/reader-assets/", "/api/static-asset/")
     return Response(content=html, media_type="text/html; charset=utf-8",
                     headers={"Cache-Control": "no-store"})
+
+
+@app.get("/onboarding-guide")
+@app.get("/onboarding-guide/")
+async def onboarding_guide_page():
+    """Customer onboarding guide — install instructions for iPhone/Android/desktop,
+    first-batch walkthrough, Farm Buddy tips. Printable as PDF via the in-page button."""
+    return FileResponse(os.path.join(STATIC_DIR, "onboarding-guide.html"))
 
 
 @app.get("/reader")
