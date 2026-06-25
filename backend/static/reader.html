@@ -1152,7 +1152,25 @@
           if (!r.ok) return;
           const d = await r.json();
           const alerts = Array.isArray(d.alerts) ? d.alerts : [];
-          if (!alerts.length) { fb.style.display = "none"; fb.innerHTML = ""; return; }
+          const sync = d.syncHealth || {};
+          // Green "all clear" pulse — show a healthy sync confirmation when no
+          // alerts are firing but readings ARE flowing through. This is the
+          // opposite of the silent-failure mode that bit us before.
+          if (!alerts.length) {
+            if (sync.readingsLast6h > 0) {
+              fb.style.display = "block";
+              fb.style.color = "#1a5c36";
+              fb.style.background = "linear-gradient(180deg,#e8f5ec,#d4ebdd)";
+              fb.style.borderBottomColor = "#1a5c36";
+              fb.innerHTML = `
+                <div style="font-size:11px;font-weight:800;letter-spacing:0.5px;opacity:0.7;margin-bottom:4px;text-transform:uppercase;">🤖 Farm Buddy</div>
+                <div data-testid="fb-healthy" style="margin:3px 0;">✅ All sheds healthy · ${sync.readingsLast6h} reading${sync.readingsLast6h === 1 ? "" : "s"} synced in the last 6 h</div>
+              `;
+            } else {
+              fb.style.display = "none"; fb.innerHTML = "";
+            }
+            return;
+          }
           fb.style.display = "block";
           const critical = alerts.filter(a => a.level === "critical");
           const tone = critical.length ? "#a83e00" : "#7c4a00";
@@ -1163,9 +1181,13 @@
           fb.style.color = tone;
           fb.style.background = bg;
           fb.style.borderBottomColor = border;
+          const pulse = sync.readingsLast6h > 0
+            ? `<div style="font-size:11px;opacity:0.65;margin-top:6px;border-top:1px dashed rgba(0,0,0,0.15);padding-top:5px;">✓ ${sync.readingsLast6h} reading${sync.readingsLast6h === 1 ? "" : "s"} synced in last 6 h</div>`
+            : "";
           fb.innerHTML = `
             <div style="font-size:11px;font-weight:800;letter-spacing:0.5px;opacity:0.7;margin-bottom:4px;text-transform:uppercase;">🤖 Farm Buddy says</div>
             ${alerts.map(a => `<div data-testid="fb-alert" style="margin:3px 0;">${escapeHtml(a.message)}</div>`).join("")}
+            ${pulse}
           `;
         } catch {}
       }

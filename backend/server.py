@@ -591,6 +591,7 @@ async def farm_buddy_alerts(farm: str = Query(default=DEFAULT_FARM_ID)):
     silos = await silos_col.find(_farm_filter(farm)).sort("letter", 1).to_list(length=1000)
     # Latest reading per silo (most recent saved value, regardless of date)
     latest_by_silo: dict[str, float] = {}
+    latest_date_by_silo: dict[str, datetime] = {}
     pipeline = [
         {"$match": _farm_filter(farm)},
         {"$sort": {"readingDate": -1}},
@@ -607,8 +608,16 @@ async def farm_buddy_alerts(farm: str = Query(default=DEFAULT_FARM_ID)):
         if (doc.get("unit") or "").lower() == "kg":
             amt = amt / 1000.0
         latest_by_silo[doc["_id"]] = amt
+        rd = doc.get("readingDate")
+        if rd is not None:
+            if rd.tzinfo is None:
+                rd = rd.replace(tzinfo=timezone.utc)
+            latest_date_by_silo[doc["_id"]] = rd
 
     alerts: list[dict] = []
+    now = datetime.now(timezone.utc)
+    today_start, today_end = aest_today_range()
+
     for g in groups:
         group_silos = [s for s in silos if s.get("shedGroupId") == g["id"]]
         if not group_silos:
@@ -633,10 +642,89 @@ async def farm_buddy_alerts(farm: str = Query(default=DEFAULT_FARM_ID)):
             "message": msg,
         })
 
-    # Sort critical first, then watch
-    alerts.sort(key=lambda a: (0 if a["level"] == "critical" else 1, a["totalT"]))
+    # ─── Watchdog checks — catch silent sync failures Farm Buddy-style ──────
+    # The user's last batch had a sync-loss bug where readings were saved on
+    # the phone but never propagated to the Feed Program. Surface that
+    # actively so it can't happen again without a visible alert.
+
+    # 1) Stale silo readings — last save older than 26h (AEST overnight cycle
+    #    is ~22h, so >26h = something is wrong).
+    stale_cutoff = now - timedelta(hours=26)
+    stale_groups: list[tuple[str, datetime]] = []
+    for g in groups:
+        group_silos = [s for s in silos if s.get("shedGroupId") == g["id"]]
+        if not group_silos:
+            continue
+        # Pick the freshest reading across all silos in this group
+        dates = [latest_date_by_silo[s["id"]] for s in group_silos if s["id"] in latest_date_by_silo]
+        if not dates:
+            continue  # never had a reading — not "stale", just unseeded
+        freshest = max(dates)
+        if freshest < stale_cutoff:
+            stale_groups.append((g["name"], freshest))
+            hours_ago = int((now - freshest).total_seconds() // 3600)
+            alerts.append({
+                "shedGroupId": g["id"],
+                "shedGroupName": g["name"],
+                "totalT": None,
+                "level": "watch",
+                "message": f"⏱️ {g['name']} hasn't been read in {hours_ago} h — last reading {freshest.strftime('%a %d %b %H:%M')} AEST. Send the catcher round?",
+                "category": "stale_reading",
+            })
+
+    # 2) Missing today after 4pm AEST — sheds with no reading saved today
+    #    when the workday is essentially over.
+    aest_now_hour = (now + AEST_OFFSET).hour
+    if aest_now_hour >= 16:  # 4pm AEST or later
+        for g in groups:
+            group_silos = [s for s in silos if s.get("shedGroupId") == g["id"]]
+            if not group_silos:
+                continue
+            # Did any silo in this group get a reading today?
+            saved_today = any(
+                latest_date_by_silo.get(s["id"]) and today_start <= latest_date_by_silo[s["id"]] <= today_end
+                for s in group_silos
+            )
+            if saved_today:
+                continue
+            # Has this group EVER been read? (skip never-seeded sheds)
+            if not any(s["id"] in latest_date_by_silo for s in group_silos):
+                continue
+            # Don't double-flag if already stale-flagged above
+            if any(name == g["name"] for name, _ in stale_groups):
+                continue
+            alerts.append({
+                "shedGroupId": g["id"],
+                "shedGroupName": g["name"],
+                "totalT": None,
+                "level": "watch",
+                "message": f"📭 No reading saved for {g['name']} today — workday nearly done.",
+                "category": "missing_today",
+            })
+
+    # 3) Sync health pulse — count readings saved in the last 6 hours so the
+    #    Reader's banner can show "✓ N readings in last 6h" as positive
+    #    confirmation that the pipe is healthy.
+    six_h_ago = now - timedelta(hours=6)
+    recent_count = await readings_col.count_documents(_and(
+        _farm_filter(farm),
+        {"readingDate": {"$gte": six_h_ago}},
+    ))
+
+    # Sort critical first, then watch, then the rest
+    LEVEL_ORDER = {"critical": 0, "watch": 1, "info": 2}
+    alerts.sort(key=lambda a: (LEVEL_ORDER.get(a["level"], 9), a.get("totalT") or 999))
     risk = "critical" if any(a["level"] == "critical" for a in alerts) else ("watch" if alerts else "ok")
-    return {"riskLevel": risk, "alerts": alerts, "checkedAt": datetime.now(timezone.utc).isoformat()}
+    return {
+        "riskLevel": risk,
+        "alerts": alerts,
+        "syncHealth": {
+            "readingsLast6h": recent_count,
+            "staleGroups": len(stale_groups),
+            "missingTodayGroups": sum(1 for a in alerts if a.get("category") == "missing_today"),
+        },
+        "checkedAt": now.isoformat(),
+    }
 
 
 @api.post("/readings/batch", status_code=201)
