@@ -91,6 +91,32 @@
   }
   .callout b { color: #7a5a00; }
 
+  /* Share buttons */
+  .share-row { display: flex; gap: 10px; flex-wrap: wrap; margin: 14px 0 6px; }
+  .share-btn {
+    flex: 1 1 calc(50% - 10px); min-width: 140px;
+    display: flex; align-items: center; gap: 10px; justify-content: center;
+    padding: 14px 16px; border-radius: 12px; border: 1px solid var(--line);
+    background: #fff; cursor: pointer; font-weight: 700; font-size: 14px;
+    color: var(--ink); transition: transform 0.12s ease, box-shadow 0.12s ease;
+  }
+  .share-btn:hover { transform: translateY(-2px); box-shadow: 0 6px 18px rgba(15,61,36,0.12); }
+  .share-btn .ico { font-size: 18px; }
+  .share-sms   { background: #25D366; color: #fff; border-color: #1ea752; }
+  .share-wa    { background: #128C7E; color: #fff; border-color: #0d6e63; }
+  .share-email { background: #1a73e8; color: #fff; border-color: #1257b8; }
+  .share-copy  { background: var(--gold); color: #1a1a1a; border-color: #b5901f; }
+  .share-btn:hover .ico { transform: scale(1.08); }
+  .toast {
+    position: fixed; left: 50%; bottom: 80px; transform: translateX(-50%);
+    background: var(--green); color: #fff; padding: 12px 22px;
+    border-radius: 999px; font-weight: 700; font-size: 14px;
+    box-shadow: 0 12px 32px rgba(15,61,36,0.4);
+    opacity: 0; pointer-events: none; transition: opacity 0.25s ease, bottom 0.25s ease;
+    z-index: 9999;
+  }
+  .toast.show { opacity: 1; bottom: 100px; }
+
   /* Footer */
   footer { margin-top: 48px; text-align: center; color: var(--muted); font-size: 12px; line-height: 1.7; }
   footer b { color: var(--green); }
@@ -105,6 +131,7 @@
     .tab-panel { display: block !important; border: 1px solid var(--line) !important; border-radius: 12px !important; margin-bottom: 18px; page-break-inside: avoid; }
     .tab-panel::before { content: attr(data-title); display: block; font-weight: 800; color: var(--green); font-size: 16px; margin-bottom: 10px; }
     .print-btn { display: none; }
+    .share-row, .toast { display: none !important; }
     h2, h3, .card, ol.steps li { page-break-inside: avoid; }
   }
   .print-btn {
@@ -228,6 +255,29 @@
     Include a screenshot if you can — fastest fix.
   </div>
 
+  <!-- Share with another grower -->
+  <h2>Know another grower who'd want this?</h2>
+  <p>Broiler Base Mate spreads farm-to-farm — every grower you refer gets a 30-day free trial, and your account gets a credit too. Just send them a quick text.</p>
+  <div class="share-row">
+    <button class="share-btn share-sms" data-testid="share-sms-btn" onclick="shareVia('sms')">
+      <span class="ico">💬</span>
+      <span>Text a mate</span>
+    </button>
+    <button class="share-btn share-wa" data-testid="share-whatsapp-btn" onclick="shareVia('whatsapp')">
+      <span class="ico">📱</span>
+      <span>WhatsApp</span>
+    </button>
+    <button class="share-btn share-email" data-testid="share-email-btn" onclick="shareVia('email')">
+      <span class="ico">✉️</span>
+      <span>Email</span>
+    </button>
+    <button class="share-btn share-copy" data-testid="share-copy-btn" onclick="shareVia('copy')">
+      <span class="ico">🔗</span>
+      <span id="copy-label">Copy link</span>
+    </button>
+  </div>
+  <p class="muted" style="margin-top:8px;">Share link: <span class="inline-code" id="share-url">broilerbasemate.com.au</span></p>
+
   <!-- Footer -->
   <footer>
     <p>
@@ -244,6 +294,7 @@
 </div>
 
 <button class="print-btn" onclick="window.print()" data-testid="print-pdf-btn">📄 Save as PDF</button>
+<div class="toast" id="toast">Link copied to clipboard</div>
 
 <script>
   // Tab switcher
@@ -254,6 +305,49 @@
       document.querySelectorAll(".tab-panel").forEach(p => p.classList.toggle("active", p.dataset.tab === t));
     });
   });
+
+  // Share with another grower — pulls ?ref= or stored referral code if present
+  const params = new URLSearchParams(location.search);
+  const refCode = params.get("ref") || localStorage.getItem("bbm_ref_code") || "";
+  if (refCode) localStorage.setItem("bbm_ref_code", refCode);
+
+  const baseUrl = "https://broilerbasemate.com.au" + (refCode ? "?ref=" + encodeURIComponent(refCode) : "");
+  const shareUrlEl = document.getElementById("share-url");
+  if (shareUrlEl) shareUrlEl.textContent = baseUrl.replace(/^https?:\/\//, "");
+
+  const SHARE_MSG = "Hey — you should check out Broiler Base Mate. It replaced my paper feed sheets and runs live on my phone. Reads silos, scans dockets with AI, and tracks the whole batch. Give it a go: " + baseUrl;
+
+  function showToast(msg) {
+    const t = document.getElementById("toast");
+    t.textContent = msg;
+    t.classList.add("show");
+    setTimeout(() => t.classList.remove("show"), 2200);
+  }
+
+  function shareVia(kind) {
+    const enc = encodeURIComponent(SHARE_MSG);
+    const subj = encodeURIComponent("You'll want to see this — Broiler Base Mate");
+
+    // Prefer native share sheet on mobile (better UX, brings up all contacts/apps)
+    if (kind === "sms" && navigator.share && /Android|iPhone/i.test(navigator.userAgent)) {
+      navigator.share({ title: "Broiler Base Mate", text: SHARE_MSG, url: baseUrl }).catch(() => {});
+      return;
+    }
+
+    let url;
+    if (kind === "sms")      url = "sms:?&body=" + enc;
+    else if (kind === "whatsapp") url = "https://wa.me/?text=" + enc;
+    else if (kind === "email")    url = "mailto:?subject=" + subj + "&body=" + enc;
+    else if (kind === "copy") {
+      navigator.clipboard.writeText(SHARE_MSG).then(() => {
+        const label = document.getElementById("copy-label");
+        if (label) { label.textContent = "Copied!"; setTimeout(() => label.textContent = "Copy link", 1800); }
+        showToast("Message copied — paste it anywhere");
+      }).catch(() => showToast("Could not copy — long-press to copy the link above"));
+      return;
+    }
+    window.location.href = url;
+  }
 </script>
 </body>
 </html>
