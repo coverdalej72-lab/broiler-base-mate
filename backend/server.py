@@ -1217,31 +1217,33 @@ app.include_router(api)
 # ─── Stripe Checkout ─────────────────────────────────────────────────────
 # Server-side fixed packages — frontend must NEVER send amounts.
 PACKAGES = {
+    # 🚀 LAUNCH SPECIAL — all prices halved to drive sign-ups. Original RRP
+    # shown in comments so they can be restored later by doubling the amount.
     # Subscription plans (charged as one-off first-month for v1; user upgrades to recurring in Stripe dashboard)
-    "bronze_monthly":      {"label": "Bronze",   "amount": 50.0,   "kind": "subscription"},
-    "silver_monthly":      {"label": "Silver",   "amount": 75.0,   "kind": "subscription"},
-    "gold_monthly":        {"label": "Gold",     "amount": 100.0,  "kind": "subscription"},
-    "platinum_monthly":    {"label": "Platinum", "amount": 150.0,  "kind": "subscription"},
-    "ops_bronze":          {"label": "Ops Pack (Bronze farms)",   "amount": 50.0,  "kind": "subscription"},
-    "ops_silver":          {"label": "Ops Pack (Silver farms)",   "amount": 75.0,  "kind": "subscription"},
-    "ops_gold":            {"label": "Ops Pack (Gold farms)",     "amount": 100.0, "kind": "subscription"},
-    "ops_platinum":        {"label": "Ops Pack (Platinum farms)", "amount": 150.0, "kind": "subscription"},
-    # Annual variants (~15% off)
-    "bronze_annual":       {"label": "Bronze Annual",   "amount": 510.0,   "kind": "subscription"},
-    "silver_annual":       {"label": "Silver Annual",   "amount": 1020.0,  "kind": "subscription"},
-    "gold_annual":         {"label": "Gold Annual",     "amount": 1530.0,  "kind": "subscription"},
+    "bronze_monthly":      {"label": "Bronze",   "amount": 25.0,  "kind": "subscription"},   # RRP $50
+    "silver_monthly":      {"label": "Silver",   "amount": 37.50, "kind": "subscription"},   # RRP $75
+    "gold_monthly":        {"label": "Gold",     "amount": 50.0,  "kind": "subscription"},   # RRP $100
+    "platinum_monthly":    {"label": "Platinum", "amount": 75.0,  "kind": "subscription"},   # RRP $150
+    "ops_bronze":          {"label": "Ops Pack (Bronze farms)",   "amount": 25.0,  "kind": "subscription"},   # RRP $50
+    "ops_silver":          {"label": "Ops Pack (Silver farms)",   "amount": 37.50, "kind": "subscription"},   # RRP $75
+    "ops_gold":            {"label": "Ops Pack (Gold farms)",     "amount": 50.0,  "kind": "subscription"},   # RRP $100
+    "ops_platinum":        {"label": "Ops Pack (Platinum farms)", "amount": 75.0,  "kind": "subscription"},   # RRP $150
+    # Annual variants (~15% off RRP, then halved)
+    "bronze_annual":       {"label": "Bronze Annual",   "amount": 255.0,  "kind": "subscription"},   # RRP $510
+    "silver_annual":       {"label": "Silver Annual",   "amount": 510.0,  "kind": "subscription"},   # RRP $1020
+    "gold_annual":         {"label": "Gold Annual",     "amount": 765.0,  "kind": "subscription"},   # RRP $1530
     # Operation Manager Pack — multi-farm bundles for ops managers
-    "ops_bronze":          {"label": "Ops Manager — Bronze (≤6 sheds/farm)",  "amount": 50.0,  "kind": "ops_bundle"},
-    "ops_silver":          {"label": "Ops Manager — Silver (7-12 sheds/farm)", "amount": 90.0, "kind": "ops_bundle"},
-    "ops_gold":            {"label": "Ops Manager — Gold (12+ sheds/farm)",   "amount": 150.0, "kind": "ops_bundle"},
+    "ops_bronze":          {"label": "Ops Manager — Bronze (≤6 sheds/farm)",  "amount": 25.0,  "kind": "ops_bundle"},   # RRP $50
+    "ops_silver":          {"label": "Ops Manager — Silver (7-12 sheds/farm)", "amount": 45.0, "kind": "ops_bundle"},   # RRP $90
+    "ops_gold":            {"label": "Ops Manager — Gold (12+ sheds/farm)",   "amount": 75.0,  "kind": "ops_bundle"},   # RRP $150
     # Sponsor tiers
-    "sponsor_10":          {"label": "Sponsor — $10/mo",  "amount": 10.0,  "kind": "sponsor"},
-    "sponsor_25":          {"label": "Sponsor — $25/mo",  "amount": 25.0,  "kind": "sponsor"},
-    "sponsor_50":          {"label": "Sponsor — $50/mo",  "amount": 50.0,  "kind": "sponsor"},
+    "sponsor_10":          {"label": "Sponsor — $5/mo",   "amount": 5.0,   "kind": "sponsor"},   # RRP $10
+    "sponsor_25":          {"label": "Sponsor — $12.50/mo", "amount": 12.50, "kind": "sponsor"}, # RRP $25
+    "sponsor_50":          {"label": "Sponsor — $25/mo",  "amount": 25.0,  "kind": "sponsor"},   # RRP $50
     # One-off donations
-    "back_seed":           {"label": "Seed Supporter",       "amount": 100.0,  "kind": "donation"},
-    "back_project":        {"label": "Project Backer",       "amount": 500.0,  "kind": "donation"},
-    "back_foundation":     {"label": "Foundation Partner",   "amount": 1000.0, "kind": "donation"},
+    "back_seed":           {"label": "Seed Supporter",       "amount": 50.0,   "kind": "donation"},   # RRP $100
+    "back_project":        {"label": "Project Backer",       "amount": 250.0,  "kind": "donation"},   # RRP $500
+    "back_foundation":     {"label": "Foundation Partner",   "amount": 500.0,  "kind": "donation"},   # RRP $1000
 }
 
 
@@ -1287,7 +1289,7 @@ async def create_checkout(body: CheckoutRequest):
     # Calculate dynamic amount for ops_bundle if farms list is provided
     amount = float(pkg["amount"])
     if pkg["kind"] == "ops_bundle" and body.farms:
-        tier_prices = {"bronze": 50.0, "silver": 90.0, "gold": 150.0}
+        tier_prices = {"bronze": 25.0, "silver": 45.0, "gold": 75.0}  # LAUNCH 50% OFF — RRP $50/$90/$150
         amount = sum(tier_prices.get((f.tier or "bronze").lower(), 50.0) for f in body.farms)
 
     req = CheckoutSessionRequest(
