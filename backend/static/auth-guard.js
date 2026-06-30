@@ -65,10 +65,11 @@
     wrap.style.cssText = "position:fixed;top:8px;right:10px;z-index:9999;background:rgba(15,61,36,0.96);color:#fff;padding:5px 9px;border-radius:99px;display:flex;align-items:center;gap:7px;font:700 11px system-ui,sans-serif;box-shadow:0 4px 18px rgba(0,0,0,.25);border:1px solid rgba(201,162,39,.4);cursor:pointer;transition:padding 0.2s ease;";
     const isAdmin = info.role === "admin";
     const displayName = u.name || u.email || "User";
+    const firstChar = (displayName[0] || "?").toUpperCase();
     wrap.title = displayName + (isAdmin ? " · ADMIN" : "");
     const pic = u.picture
       ? `<img src="${u.picture}" alt="" style="width:20px;height:20px;border-radius:50%;border:1px solid #C9A227;flex-shrink:0;">`
-      : `<span style="width:20px;height:20px;border-radius:50%;background:#C9A227;color:#000;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:10px;flex-shrink:0;">${displayName[0].toUpperCase()}</span>`;
+      : `<span style="width:20px;height:20px;border-radius:50%;background:#C9A227;color:#000;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:10px;flex-shrink:0;">${firstChar}</span>`;
     // Name span is hidden by default — only shows when the user hovers/taps
     // the badge, OR when the viewport is wide enough to comfortably fit it.
     wrap.innerHTML = `${pic}<span id="bbm-name" style="color:#bdd3c4;max-width:0;overflow:hidden;white-space:nowrap;transition:max-width 0.2s ease,margin 0.2s ease;">${displayName}${isAdmin ? ' <span style="color:#C9A227;font-weight:800;">· ADMIN</span>' : ''}</span><a href="#" data-testid="bbm-logout" id="bbm-logout" style="color:#C9A227;text-decoration:none;font-weight:800;padding-left:7px;border-left:1px solid rgba(255,255,255,.2);">Logout</a>`;
