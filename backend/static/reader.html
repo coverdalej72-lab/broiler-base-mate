@@ -409,6 +409,16 @@
           <option value="14">Last 14 days</option>
           <option value="30">Last 30 days</option>
         </select>
+        <!-- Set & forget: auto-send the snapshot on the LAST FRIDAY of every
+             month between 9 AM and 2 PM AEST. Saves the grower from having to
+             remember the deadline — head office gets the email automatically. -->
+        <label style="display:flex;align-items:center;gap:10px;margin:14px 0 0;padding:12px;background:linear-gradient(135deg,rgba(15,61,36,0.06),rgba(201,162,39,0.08));border:1px solid rgba(201,162,39,0.4);border-radius:8px;cursor:pointer;">
+          <input type="checkbox" id="share-history-auto" data-testid="share-history-auto" style="width:18px;height:18px;cursor:pointer;accent-color:#0f3d24;" />
+          <div>
+            <div style="font-size:13px;font-weight:800;color:#0f3d24;">🗓️ Auto-send every month</div>
+            <div style="font-size:11px;color:#5d6660;margin-top:2px;line-height:1.3;">Sends automatically on the last Friday of each month before 2 PM AEST. No more late submissions.</div>
+          </div>
+        </label>
         <div style="display:flex;gap:8px;margin-top:18px;">
           <button id="share-history-cancel" data-testid="share-history-cancel" style="flex:1;padding:12px;border:1px solid #e3dccb;border-radius:8px;background:#faf7ef;font-weight:700;color:#5d6660;cursor:pointer;">Cancel</button>
           <button id="share-history-send" data-testid="share-history-send" style="flex:2;padding:12px;border:none;border-radius:8px;background:linear-gradient(135deg,#0f3d24,#1a5c36);color:#fff;font-weight:800;letter-spacing:0.3px;cursor:pointer;box-shadow:0 6px 16px -6px rgba(15,61,36,0.4);">📤 Send Snapshot</button>
@@ -819,10 +829,20 @@
     // Persists the recipient list per farm so the grower doesn't re-type it
     // every batch.
     const SHARE_KEY = "silo-share-history-to";
-    $("#share-history-btn").addEventListener("click", () => {
+    $("#share-history-btn").addEventListener("click", async () => {
       const modal = $("#share-history-modal");
       const toInput = $("#share-history-to");
       try { toInput.value = localStorage.getItem(SHARE_KEY) || ""; } catch {}
+      // Pull current auto-send config so the checkbox + recipients reflect reality
+      try {
+        const r = await fetch(`/api/history/auto-send?farm=${encodeURIComponent(farmConfig.id || "default")}`);
+        const d = await r.json();
+        $("#share-history-auto").checked = !!d.enabled;
+        // Prefer the saved auto-send recipients if local cache is empty
+        if (!toInput.value && d.emails && d.emails.length) {
+          toInput.value = d.emails.join(", ");
+        }
+      } catch {}
       modal.style.display = "flex";
     });
     $("#share-history-cancel").addEventListener("click", () => {
@@ -838,6 +858,19 @@
       btn.disabled = true;
       try {
         localStorage.setItem(SHARE_KEY, toRaw);
+
+        // ── Persist the auto-send config if the checkbox toggled on/off,
+        //    so head office gets the monthly auto-snapshot too.
+        const autoOn = $("#share-history-auto").checked;
+        try {
+          await fetch(`/api/history/auto-send?farm=${encodeURIComponent(farmConfig.id || "default")}`, {
+            method: "PUT",
+            credentials: "include",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ enabled: autoOn, emails: toList, days }),
+          });
+        } catch {}
+
         // Pull farm logo + name from farm-config (so the email is branded with the user's own logo)
         const farmLogoData = (farmConfig.logoData || "").replace(/^data:image\/[a-z]+;base64,/, "") || null;
         const r = await fetch("/api/history/share-email", {
@@ -854,7 +887,11 @@
         });
         const d = await r.json().catch(() => ({}));
         if (!r.ok) throw new Error(d.detail || "Send failed");
-        toast(`✓ Snapshot sent to ${d.sent?.length || toList.length} recipient${(d.sent?.length || toList.length) === 1 ? "" : "s"}`, "ok");
+        const sentCount = d.sent?.length || toList.length;
+        const autoMsg = $("#share-history-auto").checked
+          ? ` · 🗓️ Auto-send ON (last Fri of every month, before 2 PM)`
+          : "";
+        toast(`✓ Snapshot sent to ${sentCount} recipient${sentCount === 1 ? "" : "s"}${autoMsg}`, "ok");
         $("#share-history-modal").style.display = "none";
       } catch (e) {
         toast("Couldn't send: " + (e.message || "try again"), "err");

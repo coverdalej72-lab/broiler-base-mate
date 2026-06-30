@@ -7,7 +7,9 @@ into the Feed Program's "FEED USAGE" column.
 """
 from __future__ import annotations
 
+import asyncio
 import os
+import re
 import uuid
 from datetime import datetime, timedelta, timezone
 from typing import Annotated, List, Optional
@@ -627,6 +629,136 @@ async def share_history_email(req: HistoryShareRequest, request: Request):
     return {"ok": True, "sent": sent, "failed": failed}
 
 
+# ─── Monthly auto-send config (last Friday before 2pm AEST) ────────────────
+class MonthlyReportConfig(BaseModel):
+    enabled: bool = False
+    emails:  List[str] = []
+    days:    int = 30   # how many days of history to include in the snapshot
+
+@app.get("/api/history/auto-send")
+async def get_auto_send(farm: str = "default"):
+    fc = await farm_config_col.find_one({"id": farm}) or {}
+    cfg = fc.get("monthlyReport") or {}
+    return {
+        "enabled": bool(cfg.get("enabled")),
+        "emails":  cfg.get("emails") or [],
+        "days":    int(cfg.get("days") or 30),
+        "lastSentMonth": fc.get("monthlyReportLastSentMonth"),
+    }
+
+@app.put("/api/history/auto-send")
+async def put_auto_send(cfg: MonthlyReportConfig, farm: str = "default"):
+    # Clean / validate the email list
+    clean_emails = [e.strip() for e in cfg.emails if e and "@" in e][:20]
+    await farm_config_col.update_one(
+        {"id": farm},
+        {"$set": {"monthlyReport": {
+            "enabled": cfg.enabled,
+            "emails":  clean_emails,
+            "days":    max(1, min(cfg.days, 365)),
+        }}},
+        upsert=True,
+    )
+    return {"ok": True, "emails": clean_emails}
+
+
+async def _maybe_send_monthly_reports():
+    """Background task — runs once an hour. If today is the LAST Friday of
+    the month (AEST) and the local time is between 09:00 and 14:00 AEST, and
+    the farm has auto-send enabled and hasn't already been sent this month,
+    fire the same branded history email used by the manual button.
+    """
+    import logging as _log
+    log = _log.getLogger("monthly_report")
+    while True:
+        try:
+            now = datetime.now(timezone.utc)
+            aest = now + AEST_OFFSET
+            # Last Friday = Friday whose date + 7 days lands in next month
+            is_friday = aest.weekday() == 4  # Mon=0 … Fri=4
+            is_last   = (aest + timedelta(days=7)).month != aest.month
+            in_window = 9 <= aest.hour < 14
+            if is_friday and is_last and in_window:
+                month_key = aest.strftime("%Y-%m")
+                async for fc in farm_config_col.find({"monthlyReport.enabled": True}):
+                    farm_id = fc.get("id") or "default"
+                    if fc.get("monthlyReportLastSentMonth") == month_key:
+                        continue  # already sent this month — skip
+                    emails = (fc.get("monthlyReport") or {}).get("emails") or []
+                    days   = int((fc.get("monthlyReport") or {}).get("days") or 30)
+                    if not emails:
+                        continue
+                    try:
+                        # Reuse the data-pull logic from share_history_email
+                        await _send_monthly_snapshot(farm_id, emails, days, fc)
+                        await farm_config_col.update_one(
+                            {"id": farm_id},
+                            {"$set": {"monthlyReportLastSentMonth": month_key}},
+                        )
+                        log.info(f"Monthly snapshot sent for farm={farm_id} to {len(emails)} recipients")
+                    except Exception as e:
+                        log.warning(f"Monthly snapshot failed for farm={farm_id}: {e}")
+        except Exception as e:
+            log.warning(f"Monthly scheduler loop error: {e}")
+        # Re-check once an hour. The 2pm cutoff window is 5 hours wide so we
+        # have plenty of margin even if the host restarts.
+        await asyncio.sleep(3600)
+
+
+async def _send_monthly_snapshot(farm: str, emails: list, days: int, fc: dict):
+    """Internal helper — replicates the history-email data assembly + send."""
+    from email_service import send_email
+    now = datetime.now(timezone.utc)
+    since = now - timedelta(days=days)
+    groups = await shed_groups_col.find(_farm_filter(farm)).sort("displayOrder", 1).to_list(200)
+    silos  = await silos_col.find(_farm_filter(farm)).sort("letter", 1).to_list(1000)
+    latest: dict[str, dict] = {}
+    pipeline = [
+        {"$match": _and(_farm_filter(farm), {"readingDate": {"$gte": since}})},
+        {"$sort": {"readingDate": -1}},
+        {"$group": {"_id": "$siloId", "amountRemaining": {"$first": "$amountRemaining"},
+                    "unit": {"$first": "$unit"}, "readingDate": {"$first": "$readingDate"}}},
+    ]
+    async for doc in readings_col.aggregate(pipeline):
+        amt = float(doc.get("amountRemaining") or 0)
+        if (doc.get("unit") or "").lower() == "kg": amt /= 1000.0
+        latest[doc["_id"]] = {"amount": amt, "readingDate": doc["readingDate"]}
+    silos_grouped, total_t, silos_read, sheds_reporting = [], 0.0, 0, 0
+    for g in groups:
+        group_silos = [s for s in silos if s.get("shedGroupId") == g["id"]]
+        if not group_silos: continue
+        out, grp_total = [], 0.0
+        for s in group_silos:
+            rec = latest.get(s["id"])
+            if not rec: continue
+            ts_str = (rec["readingDate"] + AEST_OFFSET).strftime("%d %b · %H:%M") + " AEST" if rec["readingDate"] else "—"
+            out.append({"letter": s.get("letter", "?"), "amount": rec["amount"], "readAt": ts_str})
+            grp_total += rec["amount"]; silos_read += 1
+        if out:
+            sheds_reporting += 1; total_t += grp_total
+            silos_grouped.append({"name": g.get("name", ""), "silos": out, "groupTotalT": grp_total})
+    deliv = await deliveries_col.find(_and(_farm_filter(farm), {"deliveryDate": {"$gte": since}})).sort("deliveryDate", -1).to_list(200)
+    deliveries = []
+    for d in deliv:
+        amt = float(d.get("amount") or 0)
+        if (d.get("unit") or "").lower() == "kg": amt /= 1000.0
+        date_str = ((d.get("deliveryDate") or now) + AEST_OFFSET).strftime("%d %b %Y")
+        deliveries.append({"date": date_str, "supplier": d.get("supplier") or d.get("companyName") or "—",
+                          "feedType": d.get("feedType") or "—", "amountT": amt})
+    farm_name = fc.get("farmName") or "Farm History"
+    logo = fc.get("logoData")
+    if logo and logo.startswith("data:image"):
+        m = re.match(r"^data:image/[a-z]+;base64,(.+)$", logo, re.I)
+        logo = m.group(1) if m else None
+    html = _render_history_html(farm_name, days, "Broiler Base Mate Auto-Send",
+                                 silos_grouped, deliveries, {"totalT": total_t, "shedsReporting": sheds_reporting, "silosRead": silos_read}, logo)
+    subj = f"📊 Monthly Snapshot — {farm_name} ({now.strftime('%b %Y')})"
+    for addr in emails:
+        try: await send_email(to=addr, subject=subj, html=html)
+        except Exception as e:
+            import logging; logging.getLogger("monthly_report").warning(f"send fail {addr}: {e}")
+
+
 async def _require_outreach_admin(request: Request) -> dict:
     """Outreach tracker access — gated by OUTREACH_ADMIN_EMAILS so the platform
     owner can manage their cold-email pipeline without inheriting SUPERUSER
@@ -796,6 +928,8 @@ async def seed_if_empty() -> None:
 @app.on_event("startup")
 async def _startup():
     await seed_if_empty()
+    # Background scheduler — last-Friday-of-month auto-send
+    asyncio.create_task(_maybe_send_monthly_reports())
     await _ensure_indexes()
 
 
