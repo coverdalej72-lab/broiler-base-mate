@@ -1,0 +1,29 @@
+{
+  "summary": "Verified the auth-badge compact-pill fix in /app/backend/static/auth-guard.js — frontend-only test against /feed-program/ via the owner magic-link login. All six acceptance criteria from the review request pass: compact badge by default, name hidden (max-width:0), hover expands to 180px, mouse-leave collapses, click toggles on mobile, Logout link always visible & clickable. Badge width shrunk from ~180+ px to ~94 px — no longer competes with the Save / Settings buttons.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Feed Program SPA (mobile 390px viewport)", "issues": ["Centred header pill containing the Farm dropdown + 'Ops' button slightly overlaps the auth-badge area on narrow viewports — the compact badge fix made things much better but on <420px viewports the 'Ops' arrow/min text and the badge still share the same row. Not in scope of this fix, but worth flagging."]}
+    ]
+  },
+  "test_report_links": [],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "/app/backend/static/auth-guard.js renderBadge(): the click-toggle interacts with the desktop mouseenter/mouseleave hover handlers — a synthetic mouse.click() on desktop fires mousemove→mouseenter (expand) then click (which sees expanded state and collapses). On real mobile (no hover events) the toggle works cleanly. Behaviour is correct in practice but slightly confusing if someone clicks on desktop. Optionally guard the click handler with a pointerType check (e.pointerType === 'touch') or use a media-query / matchMedia('(hover: none)') to disable click-toggle on hover-capable devices.",
+    "renderBadge() uses inline styles for everything (cssText + innerHTML). Functional but harder to theme — consider moving to a <style> tag injected once into <head>.",
+    "displayName[0].toUpperCase() crashes if displayName === '' — guard with (displayName[0] || '?').toUpperCase()."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "n/a (frontend-only request)", "frontend": "100% (all 6 acceptance criteria verified)"},
+  "test_credentials": "Owner magic link from /app/memory/test_credentials.md worked: https://harvest-hub-634.preview.emergentagent.com/api/auth/owner-magic?key=VO1Jd3ZFNuEdk69SX-7AzfgzHgtUuqB86_HB8sXS14Q&to=/feed-program/ — logged in as Jock (Admin).",
+  "seed_data_creation": "None.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Auth badge compact-pill fix is live on /feed-program/, /reader, /ops-dashboard via /api/static-asset/auth-guard.js. Note that the static-asset path (NOT /static/) is what the HTML pages reference — curl'ing /static/auth-guard.js returns the SPA HTML fallback. Use /api/static-asset/auth-guard.js to fetch the JS. Verified DOM contracts: #bbm-auth-badge container, #bbm-name span (initial style.maxWidth==='0px'), and [data-testid='bbm-logout'] anchor. Measured badge initial width = 94.3px (desktop 1366×768), expanded width = 157px after hover. The click handler returns early when e.target.id === 'bbm-logout' so logout always wins over toggle. Mobile click-toggle confirmed (maxWidth flips between '0px' and '180px' on consecutive taps).",
+  "rca_of_the_issue": "Original bug: renderBadge unconditionally rendered the full display name + admin badge in the green pill, making the pill ~180+ px wide which overlapped the Save / Settings buttons in the Feed Program top header. Fix: keep the name span in the DOM (for screen readers / hover reveal / `title` attribute) but collapse it visually by default via max-width:0 + overflow:hidden + transition. Reveal it on mouseenter (desktop hover) or click (mobile tap). Logout link kept outside the collapsible span so it's always visible. Verification steps reproduced above — collapsed=94px, expanded=157px, mouse-leave collapses back, click toggles."
+}

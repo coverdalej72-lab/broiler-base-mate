@@ -58,13 +58,33 @@
     const u = info.user;
     const wrap = document.createElement("div");
     wrap.id = "bbm-auth-badge";
-    wrap.style.cssText = "position:fixed;top:8px;right:10px;z-index:9999;background:rgba(15,61,36,0.96);color:#fff;padding:6px 10px;border-radius:99px;display:flex;align-items:center;gap:8px;font:600 12px system-ui,sans-serif;box-shadow:0 4px 18px rgba(0,0,0,.25);border:1px solid rgba(201,162,39,.4);";
-    const pic = u.picture
-      ? `<img src="${u.picture}" alt="" style="width:22px;height:22px;border-radius:50%;border:1px solid #C9A227;">`
-      : `<span style="width:22px;height:22px;border-radius:50%;background:#C9A227;color:#000;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:10px;">${(u.name||u.email||"?")[0].toUpperCase()}</span>`;
+    // Compact pill — was 180+ px wide which overlapped the Save / Settings
+    // buttons in the Feed Program's top header. Now ~80 px: avatar + "Logout"
+    // text only. Full name shown on hover via the `title` attribute. Click the
+    // avatar to expand the full name + admin badge.
+    wrap.style.cssText = "position:fixed;top:8px;right:10px;z-index:9999;background:rgba(15,61,36,0.96);color:#fff;padding:5px 9px;border-radius:99px;display:flex;align-items:center;gap:7px;font:700 11px system-ui,sans-serif;box-shadow:0 4px 18px rgba(0,0,0,.25);border:1px solid rgba(201,162,39,.4);cursor:pointer;transition:padding 0.2s ease;";
     const isAdmin = info.role === "admin";
-    wrap.innerHTML = `${pic}<span style="color:#bdd3c4;max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${u.name || u.email}${isAdmin ? ' <span style="color:#C9A227;font-weight:800;">· ADMIN</span>' : ''}</span><a href="#" data-testid="bbm-logout" id="bbm-logout" style="color:#C9A227;text-decoration:none;font-weight:800;padding-left:6px;border-left:1px solid rgba(255,255,255,.2);">Logout</a>`;
+    const displayName = u.name || u.email || "User";
+    wrap.title = displayName + (isAdmin ? " · ADMIN" : "");
+    const pic = u.picture
+      ? `<img src="${u.picture}" alt="" style="width:20px;height:20px;border-radius:50%;border:1px solid #C9A227;flex-shrink:0;">`
+      : `<span style="width:20px;height:20px;border-radius:50%;background:#C9A227;color:#000;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:10px;flex-shrink:0;">${displayName[0].toUpperCase()}</span>`;
+    // Name span is hidden by default — only shows when the user hovers/taps
+    // the badge, OR when the viewport is wide enough to comfortably fit it.
+    wrap.innerHTML = `${pic}<span id="bbm-name" style="color:#bdd3c4;max-width:0;overflow:hidden;white-space:nowrap;transition:max-width 0.2s ease,margin 0.2s ease;">${displayName}${isAdmin ? ' <span style="color:#C9A227;font-weight:800;">· ADMIN</span>' : ''}</span><a href="#" data-testid="bbm-logout" id="bbm-logout" style="color:#C9A227;text-decoration:none;font-weight:800;padding-left:7px;border-left:1px solid rgba(255,255,255,.2);">Logout</a>`;
     document.body.appendChild(wrap);
+    // Expand on hover (desktop) or tap (mobile)
+    const nameSpan = wrap.querySelector("#bbm-name");
+    const expand = () => { nameSpan.style.maxWidth = "180px"; nameSpan.style.marginLeft = "2px"; };
+    const collapse = () => { nameSpan.style.maxWidth = "0"; nameSpan.style.marginLeft = "0"; };
+    wrap.addEventListener("mouseenter", expand);
+    wrap.addEventListener("mouseleave", collapse);
+    wrap.addEventListener("click", (e) => {
+      if (e.target.id === "bbm-logout") return;
+      // Tap to toggle on mobile
+      if (nameSpan.style.maxWidth === "0px" || !nameSpan.style.maxWidth) expand();
+      else collapse();
+    });
     document.getElementById("bbm-logout").addEventListener("click", async (e) => {
       e.preventDefault();
       try { await fetch("/api/auth/logout", { method: "POST", credentials: "include" }); } catch (_) {}
