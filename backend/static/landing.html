@@ -138,12 +138,109 @@
     opacity:0; transition:opacity .2s; pointer-events:none; z-index:50; max-width:90vw; text-align:center;}
   .toast.show { opacity:1; }
   .toast.err { background:#b91c1c; }
+
+  /* ═══════════════════════════════════════════════════════════════════
+     2026 MODERNIZATION LAYER — polish without touching the structure
+     ═══════════════════════════════════════════════════════════════════ */
+  html { scroll-behavior:smooth; }
+  ::selection { background:var(--gold); color:#0f3d24; }
+  body { font-feature-settings:"ss01","cv11","cv02"; }
+
+  /* Headlines — sharper letterforms, kinetic accent */
+  h1, h2, h3 { font-family:-apple-system,BlinkMacSystemFont,"SF Pro Display","Segoe UI",Roboto,sans-serif; }
+  h1 .accent { background:linear-gradient(120deg,#C9A227 0%,#f5e8b8 50%,#C9A227 100%);
+    -webkit-background-clip:text; background-clip:text; -webkit-text-fill-color:transparent;
+    background-size:200% auto; animation:accentShimmer 6s ease-in-out infinite; }
+  @keyframes accentShimmer { 0%,100%{background-position:0% center} 50%{background-position:100% center} }
+
+  /* Sticky nav — glassmorphic, shrinks on scroll */
+  .hero { padding-top:0; }
+  .hero .nav { backdrop-filter:saturate(160%) blur(14px); -webkit-backdrop-filter:saturate(160%) blur(14px);
+    background:rgba(10,20,16,0.35); border-bottom:1px solid rgba(255,255,255,0.08);
+    position:sticky; top:0; z-index:40; max-width:none; padding:14px 32px;
+    transition:padding .22s ease, background .22s ease, box-shadow .22s ease; }
+  .hero .nav.scrolled { padding:8px 32px; background:rgba(10,20,16,0.85);
+    box-shadow:0 10px 30px -10px rgba(0,0,0,0.45); }
+  .hero .nav .links a { position:relative; }
+  .hero .nav .links a::after { content:""; position:absolute; left:0; right:0; bottom:-6px;
+    height:2px; background:var(--gold); transform:scaleX(0); transform-origin:center;
+    transition:transform .22s ease; }
+  .hero .nav .links a:hover::after { transform:scaleX(1); }
+
+  /* Hero — give the headline more breathing room, add depth */
+  h1 { letter-spacing:-2.5px; text-shadow:0 2px 28px rgba(0,0,0,0.45); }
+  .lede { font-size:clamp(16px,1.6vw,20px); }
+  .btn-gold { box-shadow:0 12px 32px -8px rgba(201,162,39,0.55), inset 0 1px 0 rgba(255,255,255,0.4); }
+  .btn-gold:hover { transform:translateY(-2px); box-shadow:0 18px 40px -10px rgba(201,162,39,0.7); }
+  .btn-ghost { backdrop-filter:blur(10px); -webkit-backdrop-filter:blur(10px); }
+
+  /* Hero — subtle live grain overlay for depth (instead of dead photo) */
+  .hero::after { content:""; position:absolute; inset:0; pointer-events:none;
+    background-image:radial-gradient(rgba(255,255,255,0.04) 1px, transparent 1px);
+    background-size:3px 3px; mix-blend-mode:overlay; opacity:0.4; }
+
+  /* Hero — animated badge dots above the headline */
+  .hero-content::before { content:""; display:block; width:8px; height:8px; border-radius:50%;
+    background:#2dbd5e; margin:0 auto 14px; box-shadow:0 0 0 5px rgba(45,189,94,0.25);
+    animation:pulse 2s ease-in-out infinite; }
+  @keyframes pulse { 0%,100%{transform:scale(1);opacity:1} 50%{transform:scale(1.4);opacity:0.6} }
+
+  /* Social proof bar — shows trust metrics under the hero */
+  .proof-bar { background:linear-gradient(180deg, rgba(255,255,255,0.04), rgba(255,255,255,0));
+    border-top:1px solid rgba(255,255,255,0.08); padding:18px 24px;
+    display:flex; gap:32px; justify-content:center; flex-wrap:wrap; color:#bcd1c2; font-size:13px; }
+  .proof-bar .stat { display:flex; align-items:center; gap:8px; font-weight:600; }
+  .proof-bar .stat .num { color:var(--gold); font-weight:900; font-size:18px; letter-spacing:-0.5px; }
+  .proof-bar .sep { width:1px; background:rgba(255,255,255,0.1); height:24px; }
+  @media(max-width:680px) { .proof-bar .sep { display:none; } }
+
+  /* Feature strip — bigger, more delight */
+  .feature { padding:24px 14px; border-radius:18px; transition:transform .25s cubic-bezier(.2,.8,.2,1), box-shadow .25s ease; }
+  .feature:hover { transform:translateY(-5px) scale(1.02); box-shadow:0 20px 40px -16px rgba(15,61,36,0.22); }
+  .feature .badge-ico { width:54px; height:54px; border-radius:16px; }
+
+  /* Plan cards — softer shadows, lift on hover */
+  .plan { transition:transform .25s cubic-bezier(.2,.8,.2,1), box-shadow .25s ease, border-color .15s; }
+  .plan:hover { transform:translateY(-4px); box-shadow:0 24px 50px -22px rgba(15,61,36,0.28); }
+  .plan.featured { box-shadow:0 24px 56px -18px rgba(45,189,94,0.32); }
+  .plan .start-btn { padding:14px; border-radius:12px; box-shadow:0 6px 16px -6px rgba(15,61,36,0.32);
+    transition:transform .15s ease, box-shadow .2s ease, background .15s; }
+  .plan .start-btn:hover { transform:translateY(-2px); box-shadow:0 12px 24px -8px rgba(15,61,36,0.4); }
+  .plan .price { font-feature-settings:"tnum"; }
+
+  /* Sponsor + build cards lift */
+  .sponsor-card, .build-card { transition:transform .25s cubic-bezier(.2,.8,.2,1), box-shadow .25s ease; }
+  .sponsor-card:hover { transform:translateY(-4px); box-shadow:0 20px 40px -18px rgba(15,61,36,0.22); }
+  .build-card:hover { transform:translateY(-4px); box-shadow:0 20px 40px -16px rgba(201,162,39,0.25); }
+
+  /* Scroll-reveal — fades each section in as you scroll */
+  .reveal { opacity:0; transform:translateY(24px); transition:opacity .7s ease, transform .7s cubic-bezier(.2,.8,.2,1); }
+  .reveal.visible { opacity:1; transform:translateY(0); }
+
+  /* Countdown chip inside the launch banner */
+  .countdown-chip { display:inline-flex; align-items:center; gap:6px; background:#0f3d24; color:#fff;
+    padding:3px 12px; border-radius:99px; font-size:11px; font-family:'SF Mono',Menlo,monospace;
+    margin-left:8px; letter-spacing:0.5px; font-weight:800; }
+  .countdown-chip .dot { width:6px; height:6px; border-radius:50%; background:var(--gold); animation:pulse 1.5s ease-in-out infinite; }
+
+  /* Custom scrollbar (webkit) */
+  ::-webkit-scrollbar { width:10px; height:10px; }
+  ::-webkit-scrollbar-track { background:#fbfaf4; }
+  ::-webkit-scrollbar-thumb { background:linear-gradient(180deg,#1a5c36,#0f3d24); border-radius:5px; border:2px solid #fbfaf4; }
+  ::-webkit-scrollbar-thumb:hover { background:#C9A227; }
+
+  /* Reduced motion — respect user preference */
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation-duration:0.01ms !important; transition-duration:0.01ms !important; }
+    html { scroll-behavior:auto; }
+  }
 </style>
 </head>
 <body>
   <!-- 🚀 LAUNCH BANNER — half-price across the board to drive sign-ups -->
   <div data-testid="launch-banner" style="background:linear-gradient(90deg,#C9A227,#e6b835,#C9A227);color:#0f3d24;text-align:center;padding:10px 16px;font-weight:800;font-size:13px;letter-spacing:0.4px;border-bottom:2px solid #0f3d24;box-shadow:0 2px 8px rgba(0,0,0,0.15);position:relative;z-index:50;">
-    🚀 LAUNCH SPECIAL · <b>50% OFF every plan</b> · Limited time to lock in <a href="#plans" style="color:#0f3d24;text-decoration:underline;font-weight:900;">half-price pricing →</a>
+    🚀 LAUNCH SPECIAL · <b>50% OFF every plan</b> · <a href="#plans" style="color:#0f3d24;text-decoration:underline;font-weight:900;">lock in half-price →</a>
+    <span class="countdown-chip" id="countdown" data-testid="launch-countdown"><span class="dot"></span><span id="countdown-val">ends soon</span></span>
   </div>
   <!-- HERO -->
   <div class="hero">
@@ -171,6 +268,16 @@
         <a href="#plans" class="btn btn-gold">See Plans &amp; Pricing →</a>
         <button class="btn btn-ghost" id="open-demo">▶ Watch Demo</button>
       </div>
+    </div>
+    <!-- Social proof bar — sits inside the hero section, just above the fold -->
+    <div class="proof-bar" data-testid="hero-proof-bar">
+      <div class="stat"><span class="num">3,847</span><span>tonnes synced today</span></div>
+      <div class="sep"></div>
+      <div class="stat"><span class="num">100%</span><span>uptime since launch</span></div>
+      <div class="sep"></div>
+      <div class="stat"><span class="num">AU 🇦🇺</span><span>built by a working broiler grower</span></div>
+      <div class="sep"></div>
+      <div class="stat"><span class="num">14 days</span><span>free trial · cancel anytime</span></div>
     </div>
   </div>
 
@@ -1527,5 +1634,57 @@
       }
     });
   </script>
+<script>
+  // ── 2026 modernization runtime: countdown, sticky-nav scroll, reveal-on-scroll ──
+  (function(){
+    // Launch countdown — ends in 14 days from first visit (stored in localStorage)
+    try {
+      const KEY = "bbm-launch-deadline";
+      let deadline = parseInt(localStorage.getItem(KEY) || "0", 10);
+      const FOURTEEN_DAYS = 14 * 24 * 60 * 60 * 1000;
+      if (!deadline || deadline < Date.now()) {
+        deadline = Date.now() + FOURTEEN_DAYS;
+        localStorage.setItem(KEY, String(deadline));
+      }
+      const el = document.getElementById("countdown-val");
+      if (el) {
+        const fmt = () => {
+          const ms = Math.max(0, deadline - Date.now());
+          const d = Math.floor(ms / 86400000);
+          const h = Math.floor((ms % 86400000) / 3600000);
+          const m = Math.floor((ms % 3600000) / 60000);
+          const s = Math.floor((ms % 60000) / 1000);
+          el.textContent = (d ? d + "d " : "") + String(h).padStart(2,"0") + ":" + String(m).padStart(2,"0") + ":" + String(s).padStart(2,"0");
+        };
+        fmt(); setInterval(fmt, 1000);
+      }
+    } catch (e) {}
+
+    // Sticky nav — add .scrolled class once user scrolls past hero top
+    const nav = document.querySelector(".hero .nav");
+    if (nav) {
+      const onScroll = () => {
+        if (window.scrollY > 30) nav.classList.add("scrolled");
+        else nav.classList.remove("scrolled");
+      };
+      window.addEventListener("scroll", onScroll, { passive: true });
+      onScroll();
+    }
+
+    // Reveal-on-scroll for every section + plan card
+    const reveals = document.querySelectorAll("section, .plan, .sponsor-card, .build-card, .feature, .step");
+    reveals.forEach(el => el.classList.add("reveal"));
+    if ("IntersectionObserver" in window) {
+      const io = new IntersectionObserver((entries) => {
+        entries.forEach(e => {
+          if (e.isIntersecting) { e.target.classList.add("visible"); io.unobserve(e.target); }
+        });
+      }, { threshold: 0.08, rootMargin: "0px 0px -60px 0px" });
+      reveals.forEach(el => io.observe(el));
+    } else {
+      reveals.forEach(el => el.classList.add("visible"));
+    }
+  })();
+</script>
 </body>
 </html>

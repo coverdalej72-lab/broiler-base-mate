@@ -1173,20 +1173,31 @@
           }
           fb.style.display = "block";
           const critical = alerts.filter(a => a.level === "critical");
-          const tone = critical.length ? "#a83e00" : "#7c4a00";
+          const watch    = alerts.filter(a => a.level === "watch");
+          const empty    = alerts.filter(a => a.category === "empty_shed");
+          // Tone: critical > watch > info (empty pins only)
+          const tone = critical.length ? "#a83e00" : (watch.length ? "#7c4a00" : "#0f3d24");
           const bg   = critical.length
             ? "linear-gradient(180deg,#ffe2c8,#ffc99b)"
-            : "linear-gradient(180deg,#fff5e6,#ffe9c8)";
-          const border = critical.length ? "#d35400" : "#f39c12";
+            : (watch.length
+              ? "linear-gradient(180deg,#fff5e6,#ffe9c8)"
+              : "linear-gradient(180deg,#e8f5ec,#d4ebdd)");
+          const border = critical.length ? "#d35400" : (watch.length ? "#f39c12" : "#1a5c36");
           fb.style.color = tone;
           fb.style.background = bg;
           fb.style.borderBottomColor = border;
           const pulse = sync.readingsLast6h > 0
-            ? `<div style="font-size:11px;opacity:0.65;margin-top:6px;border-top:1px dashed rgba(0,0,0,0.15);padding-top:5px;">✓ ${sync.readingsLast6h} reading${sync.readingsLast6h === 1 ? "" : "s"} synced in last 6 h</div>`
-            : "";
+            ? `<div style="font-size:11px;opacity:0.65;margin-top:6px;border-top:1px dashed rgba(0,0,0,0.15);padding-top:5px;">✓ ${sync.readingsLast6h} reading${sync.readingsLast6h === 1 ? "" : "s"} synced in last 6 h${empty.length ? ` · ${empty.length} shed${empty.length===1?"":"s"} empty` : ""}</div>`
+            : (empty.length ? `<div style="font-size:11px;opacity:0.65;margin-top:6px;border-top:1px dashed rgba(0,0,0,0.15);padding-top:5px;">${empty.length} shed${empty.length===1?"":"s"} flagged empty</div>` : "");
           fb.innerHTML = `
             <div style="font-size:11px;font-weight:800;letter-spacing:0.5px;opacity:0.7;margin-bottom:4px;text-transform:uppercase;">🤖 Farm Buddy says</div>
-            ${alerts.map(a => `<div data-testid="fb-alert" style="margin:3px 0;">${escapeHtml(a.message)}</div>`).join("")}
+            ${alerts.map(a => {
+              const isEmpty = a.category === "empty_shed";
+              const style = isEmpty
+                ? "margin:3px 0;padding:4px 10px;background:rgba(15,61,36,0.08);border-radius:6px;font-weight:600;"
+                : "margin:3px 0;";
+              return `<div data-testid="fb-alert" data-category="${a.category||""}" style="${style}">${escapeHtml(a.message)}</div>`;
+            }).join("")}
             ${pulse}
           `;
         } catch {}

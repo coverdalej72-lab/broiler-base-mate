@@ -589,6 +589,21 @@ async def readings_today(localDate: Optional[str] = Query(default=None), farm: s
 async def farm_buddy_alerts(farm: str = Query(default=DEFAULT_FARM_ID)):
     groups = await shed_groups_col.find(_farm_filter(farm)).sort("displayOrder", 1).to_list(length=200)
     silos = await silos_col.find(_farm_filter(farm)).sort("letter", 1).to_list(length=1000)
+
+    # Pull farm_config to find sheds the grower has marked as "no birds left"
+    # (toggled OFF in the Reader's Settings). Those sheds get a 🐔 EMPTY pin
+    # from Farm Buddy AND get excluded from the low-silo / stale / missing-today
+    # checks below (you don't want red alerts on a shed you just depopulated).
+    fc_doc = await farm_config_col.find_one({"id": farm}) or {}
+    all_group_ids = {g["id"] for g in groups}
+    enabled_ids_raw = fc_doc.get("enabledGroupIds")
+    # If never set → all sheds are considered active (default behaviour).
+    if enabled_ids_raw is None:
+        enabled_ids: set[str] = set(all_group_ids)
+    else:
+        enabled_ids = set(enabled_ids_raw)
+    empty_group_ids = all_group_ids - enabled_ids
+
     # Latest reading per silo (most recent saved value, regardless of date)
     latest_by_silo: dict[str, float] = {}
     latest_date_by_silo: dict[str, datetime] = {}
@@ -618,7 +633,21 @@ async def farm_buddy_alerts(farm: str = Query(default=DEFAULT_FARM_ID)):
     now = datetime.now(timezone.utc)
     today_start, today_end = aest_today_range()
 
+    # ─── 🐔 Empty sheds — highlight first, suppress noise on these ────────
     for g in groups:
+        if g["id"] in empty_group_ids:
+            alerts.append({
+                "shedGroupId": g["id"],
+                "shedGroupName": g["name"],
+                "totalT": None,
+                "level": "info",
+                "message": f"🐔 {g['name']} is EMPTY (no birds) — feed drops will skip this shed",
+                "category": "empty_shed",
+            })
+
+    for g in groups:
+        if g["id"] in empty_group_ids:
+            continue  # skip — already pinned above as empty
         group_silos = [s for s in silos if s.get("shedGroupId") == g["id"]]
         if not group_silos:
             continue
@@ -652,6 +681,8 @@ async def farm_buddy_alerts(farm: str = Query(default=DEFAULT_FARM_ID)):
     stale_cutoff = now - timedelta(hours=26)
     stale_groups: list[tuple[str, datetime]] = []
     for g in groups:
+        if g["id"] in empty_group_ids:
+            continue  # depopulated shed — no readings expected
         group_silos = [s for s in silos if s.get("shedGroupId") == g["id"]]
         if not group_silos:
             continue
@@ -677,6 +708,8 @@ async def farm_buddy_alerts(farm: str = Query(default=DEFAULT_FARM_ID)):
     aest_now_hour = (now + AEST_OFFSET).hour
     if aest_now_hour >= 16:  # 4pm AEST or later
         for g in groups:
+            if g["id"] in empty_group_ids:
+                continue  # depopulated shed — no reading expected
             group_silos = [s for s in silos if s.get("shedGroupId") == g["id"]]
             if not group_silos:
                 continue
@@ -714,7 +747,11 @@ async def farm_buddy_alerts(farm: str = Query(default=DEFAULT_FARM_ID)):
     # Sort critical first, then watch, then the rest
     LEVEL_ORDER = {"critical": 0, "watch": 1, "info": 2}
     alerts.sort(key=lambda a: (LEVEL_ORDER.get(a["level"], 9), a.get("totalT") or 999))
-    risk = "critical" if any(a["level"] == "critical" for a in alerts) else ("watch" if alerts else "ok")
+    # Risk level: info-only alerts (e.g. empty sheds) shouldn't push the farm
+    # into "watch" mode — they're status pins, not warnings.
+    risk = "critical" if any(a["level"] == "critical" for a in alerts) else (
+        "watch" if any(a["level"] == "watch" for a in alerts) else "ok"
+    )
     return {
         "riskLevel": risk,
         "alerts": alerts,
@@ -722,6 +759,7 @@ async def farm_buddy_alerts(farm: str = Query(default=DEFAULT_FARM_ID)):
             "readingsLast6h": recent_count,
             "staleGroups": len(stale_groups),
             "missingTodayGroups": sum(1 for a in alerts if a.get("category") == "missing_today"),
+            "emptyGroups": sum(1 for a in alerts if a.get("category") == "empty_shed"),
         },
         "checkedAt": now.isoformat(),
     }
