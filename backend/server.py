@@ -123,11 +123,235 @@ init_farm_buddy(app, db)
 # so mailto: links open a blank tab and frustrate them. This endpoint
 # sends the report directly via Resend instead.
 
+class EobDeliveryRow(BaseModel):
+    date:   str = ""
+    docket: str = ""
+    kg:     float = 0
+
+class EobFeedType(BaseModel):
+    name:  str
+    color: Optional[str] = None
+    total: float = 0
+    rows:  List[EobDeliveryRow] = []
+
+class EobShedRow(BaseModel):
+    shed:    str
+    placed:  int = 0
+    morts:   int = 0
+    caught:  int = 0
+    balance: int = 0
+
+class EobReport(BaseModel):
+    """Structured End-of-Batch payload. When sent, the backend renders a
+    beautiful branded HTML email instead of the plain `<pre>` text dump.
+    Every field is optional so old clients that only send `body` still work."""
+    batchName:        Optional[str] = None
+    generatedDate:    Optional[str] = None
+    feedTypes:        List[EobFeedType] = []
+    totalPurchased:   Optional[float] = None
+    sheds:            List[EobShedRow] = []
+    totalPlaced:      Optional[int] = None
+    totalMorts:       Optional[int] = None
+    totalCaught:      Optional[int] = None
+    totalBalance:     Optional[int] = None
+    mortalityPct:     Optional[float] = None
+    lastBatchLeft:    Optional[float] = None
+    totalDelivered:   Optional[float] = None
+    totalUsed:        Optional[float] = None
+    feedLeft:         Optional[float] = None
+    netConsumed:      Optional[float] = None
+    aveWeight:        Optional[float] = None
+    fcr:              Optional[float] = None
+    cfcr:             Optional[float] = None
+    farmLogoData:     Optional[str] = None  # base64 PNG, if user uploaded one
+
+
 class EobEmailRequest(BaseModel):
     to:       List[str]
     subject:  str
     body:     str
     farmName: Optional[str] = None
+    report:   Optional[EobReport] = None  # NEW — when present, renders the polished HTML
+
+
+def _render_eob_html(r: EobReport, farm_name: str, sender: str) -> str:
+    """Render the structured EOB payload as a premium branded HTML email.
+
+    Designed to be the kind of report a grower can forward to head office /
+    integrator / accountant and feel proud of — branded hero, KPI tiles,
+    per-feed-type delivery breakdown, per-shed bird table, full feed summary.
+    All inline CSS (no external stylesheets) so Gmail/Outlook/Apple Mail all
+    render it identically. ~700 px max width — looks great on phone + desktop.
+    """
+    def fmt_n(n: Optional[float], suffix: str = "") -> str:
+        if n is None or n == 0:
+            return "—"
+        if isinstance(n, float) and not n.is_integer():
+            return f"{n:,.2f}{suffix}"
+        return f"{int(n):,}{suffix}"
+
+    def fmt_pct(n: Optional[float]) -> str:
+        return "—" if n is None or n == 0 else f"{n:.2f}%"
+
+    # Logo — use the farm's uploaded base64 if provided, else default mark
+    logo_src = (
+        f"data:image/png;base64,{r.farmLogoData}"
+        if r.farmLogoData else
+        "https://broilerbasemate.com.au/reader-assets/icon-192.png"
+    )
+    batch = r.batchName or "Batch"
+    gen   = r.generatedDate or datetime.now(timezone.utc).strftime("%d %b %Y")
+
+    # ── HERO ────────────────────────────────────────────────────────────
+    hero = f"""
+      <div style="background:linear-gradient(135deg,#0f3d24 0%,#1a5c36 100%);padding:32px 28px;color:#fff;border-radius:16px 16px 0 0;">
+        <table width="100%" cellpadding="0" cellspacing="0" border="0"><tr>
+          <td valign="middle" style="padding-right:14px;width:64px;">
+            <img src="{logo_src}" alt="" width="56" height="56" style="display:block;border-radius:10px;background:#fff;padding:4px;" />
+          </td>
+          <td valign="middle">
+            <div style="font-size:12px;letter-spacing:2.5px;color:#C9A227;font-weight:700;margin-bottom:2px;">END OF BATCH REPORT</div>
+            <div style="font-size:24px;font-weight:800;letter-spacing:-0.4px;line-height:1.15;">{farm_name}</div>
+            <div style="font-size:13px;opacity:0.85;margin-top:4px;">{batch} · Generated {gen}</div>
+          </td>
+        </tr></table>
+      </div>
+    """
+
+    # ── KPI tiles ───────────────────────────────────────────────────────
+    def kpi(label: str, value: str, accent: str = "#0f3d24") -> str:
+        return f"""
+          <td valign="top" style="padding:6px;">
+            <div style="background:#fff;border:1px solid #e3dccb;border-radius:10px;padding:14px 12px;text-align:center;">
+              <div style="font-size:22px;font-weight:800;color:{accent};letter-spacing:-0.5px;line-height:1;">{value}</div>
+              <div style="font-size:10px;letter-spacing:1.2px;color:#5d6660;text-transform:uppercase;margin-top:6px;font-weight:700;">{label}</div>
+            </div>
+          </td>
+        """
+    kpis = f"""
+      <table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-top:14px;">
+        <tr>
+          {kpi("Birds Placed", fmt_n(r.totalPlaced))}
+          {kpi("Birds Caught", fmt_n(r.totalCaught), "#1a5c36")}
+          {kpi("Morts", fmt_n(r.totalMorts), "#a83e00")}
+          {kpi("Mortality", fmt_pct(r.mortalityPct), "#a83e00")}
+        </tr>
+        <tr>
+          {kpi("Ave Weight", (f"{r.aveWeight:.3f} kg" if r.aveWeight else "—"), "#0f3d24")}
+          {kpi("FCR", (f"{r.fcr:.3f}" if r.fcr else "—"), "#0f3d24")}
+          {kpi("cFCR", (f"{r.cfcr:.3f}" if r.cfcr else "—"), "#0f3d24")}
+          {kpi("Total Feed", fmt_n(r.totalPurchased, " kg"), "#C9A227")}
+        </tr>
+      </table>
+    """
+
+    # ── Feed deliveries by feed type ───────────────────────────────────
+    def feed_section(ft: EobFeedType) -> str:
+        if not ft.rows and not ft.total:
+            return ""
+        color = ft.color or "#1a5c36"
+        rows_html = "".join(
+            f"""<tr>
+              <td style="padding:7px 12px;border-bottom:1px solid #f0ece1;font-size:13px;color:#1a2320;">{row.date or "—"}</td>
+              <td style="padding:7px 12px;border-bottom:1px solid #f0ece1;font-size:13px;color:#5d6660;">{row.docket or "—"}</td>
+              <td style="padding:7px 12px;border-bottom:1px solid #f0ece1;font-size:13px;color:#1a2320;text-align:right;font-weight:600;font-variant-numeric:tabular-nums;">{int(row.kg):,} kg</td>
+            </tr>"""
+            for row in ft.rows if row.kg > 0
+        ) or """<tr><td colspan="3" style="padding:14px;text-align:center;color:#9ca3af;font-size:12px;font-style:italic;">No deliveries</td></tr>"""
+        return f"""
+          <div style="margin-top:16px;border:1px solid #e3dccb;border-radius:10px;overflow:hidden;background:#fff;">
+            <div style="background:{color};color:#fff;padding:9px 14px;font-weight:800;letter-spacing:0.5px;font-size:13px;display:flex;justify-content:space-between;align-items:center;">
+              <span style="text-transform:uppercase;">{ft.name}</span>
+              <span style="font-size:15px;background:rgba(255,255,255,0.18);padding:2px 10px;border-radius:99px;">{int(ft.total):,} kg</span>
+            </div>
+            <table width="100%" cellpadding="0" cellspacing="0" border="0">
+              <thead>
+                <tr style="background:#faf7ef;">
+                  <th style="padding:8px 12px;text-align:left;font-size:10px;color:#5d6660;letter-spacing:1px;text-transform:uppercase;font-weight:700;border-bottom:1px solid #e3dccb;">Date</th>
+                  <th style="padding:8px 12px;text-align:left;font-size:10px;color:#5d6660;letter-spacing:1px;text-transform:uppercase;font-weight:700;border-bottom:1px solid #e3dccb;">Docket #</th>
+                  <th style="padding:8px 12px;text-align:right;font-size:10px;color:#5d6660;letter-spacing:1px;text-transform:uppercase;font-weight:700;border-bottom:1px solid #e3dccb;">Amount</th>
+                </tr>
+              </thead>
+              <tbody>{rows_html}</tbody>
+            </table>
+          </div>
+        """
+    feed_sections = "".join(feed_section(ft) for ft in r.feedTypes)
+    if not feed_sections:
+        feed_sections = """<div style="margin-top:16px;padding:18px;text-align:center;color:#9ca3af;font-size:13px;background:#faf7ef;border:1px dashed #e3dccb;border-radius:10px;">No feed deliveries recorded for this batch.</div>"""
+
+    # ── Per-shed bird table ────────────────────────────────────────────
+    if r.sheds:
+        shed_rows = "".join(
+            f"""<tr>
+              <td style="padding:8px 12px;border-bottom:1px solid #f0ece1;font-weight:700;color:#0f3d24;">Shed {s.shed}</td>
+              <td style="padding:8px 12px;border-bottom:1px solid #f0ece1;text-align:right;font-variant-numeric:tabular-nums;">{s.placed:,}</td>
+              <td style="padding:8px 12px;border-bottom:1px solid #f0ece1;text-align:right;color:#a83e00;font-variant-numeric:tabular-nums;">{('−' + format(s.morts, ',')) if s.morts > 0 else '—'}</td>
+              <td style="padding:8px 12px;border-bottom:1px solid #f0ece1;text-align:right;font-variant-numeric:tabular-nums;">{(format(s.caught, ',') if s.caught > 0 else '—')}</td>
+              <td style="padding:8px 12px;border-bottom:1px solid #f0ece1;text-align:right;font-weight:700;font-variant-numeric:tabular-nums;color:{'#0f3d24' if s.balance >= 0 else '#a83e00'};">{s.balance:,}</td>
+            </tr>"""
+            for s in r.sheds
+        )
+        totals_row = f"""<tr style="background:#0f3d24;color:#fff;">
+            <td style="padding:10px 12px;font-weight:800;letter-spacing:0.5px;text-transform:uppercase;font-size:12px;">Totals</td>
+            <td style="padding:10px 12px;text-align:right;font-weight:800;font-variant-numeric:tabular-nums;">{fmt_n(r.totalPlaced)}</td>
+            <td style="padding:10px 12px;text-align:right;font-weight:800;color:#ffb3a7;font-variant-numeric:tabular-nums;">{('−' + (fmt_n(r.totalMorts))) if (r.totalMorts or 0) > 0 else '—'}</td>
+            <td style="padding:10px 12px;text-align:right;font-weight:800;font-variant-numeric:tabular-nums;">{fmt_n(r.totalCaught)}</td>
+            <td style="padding:10px 12px;text-align:right;font-weight:800;font-variant-numeric:tabular-nums;">{fmt_n(r.totalBalance)}</td>
+          </tr>"""
+        bird_section = f"""
+          <h3 style="margin:28px 0 10px;color:#0f3d24;font-size:14px;letter-spacing:1.5px;text-transform:uppercase;font-weight:800;border-bottom:2px solid #C9A227;padding-bottom:6px;">🐔 Bird Summary</h3>
+          <div style="background:#fff;border:1px solid #e3dccb;border-radius:10px;overflow:hidden;">
+            <table width="100%" cellpadding="0" cellspacing="0" border="0" style="font-size:13px;">
+              <thead>
+                <tr style="background:#faf7ef;">
+                  <th style="padding:9px 12px;text-align:left;font-size:10px;color:#5d6660;letter-spacing:1px;text-transform:uppercase;font-weight:700;border-bottom:1px solid #e3dccb;">Shed</th>
+                  <th style="padding:9px 12px;text-align:right;font-size:10px;color:#5d6660;letter-spacing:1px;text-transform:uppercase;font-weight:700;border-bottom:1px solid #e3dccb;">Placed</th>
+                  <th style="padding:9px 12px;text-align:right;font-size:10px;color:#5d6660;letter-spacing:1px;text-transform:uppercase;font-weight:700;border-bottom:1px solid #e3dccb;">Morts</th>
+                  <th style="padding:9px 12px;text-align:right;font-size:10px;color:#5d6660;letter-spacing:1px;text-transform:uppercase;font-weight:700;border-bottom:1px solid #e3dccb;">Caught</th>
+                  <th style="padding:9px 12px;text-align:right;font-size:10px;color:#5d6660;letter-spacing:1px;text-transform:uppercase;font-weight:700;border-bottom:1px solid #e3dccb;">Balance</th>
+                </tr>
+              </thead>
+              <tbody>{shed_rows}{totals_row}</tbody>
+            </table>
+          </div>
+        """
+    else:
+        bird_section = ""
+
+    # ── Feed summary block ─────────────────────────────────────────────
+    feed_summary = f"""
+      <h3 style="margin:28px 0 10px;color:#0f3d24;font-size:14px;letter-spacing:1.5px;text-transform:uppercase;font-weight:800;border-bottom:2px solid #C9A227;padding-bottom:6px;">🌾 Feed Summary</h3>
+      <table width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#fff;border:1px solid #e3dccb;border-radius:10px;overflow:hidden;font-size:13px;">
+        <tr><td style="padding:9px 14px;border-bottom:1px solid #f0ece1;color:#5d6660;">Last Batch Left</td><td style="padding:9px 14px;border-bottom:1px solid #f0ece1;text-align:right;font-weight:700;font-variant-numeric:tabular-nums;">{fmt_n(r.lastBatchLeft, ' kg')}</td></tr>
+        <tr><td style="padding:9px 14px;border-bottom:1px solid #f0ece1;color:#5d6660;">Total Delivered</td><td style="padding:9px 14px;border-bottom:1px solid #f0ece1;text-align:right;font-weight:700;font-variant-numeric:tabular-nums;">{fmt_n(r.totalDelivered, ' kg')}</td></tr>
+        <tr><td style="padding:9px 14px;border-bottom:1px solid #f0ece1;color:#5d6660;">Total Used</td><td style="padding:9px 14px;border-bottom:1px solid #f0ece1;text-align:right;font-weight:700;font-variant-numeric:tabular-nums;">{fmt_n(r.totalUsed, ' kg')}</td></tr>
+        <tr><td style="padding:9px 14px;border-bottom:1px solid #f0ece1;color:#5d6660;">Feed Left</td><td style="padding:9px 14px;border-bottom:1px solid #f0ece1;text-align:right;font-weight:700;font-variant-numeric:tabular-nums;">{fmt_n(r.feedLeft, ' kg')}</td></tr>
+        <tr style="background:#fff8e2;"><td style="padding:11px 14px;color:#0f3d24;font-weight:800;letter-spacing:0.4px;text-transform:uppercase;font-size:12px;">Net Consumed</td><td style="padding:11px 14px;text-align:right;font-weight:900;font-variant-numeric:tabular-nums;color:#0f3d24;font-size:14px;">{fmt_n(r.netConsumed, ' kg')}</td></tr>
+      </table>
+    """
+
+    # ── Final assembly ─────────────────────────────────────────────────
+    return f"""<!DOCTYPE html><html><head><meta charset="utf-8" />
+<title>End of Batch — {farm_name}</title></head>
+<body style="margin:0;padding:24px 12px;background:#f3f0e8;font-family:-apple-system,BlinkMacSystemFont,'SF Pro Text','Segoe UI',Roboto,sans-serif;color:#1a2320;-webkit-font-smoothing:antialiased;">
+  <div style="max-width:680px;margin:0 auto;background:#faf7ef;border-radius:16px;overflow:hidden;box-shadow:0 8px 32px -12px rgba(15,61,36,0.18);">
+    {hero}
+    <div style="padding:20px 24px 28px;">
+      <h3 style="margin:0 0 4px;color:#0f3d24;font-size:14px;letter-spacing:1.5px;text-transform:uppercase;font-weight:800;border-bottom:2px solid #C9A227;padding-bottom:6px;">📊 Batch Performance</h3>
+      {kpis}
+      <h3 style="margin:28px 0 10px;color:#0f3d24;font-size:14px;letter-spacing:1.5px;text-transform:uppercase;font-weight:800;border-bottom:2px solid #C9A227;padding-bottom:6px;">🚚 Feed Deliveries</h3>
+      {feed_sections}
+      {bird_section}
+      {feed_summary}
+      <div style="margin-top:32px;padding:18px;background:#fff;border-radius:10px;border:1px dashed #e3dccb;text-align:center;color:#5d6660;font-size:12px;line-height:1.6;">
+        Generated by <b style="color:#0f3d24;">Broiler Base Mate™</b> · <a href="https://broilerbasemate.com.au" style="color:#1a5c36;text-decoration:none;font-weight:700;">broilerbasemate.com.au</a><br />
+        <span style="opacity:0.7;">Sent by {sender}</span>
+      </div>
+    </div>
+  </div>
+</body></html>"""
+
 
 @app.post("/api/eob/send-report")
 async def send_eob_report(req: EobEmailRequest, request: Request):
@@ -143,28 +367,30 @@ async def send_eob_report(req: EobEmailRequest, request: Request):
 
     from email_service import send_email
 
-    # Plain-text body wrapped in <pre> for a clean monospaced report look,
-    # then a small footer.
-    safe_body = (
-        req.body
-        .replace("&", "&amp;")
-        .replace("<", "&lt;")
-        .replace(">", "&gt;")
-    )
     farm_label = req.farmName or "your farm"
-    html = (
-        "<div style=\"font-family:system-ui,sans-serif;max-width:700px;margin:0 auto;\">"
-        f"<h2 style=\"color:#0f3d24;margin-bottom:4px;\">End of Batch Report</h2>"
-        f"<p style=\"color:#64748b;font-size:13px;margin:0 0 14px;\">{farm_label} · sent by {user.get('email')}</p>"
-        "<pre style=\"background:#f7faf6;border:1px solid #d4e0d8;border-radius:8px;padding:16px;"
-        "font-family:monospace;font-size:12px;line-height:1.5;white-space:pre-wrap;color:#1f2937;\">"
-        f"{safe_body}"
-        "</pre>"
-        "<p style=\"color:#9ca3af;font-size:11px;margin-top:18px;\">"
-        "Sent by Broiler Base Mate — broilerbasemate.com.au"
-        "</p>"
-        "</div>"
-    )
+    if req.report:
+        html = _render_eob_html(req.report, req.farmName or "Broiler Base Mate", user.get("email") or "")
+    else:
+        # Legacy fallback — plain text dump (for backwards compat)
+        safe_body = (
+            req.body
+            .replace("&", "&amp;")
+            .replace("<", "&lt;")
+            .replace(">", "&gt;")
+        )
+        html = (
+            "<div style=\"font-family:system-ui,sans-serif;max-width:700px;margin:0 auto;\">"
+            f"<h2 style=\"color:#0f3d24;margin-bottom:4px;\">End of Batch Report</h2>"
+            f"<p style=\"color:#64748b;font-size:13px;margin:0 0 14px;\">{farm_label} · sent by {user.get('email')}</p>"
+            "<pre style=\"background:#f7faf6;border:1px solid #d4e0d8;border-radius:8px;padding:16px;"
+            "font-family:monospace;font-size:12px;line-height:1.5;white-space:pre-wrap;color:#1f2937;\">"
+            f"{safe_body}"
+            "</pre>"
+            "<p style=\"color:#9ca3af;font-size:11px;margin-top:18px;\">"
+            "Sent by Broiler Base Mate — broilerbasemate.com.au"
+            "</p>"
+            "</div>"
+        )
 
     sent_to: list[str] = []
     failed_to: list[str] = []
@@ -189,6 +415,216 @@ async def send_eob_report(req: EobEmailRequest, request: Request):
         raise HTTPException(500, "Could not send to any of the recipients. Check the email service is configured.")
 
     return {"ok": True, "sent": sent_to, "failed": failed_to}
+
+
+# ─── Share-history email — Reader → head office ──────────────────────────
+# Lets a grower email the recent silo + delivery history straight from the
+# Reader app. Renders the same premium look as the EOB report so anything
+# sent from this farm carries consistent branding.
+
+class HistoryShareRequest(BaseModel):
+    to:           List[str]
+    farm:         Optional[str] = "default"
+    days:         Optional[int] = 7        # how many days of history to include
+    farmName:     Optional[str] = None
+    farmLogoData: Optional[str] = None     # optional base64 PNG override
+
+
+def _render_history_html(farm_name: str, days: int, sender: str,
+                          silos_grouped: list, deliveries: list,
+                          totals: dict, farm_logo_data: Optional[str]) -> str:
+    """Premium branded history email — silo readings + deliveries + totals."""
+    logo_src = (
+        f"data:image/png;base64,{farm_logo_data}"
+        if farm_logo_data else
+        "https://broilerbasemate.com.au/reader-assets/icon-192.png"
+    )
+    period = "today" if days == 1 else f"last {days} days"
+
+    # KPI tiles
+    def kpi(label: str, val: str, accent: str = "#0f3d24") -> str:
+        return f"""<td valign="top" style="padding:6px;"><div style="background:#fff;border:1px solid #e3dccb;border-radius:10px;padding:14px 12px;text-align:center;">
+          <div style="font-size:22px;font-weight:800;color:{accent};letter-spacing:-0.5px;line-height:1;">{val}</div>
+          <div style="font-size:10px;letter-spacing:1.2px;color:#5d6660;text-transform:uppercase;margin-top:6px;font-weight:700;">{label}</div>
+        </div></td>"""
+    kpis = f"""<table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-top:14px;"><tr>
+      {kpi("Total Feed on Farm", f"{totals.get('totalT', 0):,.1f} t", "#0f3d24")}
+      {kpi("Sheds Reporting", str(totals.get('shedsReporting', 0)), "#1a5c36")}
+      {kpi("Silos Read", str(totals.get('silosRead', 0)), "#C9A227")}
+      {kpi("Deliveries", str(len(deliveries)), "#a83e00")}
+    </tr></table>"""
+
+    # Silo readings — grouped by shed
+    silo_html = ""
+    for grp in silos_grouped:
+        silo_rows = "".join(
+            f"""<tr><td style="padding:7px 12px;border-bottom:1px solid #f0ece1;font-weight:700;color:#0f3d24;">Silo {s['letter']}</td>
+              <td style="padding:7px 12px;border-bottom:1px solid #f0ece1;text-align:right;font-variant-numeric:tabular-nums;font-weight:600;">{s['amount']:,.2f} t</td>
+              <td style="padding:7px 12px;border-bottom:1px solid #f0ece1;text-align:right;color:#5d6660;font-size:12px;">{s.get('readAt','')}</td></tr>"""
+            for s in grp['silos']
+        ) or """<tr><td colspan="3" style="padding:14px;text-align:center;color:#9ca3af;font-size:12px;font-style:italic;">No readings yet</td></tr>"""
+        silo_html += f"""<div style="margin-top:14px;background:#fff;border:1px solid #e3dccb;border-radius:10px;overflow:hidden;">
+          <div style="background:#0f3d24;color:#fff;padding:9px 14px;font-weight:800;letter-spacing:0.5px;font-size:13px;display:flex;justify-content:space-between;">
+            <span style="text-transform:uppercase;">{grp['name']}</span>
+            <span style="font-size:15px;background:rgba(201,162,39,0.32);padding:2px 10px;border-radius:99px;">{grp.get('groupTotalT', 0):,.1f} t</span>
+          </div>
+          <table width="100%" cellpadding="0" cellspacing="0" border="0">
+            <thead><tr style="background:#faf7ef;">
+              <th style="padding:8px 12px;text-align:left;font-size:10px;color:#5d6660;letter-spacing:1px;text-transform:uppercase;font-weight:700;border-bottom:1px solid #e3dccb;">Silo</th>
+              <th style="padding:8px 12px;text-align:right;font-size:10px;color:#5d6660;letter-spacing:1px;text-transform:uppercase;font-weight:700;border-bottom:1px solid #e3dccb;">Amount</th>
+              <th style="padding:8px 12px;text-align:right;font-size:10px;color:#5d6660;letter-spacing:1px;text-transform:uppercase;font-weight:700;border-bottom:1px solid #e3dccb;">Last Read</th>
+            </tr></thead>
+            <tbody>{silo_rows}</tbody>
+          </table></div>"""
+
+    # Deliveries table
+    if deliveries:
+        delivery_rows = "".join(
+            f"""<tr><td style="padding:8px 12px;border-bottom:1px solid #f0ece1;font-size:13px;">{d.get('date','—')}</td>
+              <td style="padding:8px 12px;border-bottom:1px solid #f0ece1;font-size:13px;color:#5d6660;">{d.get('supplier','—')}</td>
+              <td style="padding:8px 12px;border-bottom:1px solid #f0ece1;font-size:13px;color:#5d6660;">{d.get('feedType','—')}</td>
+              <td style="padding:8px 12px;border-bottom:1px solid #f0ece1;font-size:13px;text-align:right;font-variant-numeric:tabular-nums;font-weight:700;">{d.get('amountT', 0):,.2f} t</td></tr>"""
+            for d in deliveries
+        )
+        delivery_section = f"""<h3 style="margin:28px 0 10px;color:#0f3d24;font-size:14px;letter-spacing:1.5px;text-transform:uppercase;font-weight:800;border-bottom:2px solid #C9A227;padding-bottom:6px;">🚚 Feed Deliveries ({period})</h3>
+        <div style="background:#fff;border:1px solid #e3dccb;border-radius:10px;overflow:hidden;">
+          <table width="100%" cellpadding="0" cellspacing="0" border="0">
+            <thead><tr style="background:#faf7ef;">
+              <th style="padding:9px 12px;text-align:left;font-size:10px;color:#5d6660;letter-spacing:1px;text-transform:uppercase;font-weight:700;border-bottom:1px solid #e3dccb;">Date</th>
+              <th style="padding:9px 12px;text-align:left;font-size:10px;color:#5d6660;letter-spacing:1px;text-transform:uppercase;font-weight:700;border-bottom:1px solid #e3dccb;">Supplier</th>
+              <th style="padding:9px 12px;text-align:left;font-size:10px;color:#5d6660;letter-spacing:1px;text-transform:uppercase;font-weight:700;border-bottom:1px solid #e3dccb;">Feed Type</th>
+              <th style="padding:9px 12px;text-align:right;font-size:10px;color:#5d6660;letter-spacing:1px;text-transform:uppercase;font-weight:700;border-bottom:1px solid #e3dccb;">Amount</th>
+            </tr></thead>
+            <tbody>{delivery_rows}</tbody>
+          </table></div>"""
+    else:
+        delivery_section = ""
+
+    return f"""<!DOCTYPE html><html><head><meta charset="utf-8" /><title>Farm History — {farm_name}</title></head>
+<body style="margin:0;padding:24px 12px;background:#f3f0e8;font-family:-apple-system,BlinkMacSystemFont,'SF Pro Text','Segoe UI',Roboto,sans-serif;color:#1a2320;-webkit-font-smoothing:antialiased;">
+  <div style="max-width:680px;margin:0 auto;background:#faf7ef;border-radius:16px;overflow:hidden;box-shadow:0 8px 32px -12px rgba(15,61,36,0.18);">
+    <div style="background:linear-gradient(135deg,#0f3d24 0%,#1a5c36 100%);padding:32px 28px;color:#fff;">
+      <table width="100%" cellpadding="0" cellspacing="0" border="0"><tr>
+        <td valign="middle" style="padding-right:14px;width:64px;">
+          <img src="{logo_src}" alt="" width="56" height="56" style="display:block;border-radius:10px;background:#fff;padding:4px;" />
+        </td>
+        <td valign="middle">
+          <div style="font-size:12px;letter-spacing:2.5px;color:#C9A227;font-weight:700;margin-bottom:2px;">FARM HISTORY SNAPSHOT</div>
+          <div style="font-size:24px;font-weight:800;letter-spacing:-0.4px;line-height:1.15;">{farm_name}</div>
+          <div style="font-size:13px;opacity:0.85;margin-top:4px;">Covering the {period}</div>
+        </td>
+      </tr></table>
+    </div>
+    <div style="padding:20px 24px 28px;">
+      <h3 style="margin:0 0 4px;color:#0f3d24;font-size:14px;letter-spacing:1.5px;text-transform:uppercase;font-weight:800;border-bottom:2px solid #C9A227;padding-bottom:6px;">📊 At a Glance</h3>
+      {kpis}
+      <h3 style="margin:28px 0 10px;color:#0f3d24;font-size:14px;letter-spacing:1.5px;text-transform:uppercase;font-weight:800;border-bottom:2px solid #C9A227;padding-bottom:6px;">🌾 Silo Readings (latest per silo)</h3>
+      {silo_html or '<div style="margin-top:14px;padding:18px;text-align:center;color:#9ca3af;font-size:13px;background:#faf7ef;border:1px dashed #e3dccb;border-radius:10px;">No silo readings yet.</div>'}
+      {delivery_section}
+      <div style="margin-top:32px;padding:18px;background:#fff;border-radius:10px;border:1px dashed #e3dccb;text-align:center;color:#5d6660;font-size:12px;line-height:1.6;">
+        Generated by <b style="color:#0f3d24;">Broiler Base Mate™</b> · <a href="https://broilerbasemate.com.au" style="color:#1a5c36;text-decoration:none;font-weight:700;">broilerbasemate.com.au</a><br />
+        <span style="opacity:0.7;">Sent by {sender}</span>
+      </div>
+    </div>
+  </div>
+</body></html>"""
+
+
+@app.post("/api/history/share-email")
+async def share_history_email(req: HistoryShareRequest, request: Request):
+    """Email a beautifully-formatted history snapshot to head office /
+    integrator. Includes latest silo readings per shed + recent deliveries."""
+    user = await _user_from_request(request)
+    if not user:
+        raise HTTPException(401, "Authentication required")
+    if not req.to or len(req.to) > 20:
+        raise HTTPException(400, "Provide 1-20 recipients")
+
+    from email_service import send_email
+
+    farm = req.farm or "default"
+    days = max(1, min(req.days or 7, 90))
+    now = datetime.now(timezone.utc)
+    since = now - timedelta(days=days)
+
+    # ── Latest silo reading per silo (within window), grouped by shed group
+    groups = await shed_groups_col.find(_farm_filter(farm)).sort("displayOrder", 1).to_list(200)
+    silos  = await silos_col.find(_farm_filter(farm)).sort("letter", 1).to_list(1000)
+    latest: dict[str, dict] = {}
+    pipeline = [
+        {"$match": _and(_farm_filter(farm), {"readingDate": {"$gte": since}})},
+        {"$sort": {"readingDate": -1}},
+        {"$group": {"_id": "$siloId", "amountRemaining": {"$first": "$amountRemaining"},
+                    "unit": {"$first": "$unit"}, "readingDate": {"$first": "$readingDate"}}},
+    ]
+    async for doc in readings_col.aggregate(pipeline):
+        amt = float(doc.get("amountRemaining") or 0)
+        if (doc.get("unit") or "").lower() == "kg":
+            amt = amt / 1000.0
+        latest[doc["_id"]] = {"amount": amt, "readingDate": doc["readingDate"]}
+
+    silos_grouped = []
+    total_t = 0.0
+    silos_read = 0
+    sheds_reporting = 0
+    for g in groups:
+        group_silos = [s for s in silos if s.get("shedGroupId") == g["id"]]
+        if not group_silos:
+            continue
+        grp_silos_out = []
+        grp_total = 0.0
+        for s in group_silos:
+            rec = latest.get(s["id"])
+            if not rec:
+                continue
+            ts = rec["readingDate"]
+            ts_str = (ts + AEST_OFFSET).strftime("%d %b · %H:%M") if ts else "—"
+            grp_silos_out.append({"letter": s.get("letter", "?"), "amount": rec["amount"], "readAt": ts_str + " AEST"})
+            grp_total += rec["amount"]
+            silos_read += 1
+        if grp_silos_out:
+            sheds_reporting += 1
+            total_t += grp_total
+            silos_grouped.append({"name": g.get("name", ""), "silos": grp_silos_out, "groupTotalT": grp_total})
+
+    # ── Deliveries within window
+    deliveries_docs = await deliveries_col.find(_and(
+        _farm_filter(farm), {"deliveryDate": {"$gte": since}}
+    )).sort("deliveryDate", -1).to_list(200)
+    deliveries = []
+    for d in deliveries_docs:
+        amt = float(d.get("amount") or 0)
+        if (d.get("unit") or "").lower() == "kg":
+            amt = amt / 1000.0
+        dt = d.get("deliveryDate")
+        date_str = (dt + AEST_OFFSET).strftime("%d %b %Y") if dt else "—"
+        deliveries.append({
+            "date":     date_str,
+            "supplier": d.get("supplier") or d.get("companyName") or "—",
+            "feedType": d.get("feedType") or "—",
+            "amountT":  amt,
+        })
+
+    farm_name = req.farmName or "Farm History"
+    totals = {"totalT": total_t, "shedsReporting": sheds_reporting, "silosRead": silos_read}
+    html = _render_history_html(farm_name, days, user.get("email") or "", silos_grouped, deliveries, totals, req.farmLogoData)
+
+    sent, failed = [], []
+    subject = f"📊 Farm History — {farm_name} ({'today' if days == 1 else f'last {days} days'})"
+    for addr in req.to:
+        addr = addr.strip()
+        if not addr or "@" not in addr:
+            failed.append(addr); continue
+        try:
+            await send_email(to=addr, subject=subject, html=html, reply_to=user.get("email"))
+            sent.append(addr)
+        except Exception as e:
+            failed.append(addr)
+            import logging; logging.getLogger("history_email").warning(f"send failed for {addr}: {e}")
+
+    if not sent:
+        raise HTTPException(500, "Could not send to any recipient. Check email configuration.")
+    return {"ok": True, "sent": sent, "failed": failed}
 
 
 async def _require_outreach_admin(request: Request) -> dict:

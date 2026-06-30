@@ -388,8 +388,32 @@
       <div class="history-tools">
         <div class="pill"><span>📵</span> Local only</div>
         <div class="pill green" id="export-excel"><span>📄</span> Export Excel</div>
+        <div class="pill" id="share-history-btn" data-testid="share-history-btn" style="background:linear-gradient(135deg,#0f3d24,#1a5c36);color:#fff;border:1px solid #0f3d24;"><span>📤</span> Share to Head Office</div>
       </div>
       <div id="history-list"></div>
+    </div>
+
+    <!-- Share History modal -->
+    <div id="share-history-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:1000;align-items:center;justify-content:center;padding:16px;backdrop-filter:blur(4px);">
+      <div style="background:#fff;border-radius:14px;max-width:380px;width:100%;padding:20px;box-shadow:0 24px 60px -16px rgba(0,0,0,0.5);">
+        <div style="font-size:12px;letter-spacing:2px;color:#C9A227;font-weight:800;margin-bottom:2px;">📤 SHARE FARM HISTORY</div>
+        <h3 style="margin:0 0 6px;color:#0f3d24;font-size:18px;letter-spacing:-0.3px;">Email to head office</h3>
+        <p style="margin:0 0 14px;color:#5d6660;font-size:13px;line-height:1.45;">Sends a branded snapshot — latest silo readings + recent deliveries + farm totals.</p>
+        <label style="display:block;font-size:11px;color:#5d6660;font-weight:700;letter-spacing:0.5px;margin-bottom:4px;text-transform:uppercase;">Recipients</label>
+        <input type="text" id="share-history-to" data-testid="share-history-to" placeholder="head.office@processor.com, manager@…" style="width:100%;padding:10px;border:1px solid #e3dccb;border-radius:8px;font-size:14px;background:#faf7ef;box-sizing:border-box;" />
+        <div style="font-size:11px;color:#9ca3af;margin-top:4px;">Separate multiple addresses with commas</div>
+        <label style="display:block;font-size:11px;color:#5d6660;font-weight:700;letter-spacing:0.5px;margin:14px 0 4px;text-transform:uppercase;">History Period</label>
+        <select id="share-history-days" data-testid="share-history-days" style="width:100%;padding:10px;border:1px solid #e3dccb;border-radius:8px;font-size:14px;background:#faf7ef;box-sizing:border-box;">
+          <option value="1">Today</option>
+          <option value="7" selected>Last 7 days</option>
+          <option value="14">Last 14 days</option>
+          <option value="30">Last 30 days</option>
+        </select>
+        <div style="display:flex;gap:8px;margin-top:18px;">
+          <button id="share-history-cancel" data-testid="share-history-cancel" style="flex:1;padding:12px;border:1px solid #e3dccb;border-radius:8px;background:#faf7ef;font-weight:700;color:#5d6660;cursor:pointer;">Cancel</button>
+          <button id="share-history-send" data-testid="share-history-send" style="flex:2;padding:12px;border:none;border-radius:8px;background:linear-gradient(135deg,#0f3d24,#1a5c36);color:#fff;font-weight:800;letter-spacing:0.3px;cursor:pointer;box-shadow:0 6px 16px -6px rgba(15,61,36,0.4);">📤 Send Snapshot</button>
+        </div>
+      </div>
     </div>
 
     <!-- DELIVERIES -->
@@ -788,6 +812,56 @@
       const blob = new Blob([csv],{type:"text/csv"}); const a=document.createElement("a");
       a.href=URL.createObjectURL(blob); a.download=`silo-readings-${new Date().toISOString().slice(0,10)}.csv`; a.click();
       toast("✓ Exported","ok");
+    });
+
+    // ── Share History to Head Office ────────────────────────────────────
+    // Sends a branded snapshot of the latest silo readings + deliveries.
+    // Persists the recipient list per farm so the grower doesn't re-type it
+    // every batch.
+    const SHARE_KEY = "silo-share-history-to";
+    $("#share-history-btn").addEventListener("click", () => {
+      const modal = $("#share-history-modal");
+      const toInput = $("#share-history-to");
+      try { toInput.value = localStorage.getItem(SHARE_KEY) || ""; } catch {}
+      modal.style.display = "flex";
+    });
+    $("#share-history-cancel").addEventListener("click", () => {
+      $("#share-history-modal").style.display = "none";
+    });
+    $("#share-history-send").addEventListener("click", async () => {
+      const btn = $("#share-history-send");
+      const toRaw = $("#share-history-to").value.trim();
+      const days = parseInt($("#share-history-days").value, 10) || 7;
+      const toList = toRaw.split(/[,;\s]+/).map(s => s.trim()).filter(s => s && /@/.test(s));
+      if (!toList.length) { toast("Add at least one email","err"); return; }
+      btn.textContent = "Sending…";
+      btn.disabled = true;
+      try {
+        localStorage.setItem(SHARE_KEY, toRaw);
+        // Pull farm logo + name from farm-config (so the email is branded with the user's own logo)
+        const farmLogoData = (farmConfig.logoData || "").replace(/^data:image\/[a-z]+;base64,/, "") || null;
+        const r = await fetch("/api/history/share-email", {
+          method: "POST",
+          credentials: "include",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            to:           toList,
+            farm:         farmConfig.id || "default",
+            days,
+            farmName:     farmConfig.farmName || "Broiler Base Mate Farm",
+            farmLogoData,
+          }),
+        });
+        const d = await r.json().catch(() => ({}));
+        if (!r.ok) throw new Error(d.detail || "Send failed");
+        toast(`✓ Snapshot sent to ${d.sent?.length || toList.length} recipient${(d.sent?.length || toList.length) === 1 ? "" : "s"}`, "ok");
+        $("#share-history-modal").style.display = "none";
+      } catch (e) {
+        toast("Couldn't send: " + (e.message || "try again"), "err");
+      } finally {
+        btn.textContent = "📤 Send Snapshot";
+        btn.disabled = false;
+      }
     });
 
     // ─── Deliveries ────────────────────────────────────────────────────
