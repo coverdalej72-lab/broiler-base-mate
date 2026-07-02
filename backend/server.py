@@ -86,6 +86,23 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+
+# ── www → apex canonical 301 redirect ─────────────────────────────────────
+# SEO backup for DNS-level redirect. Semrush flagged https://www.broilerbasemate.com.au/
+# as uncrawlable — this middleware guarantees any request hitting the www host
+# gets 301'd to the apex, preserving link equity.
+@app.middleware("http")
+async def www_to_apex_redirect(request: Request, call_next):
+    host = (request.headers.get("host") or "").lower()
+    if host.startswith("www."):
+        apex = host[4:]
+        target = f"https://{apex}{request.url.path}"
+        if request.url.query:
+            target += f"?{request.url.query}"
+        from starlette.responses import RedirectResponse
+        return RedirectResponse(url=target, status_code=301)
+    return await call_next(request)
+
 # ─── Auth (Emergent Google Auth) ──────────────────────────────────────────
 # REMINDER: DO NOT HARDCODE THE URL, OR ADD ANY FALLBACKS OR REDIRECT URLS, THIS BREAKS THE AUTH
 from auth import build_router as _build_auth_router, get_current_user as _get_current_user, list_user_farms as _list_user_farms, COOKIE_NAME as _AUTH_COOKIE  # noqa: E402
@@ -1174,6 +1191,13 @@ async def farm_buddy_alerts(farm: str = Query(default=DEFAULT_FARM_ID)):
         enabled_ids = set(enabled_ids_raw)
     empty_group_ids = all_group_ids - enabled_ids
 
+    # Sheds that were never placed with birds AND aren't currently enabled
+    # shouldn't produce alerts of any kind — they're phantom sheds from the
+    # default 20-shed seed template (e.g. Sheds 13/14/15/16 on a farm that
+    # only runs 12). We identify these as groups with zero historical
+    # readings AND not currently enabled.
+    group_ids_with_readings: set[str] = set()
+
     # Latest reading per silo (most recent saved value, regardless of date)
     latest_by_silo: dict[str, float] = {}
     latest_date_by_silo: dict[str, datetime] = {}
@@ -1199,12 +1223,28 @@ async def farm_buddy_alerts(farm: str = Query(default=DEFAULT_FARM_ID)):
                 rd = rd.replace(tzinfo=timezone.utc)
             latest_date_by_silo[doc["_id"]] = rd
 
+    # Map silo → shedGroup so we can identify which groups have ever had a reading.
+    silo_to_group: dict[str, str] = {s["id"]: s.get("shedGroupId") for s in silos if s.get("shedGroupId")}
+    for silo_id in latest_by_silo:
+        gid = silo_to_group.get(silo_id)
+        if gid:
+            group_ids_with_readings.add(gid)
+
+    # "Phantom" sheds: default-seeded shed_groups the user never placed birds in.
+    # If a shed is currently disabled AND has no historical readings, it doesn't
+    # exist for this farm — suppress all alerts (including the 🐔 EMPTY pin).
+    phantom_group_ids = {gid for gid in empty_group_ids if gid not in group_ids_with_readings}
+
     alerts: list[dict] = []
     now = datetime.now(timezone.utc)
     today_start, today_end = aest_today_range()
 
     # ─── 🐔 Empty sheds — highlight first, suppress noise on these ────────
+    # Only pin sheds that were ACTUALLY placed at some point (have readings on
+    # file). Phantom sheds from the default 20-shed seed are silently skipped.
     for g in groups:
+        if g["id"] in phantom_group_ids:
+            continue
         if g["id"] in empty_group_ids:
             alerts.append({
                 "shedGroupId": g["id"],
@@ -1217,7 +1257,7 @@ async def farm_buddy_alerts(farm: str = Query(default=DEFAULT_FARM_ID)):
 
     for g in groups:
         if g["id"] in empty_group_ids:
-            continue  # skip — already pinned above as empty
+            continue  # skip — already pinned above as empty (or phantom)
         group_silos = [s for s in silos if s.get("shedGroupId") == g["id"]]
         if not group_silos:
             continue

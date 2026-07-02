@@ -1,0 +1,34 @@
+{
+  "summary": "Backend regression tests for iteration_3 bug fixes: (1) phantom-shed suppression in /api/farm-buddy/alerts and (2) www→apex 301 middleware. Both fixes verified via a new pytest suite (13 tests, 100% pass). Farm-config state is snapshotted + restored to keep the DEFAULT farm clean.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_phantom_sheds_and_www_redirect.py",
+    "/app/test_reports/pytest/phantom_and_www.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "server.py:1236 — phantom_group_ids logic depends on the invariant that shed_groups whose silos have NO readings ever = phantoms. If a user manually adds silos to a shed group without ever saving a reading, that group will be treated as a phantom too. That's the correct behaviour today, but worth documenting on the endpoint.",
+    "server.py:1258-1282 — the low-feed loop uses `if g['id'] in empty_group_ids: continue` (including phantoms). Combined with the phantom filter above, this means a phantom shed with a stray silo will never emit low-feed alerts either. Correct, but very subtle — a one-line docstring on `empty_group_ids` / `phantom_group_ids` would help the next maintainer.",
+    "server.py:95 www_to_apex_redirect — the middleware imports RedirectResponse inside the request path. Move the import to module top so it doesn't do an import lookup on every hot request. Minor perf nit.",
+    "server.py:97 — `host.startswith('www.')` would also strip 'www.' from a host like 'www.localhost:3000' during dev. Not a real risk in prod but worth noting.",
+    "test_sync_and_alerts.py has no teardown for the readings it inserts — the readings collection is accumulating TEST_ notes rows across runs. Consider a session-scoped cleanup fixture that deletes readings with notes starting with TEST_. Not blocking, just tech debt."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_phantom_sheds_and_www_redirect.py (NEW)"
+  ],
+  "success_rate": {"backend": "100% (13/13)", "frontend": "n/a (backend-only request)"},
+  "test_credentials": "n/a — endpoints under test are unauthenticated.",
+  "seed_data_creation": "None. Tests reuse the existing default-farm seed. During each phantom-shed scenario the enabledGroupIds field is mutated (disable one group at a time) and RESTORED to the original list on teardown via a module-scoped fixture. One critical-alert test posts 3× 1.0 t readings to Sheds 19&20 silos with note='TEST_phantom_critical' — those rows are left behind (readings collection has no cleanup route). Currently emptyGroups=0, staleGroups=1 on default farm post-run.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Two backend test files now exist under /app/backend/tests: (a) test_sync_and_alerts.py (iteration_1/2), (b) test_phantom_sheds_and_www_redirect.py (this iteration). Run both with: pytest /app/backend/tests -v. The phantom-shed suite snapshots and restores /api/farm-config enabledGroupIds so it is safe to re-run. For www→apex redirect testing use LOCAL_URL=http://localhost:8001 with an explicit Host header — the public preview ingress rewrites Host so it can't be tested via REACT_APP_BACKEND_URL directly (the last test in the class is best-effort and just asserts non-5xx). Confirmed on default farm: 10 shed groups (Sheds 1&2 … 19&20), only Sheds 1&2 and Sheds 19&20 have historical readings; the other 8 are phantoms.",
+  "rca_of_the_issue": "Root cause of phantom-shed alerts: /api/farm-buddy/alerts previously flagged as EMPTY any shed_group whose id was in shed_groups collection but not in enabledGroupIds. Because the DEFAULT seed always creates 20 sheds (10 groups) regardless of how many the grower actually runs, disabling the unused half produced 4-8 spurious 'EMPTY' pins. Fix at server.py:1194-1236 introduces phantom_group_ids = empty_group_ids ∩ groups_without_history, and skips those entirely (no pin, no stale, no missing-today). Verified: emptyGroups counter now excludes phantoms; disabling a real shed (Sheds 1&2 or 19&20 in the seeded default farm) still emits the pin. www→apex redirect (server.py:94-104) is a Starlette HTTP middleware that inspects the request Host header and returns a RedirectResponse(301, https://<apex><path>?<query>). Verified case-insensitive matching, path & query preservation, and non-www pass-through."
+}
