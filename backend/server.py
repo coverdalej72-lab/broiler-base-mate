@@ -17,6 +17,7 @@ from typing import Annotated, List, Optional
 from dotenv import load_dotenv
 from fastapi import APIRouter, FastAPI, HTTPException, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
+from starlette.responses import RedirectResponse
 from fastapi.responses import FileResponse, JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
 from motor.motor_asyncio import AsyncIOMotorClient
@@ -99,7 +100,6 @@ async def www_to_apex_redirect(request: Request, call_next):
         target = f"https://{apex}{request.url.path}"
         if request.url.query:
             target += f"?{request.url.query}"
-        from starlette.responses import RedirectResponse
         return RedirectResponse(url=target, status_code=301)
     return await call_next(request)
 
