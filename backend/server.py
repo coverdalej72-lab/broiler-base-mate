@@ -183,6 +183,11 @@ class EobReport(BaseModel):
     aveWeight:        Optional[float] = None
     fcr:              Optional[float] = None
     cfcr:             Optional[float] = None
+    # NEW — processor-standard metrics that the settlement sheet always shows.
+    # Previously missing from the email payload, so these KPI tiles rendered "—".
+    actualAge:        Optional[float] = None   # Average catch age (days)
+    correctedAge:     Optional[float] = None   # Age corrected to 2.45 kg standard
+    totalLiveWeightKg: Optional[float] = None  # Total kg of birds picked up
     farmLogoData:     Optional[str] = None  # base64 PNG, if user uploaded one
 
 
@@ -258,9 +263,15 @@ def _render_eob_html(r: EobReport, farm_name: str, sender: str) -> str:
         </tr>
         <tr>
           {kpi("Ave Weight", (f"{r.aveWeight:.3f} kg" if r.aveWeight else "—"), "#0f3d24")}
+          {kpi("Total KG", (fmt_n(r.totalLiveWeightKg, ' kg') if r.totalLiveWeightKg else "—"), "#0e7c5a")}
+          {kpi("Ave Age", (f"{r.actualAge:.1f} d" if r.actualAge else "—"), "#0f3d24")}
+          {kpi("Corr. Age", (f"{r.correctedAge:.1f} d" if r.correctedAge else "—"), "#C9A227")}
+        </tr>
+        <tr>
           {kpi("FCR", (f"{r.fcr:.3f}" if r.fcr else "—"), "#0f3d24")}
-          {kpi("cFCR", (f"{r.cfcr:.3f}" if r.cfcr else "—"), "#0f3d24")}
+          {kpi("cFCR to 2.45", (f"{r.cfcr:.3f}" if r.cfcr else "—"), "#C9A227")}
           {kpi("Total Feed", fmt_n(r.totalPurchased, " kg"), "#C9A227")}
+          {kpi("Batch", (r.batchName or "—"), "#5d6660")}
         </tr>
       </table>
     """
