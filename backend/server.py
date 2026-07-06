@@ -37,6 +37,7 @@ deliveries_col = db["deliveries"]
 photos_col = db["photos"]
 farm_config_col = db["farm_config"]
 feed_program_state_col = db["feed_program_state"]
+feed_program_state_history_col = db["feed_program_state_history"]
 payments_col = db["payment_transactions"]
 farms_col = db["farms"]
 
@@ -978,6 +979,9 @@ async def _ensure_indexes():
 
         # feed_program_state — keyed by farmId in PUT/GET
         await feed_program_state_col.create_index([("farmId", 1)], unique=True)
+        # feed_program_state_history — Cloud Rewind snapshots
+        await feed_program_state_history_col.create_index([("farmId", 1), ("capturedAt", -1)])
+        await feed_program_state_history_col.create_index([("id", 1)], unique=True, sparse=True)
 
         # farms — looked up by slug & ownerEmail (auth flow)
         await farms_col.create_index([("slug", 1)], unique=True)
@@ -1742,6 +1746,18 @@ async def patch_farm_config(body: FarmConfigBody, farm: str = Query(default=DEFA
 class FeedProgramStateBody(BaseModel):
     edits: str  # serializeEdits() output — opaque JSON string of cell edits per sheet
     sheetNames: List[str]
+    # Client can set to True to bypass the anti-corruption guard (e.g. a legitimate
+    # "reset for new batch" that intentionally clears all cells).
+    forceOverwrite: Optional[bool] = False
+
+
+# Anti-corruption threshold: reject writes that drop more than this fraction of
+# the previous state's byte size, unless forceOverwrite=True. 30 % catches most
+# accidental hydration-bug wipes (where 50–100 % of cells vanish) while allowing
+# ordinary batch progression (users add / edit / occasionally delete cells).
+_FEED_STATE_CORRUPTION_THRESHOLD = 0.30
+_FEED_STATE_MIN_SIZE_TO_GUARD = 500  # bytes — don't guard tiny new farms
+_FEED_STATE_HISTORY_LIMIT = 30  # keep last 30 snapshots per farm
 
 
 @api.get("/feed-program/state")
@@ -1759,6 +1775,61 @@ async def get_feed_program_state(farm: str = Query(default=DEFAULT_FARM_ID)):
 @api.put("/feed-program/state")
 async def put_feed_program_state(body: FeedProgramStateBody, farm: str = Query(default=DEFAULT_FARM_ID)):
     now = datetime.now(timezone.utc).isoformat()
+
+    # ── Anti-corruption guard ────────────────────────────────────────────────
+    # If the incoming edits string is dramatically smaller than what's currently
+    # stored, refuse the write and return a 409. Prevents silent data-loss from
+    # hydration bugs or race conditions in the client. Client can retry with
+    # forceOverwrite=True (used for legitimate "new batch" resets).
+    existing = await feed_program_state_col.find_one({"farmId": farm})
+    existing_edits = (existing or {}).get("edits") or ""
+    existing_size = len(existing_edits)
+    new_size = len(body.edits or "")
+    if (
+        not body.forceOverwrite
+        and existing_size >= _FEED_STATE_MIN_SIZE_TO_GUARD
+        and new_size < existing_size * (1 - _FEED_STATE_CORRUPTION_THRESHOLD)
+    ):
+        raise HTTPException(
+            status_code=409,
+            detail={
+                "error": "corruption_guard",
+                "message": (
+                    "Save blocked: incoming state is much smaller than the "
+                    "current saved state. This usually means the browser hasn't "
+                    "finished loading. Reload the page and try again — if the "
+                    "problem persists, use Cloud Rewind to restore an earlier "
+                    "snapshot."
+                ),
+                "existingSize": existing_size,
+                "incomingSize": new_size,
+                "dropPct": round((1 - new_size / existing_size) * 100, 1),
+            },
+        )
+
+    # ── Capture existing state to history BEFORE overwriting ─────────────────
+    # Only snapshot if there's something worth saving (non-empty existing state)
+    # and the incoming write is meaningfully different. Skips duplicate saves.
+    if existing_edits and existing_edits != (body.edits or ""):
+        try:
+            await feed_program_state_history_col.insert_one({
+                "id": str(uuid.uuid4()),
+                "farmId": farm,
+                "edits": existing_edits,
+                "sheetNames": existing.get("sheetNames") or [],
+                "capturedAt": now,  # ISO string — matches getFeedProgramState updatedAt
+                "capturedSize": existing_size,
+                "reason": "pre-write-backup",
+            })
+            # Trim history to the last N snapshots for this farm.
+            all_snaps = await feed_program_state_history_col.find({"farmId": farm}).sort("capturedAt", -1).to_list(length=200)
+            if len(all_snaps) > _FEED_STATE_HISTORY_LIMIT:
+                overflow_ids = [s["_id"] for s in all_snaps[_FEED_STATE_HISTORY_LIMIT:]]
+                await feed_program_state_history_col.delete_many({"_id": {"$in": overflow_ids}})
+        except Exception:
+            # History is a safety net — never fail the write because of it.
+            pass
+
     await feed_program_state_col.update_one(
         {"farmId": farm},
         {"$set": {"edits": body.edits, "sheetNames": body.sheetNames, "updatedAt": now},
@@ -1766,6 +1837,87 @@ async def put_feed_program_state(body: FeedProgramStateBody, farm: str = Query(d
         upsert=True,
     )
     return {"ok": True, "updatedAt": now}
+
+
+# ── Feed-program history (Cloud Rewind) ──────────────────────────────────
+# Server-side snapshot list — always available regardless of which device / browser
+# the user is on. Restores are non-destructive: the current state is snapshotted
+# before it's replaced so an accidental rewind is itself rewind-able.
+
+
+@api.get("/feed-program/history")
+async def list_feed_program_history(farm: str = Query(default=DEFAULT_FARM_ID)):
+    """Return metadata for up to 30 recent snapshots (excludes the edits blob to keep response small)."""
+    snaps = await feed_program_state_history_col.find(
+        {"farmId": farm},
+        {"edits": 0},  # exclude blob
+    ).sort("capturedAt", -1).limit(_FEED_STATE_HISTORY_LIMIT).to_list(length=_FEED_STATE_HISTORY_LIMIT)
+    return [
+        {
+            "id": s.get("id"),
+            "capturedAt": s.get("capturedAt"),
+            "capturedSize": s.get("capturedSize"),
+            "sheetNames": s.get("sheetNames") or [],
+            "reason": s.get("reason") or "pre-write-backup",
+        }
+        for s in snaps
+    ]
+
+
+@api.get("/feed-program/history/{snap_id}")
+async def get_feed_program_history_item(snap_id: str, farm: str = Query(default=DEFAULT_FARM_ID)):
+    """Return the full snapshot (edits + sheetNames) so the client can preview or restore."""
+    snap = await feed_program_state_history_col.find_one({"id": snap_id, "farmId": farm})
+    if not snap:
+        raise HTTPException(404, "Snapshot not found")
+    return {
+        "id": snap.get("id"),
+        "capturedAt": snap.get("capturedAt"),
+        "edits": snap.get("edits"),
+        "sheetNames": snap.get("sheetNames") or [],
+    }
+
+
+@api.post("/feed-program/history/{snap_id}/restore")
+async def restore_feed_program_history(snap_id: str, farm: str = Query(default=DEFAULT_FARM_ID)):
+    """Restore a snapshot as the current state. Snapshots current state first so the
+    restore itself is rewind-able. Returns the restored state so the client can
+    immediately re-hydrate without a second GET."""
+    snap = await feed_program_state_history_col.find_one({"id": snap_id, "farmId": farm})
+    if not snap:
+        raise HTTPException(404, "Snapshot not found")
+    now = datetime.now(timezone.utc).isoformat()
+    existing = await feed_program_state_col.find_one({"farmId": farm})
+    existing_edits = (existing or {}).get("edits") or ""
+    if existing_edits:
+        try:
+            await feed_program_state_history_col.insert_one({
+                "id": str(uuid.uuid4()),
+                "farmId": farm,
+                "edits": existing_edits,
+                "sheetNames": existing.get("sheetNames") or [],
+                "capturedAt": now,
+                "capturedSize": len(existing_edits),
+                "reason": "pre-rewind-backup",
+            })
+        except Exception:
+            pass
+    await feed_program_state_col.update_one(
+        {"farmId": farm},
+        {"$set": {
+            "edits": snap.get("edits") or "",
+            "sheetNames": snap.get("sheetNames") or [],
+            "updatedAt": now,
+        }, "$setOnInsert": {"farmId": farm}},
+        upsert=True,
+    )
+    return {
+        "ok": True,
+        "restoredFrom": snap.get("capturedAt"),
+        "edits": snap.get("edits"),
+        "sheetNames": snap.get("sheetNames") or [],
+        "updatedAt": now,
+    }
 
 
 # ── Photos (Mort Sheet + Bird Weight) ────────────────────────────────────
