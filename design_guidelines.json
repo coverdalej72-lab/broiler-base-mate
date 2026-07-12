@@ -1,0 +1,111 @@
+{
+  "theme_overview": {
+    "vibe": "High-end 2026 SaaS, industrial command center, premium dark theme ('FarmBuddy' style)",
+    "emotional_tone": "Command-center focus, reliable, precise, high-tech agricultural",
+    "theme_preference": "Dark-first (with theme toggle for light mode fallback)"
+  },
+  "typography": {
+    "headings": {
+      "font_family": "Outfit",
+      "weights": ["400", "600", "700"],
+      "tracking": "tracking-tight",
+      "usage_rules": "Do not use Inter for headings. Use Outfit for a modern tech feel with tight tracking on H1/H2."
+    },
+    "body": {
+      "font_family": "IBM Plex Sans",
+      "weights": ["400", "500", "600"],
+      "usage_rules": "Optimal for dense data grids and dashboards. Use for all feed grid numerics, body text, and labels."
+    }
+  },
+  "colors": {
+    "base": {
+      "background": "#090A0F",
+      "surface": "#12141A",
+      "surface_elevated": "#1A1D24",
+      "border": "#272B36"
+    },
+    "brand": {
+      "primary": "#22C55E",
+      "primary_hover": "#16A34A",
+      "primary_muted": "rgba(34, 197, 94, 0.15)"
+    },
+    "status": {
+      "success": "#22C55E",
+      "warning": "#F59E0B",
+      "critical": "#EF4444",
+      "info": "#3B82F6",
+      "future": "#6366F1"
+    },
+    "text": {
+      "primary": "#F8FAFC",
+      "secondary": "#94A3B8",
+      "muted": "#64748B"
+    }
+  },
+  "visual_enhancers": {
+    "glassmorphism": "Use 'backdrop-blur-xl bg-black/60 border border-white/10' for the Right Silo Panel and Top Header. Ensures data doesn't feel flat.",
+    "borders": "1px delicate inner stroke on elevated surfaces (border-white/5 to border-white/10).",
+    "shadows": "Soft diffuse ambient shadows (shadow-2xl shadow-black/50) for modal elements and dropdowns.",
+    "textures": "Optional subtle noise/grain overlay (opacity-5) on the main app wrapper to kill 'digital flatness'."
+  },
+  "layouts": {
+    "app_shell": "CSS Grid or Flex layout. Left Sidebar (fixed 240px, collapses on mobile). Main Content (fluid). Right Silo Panel (320px fixed on desktop, bottom drawer or collapsed on <1280px).",
+    "header": "Sticky top, z-50, backdrop-blur glass effect. Contains breadcrumbs, theme toggle, and profile.",
+    "flock_forecast_grid": "Bento-style High Density Grid for KPIs. Base: grid-cols-1 md:grid-cols-3. Gap: gap-4. Utilize h-full for stretching.",
+    "feed_program_grid": "Full-width complex table. Sticky first column (Day/Date) and sticky table header. Horizontal and vertical scrolling enabled."
+  },
+  "components": {
+    "silo_gauge": "Semi-circle gauge chart (via Recharts or SVG). Must be animated on load to fill up to the current total capacity percentage. Colored arcs for Critical (Red), Low (Amber), OK (Green).",
+    "kpi_tiles": "Flat solid background or glass effect, 1px border. Value text should use Outfit text-4xl font-semibold. Subtle icon in top-right with brand-muted background.",
+    "feed_grid_table": "Dense cells. Use rich color-coded status pips (small rounded indicators 8px by 8px or subtle background tints). Today's row gets a distinct highlight (e.g., border-l-2 border-primary bg-primary/5).",
+    "sliders": "Customized Shadcn Slider for 'Catch Day' and 'Target Weight'. Accent color matches primary green.",
+    "charts": "Recharts. Dark theme grids (stroke='#272B36'). Actual data = solid line. Forecast data = dashed line. Use dot={false} or subtle dots on hover. Tooltips must have dark glassmorphism background."
+  },
+  "motion": {
+    "hero_moment": "On initial app load, trigger a staggered Framer Motion entrance for the main Feed grid rows or Forecast KPI tiles (y: 20, opacity: 0 -> y: 0, opacity: 1, stagger: 0.05). The Silo gauge MUST animate its stroke-dashoffset from 0 to actual value over 1.5s.",
+    "micro_interactions": "Buttons get a subtle scale-down on tap (scale: 0.98). Table rows get a very subtle bg-white/5 on hover.",
+    "transitions": "DO NOT use 'transition-all'. Use specific 'transition-colors', 'transition-transform'."
+  },
+  "accessibility": {
+    "contrast": "Ensure text against status colors meets APCA/WCAG standards. Use darker variants of status colors for text if placed on light backgrounds, or white text on dark status backgrounds.",
+    "testing_attributes": "All interactive elements, buttons, tabs, and form inputs MUST have 'data-testid' attributes (e.g., data-testid='start-batch-btn')."
+  },
+  "media": {
+    "icons": "Use lucide-react for all UI icons. Keep stroke-width consistent (usually 1.5 or 2).",
+    "charts_library": "Use Recharts for the Silo gauge, Weight Growth Curve, and Daily Feed Usage Forecast."
+  },
+  "image_urls": {
+    "avatar_placeholder": {
+      "url": "https://images.pexels.com/photos/32277759/pexels-photo-32277759.jpeg?auto=compress&cs=tinysrgb&dpr=2&h=650&w=940",
+      "description": "Elderly Australian farmer portrait for the user profile avatar in the header."
+    }
+  },
+  "phased_implementation_plan": [
+    {
+      "phase": 1,
+      "title": "Shell & Theme Overhaul",
+      "description": "Establish the 2026 dark theme tokens. Build the layout shell: Left Sidebar (240px), Sticky Header, and Right Silo Panel (320px). Implement the hero load-in animation for the shell."
+    },
+    {
+      "phase": 2,
+      "title": "Feed Program Redesign & Silo Panel",
+      "description": "Refactor the main feed grid without breaking xlsx math. Add sticky headers/columns, color-coded pips, and quick-nav strip. Build the Silo Gauge (animated) and individual Silo cards in the Right Panel."
+    },
+    {
+      "phase": 3,
+      "title": "Flock Forecast Page (New)",
+      "description": "Create the new Flock Forecast view. Build the Parameter Sliders, Bento-style KPI tiles with staggered animations, Recharts Growth/Feed charts, and the Feed Order Planner list."
+    }
+  ],
+  "universal_guidelines_for_main_agent": [
+    "CRITICAL: Treat all files as .js/.jsx. The project uses standard JavaScript/JSX, not TypeScript (.tsx), despite any initial prompts mentioning App.tsx. Double check the file extensions before writing.",
+    "DO NOT break the existing xlsx-driven math logic or the mobile Reader companion app.",
+    "NEVER use generic placeholder image URLs (like via.placeholder). Use the provided image_urls for avatars.",
+    "Do not center-align the main app layout. Left-align dense data.",
+    "Use 2-3x generous spacing for standard sections, but maintain a dense tight bento grid for the Flock Forecast.",
+    "Include 'data-testid' attributes on all actionable elements (buttons, inputs, tabs).",
+    "Implement glassmorphism using Tailwind 'backdrop-blur-xl bg-black/60'. Never use fully transparent backgrounds behind text.",
+    "Use Sonner for toast notifications.",
+    "Do not apply 'transition: all' globally."
+  ]
+}
