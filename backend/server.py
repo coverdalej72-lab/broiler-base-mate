@@ -399,6 +399,26 @@ def _render_eob_html(r: EobReport, farm_name: str, sender: str) -> str:
 </body></html>"""
 
 
+# ── PDF generator for the EOB email attachment ────────────────────────────
+# Uses weasyprint (pure-Python, no browser needed) to render the same HTML → PDF,
+# so head-office receivers get a print-perfect archival copy that matches the
+# email view. Returns None on any failure so the email still sends without
+# attachment. Runs the CPU-bound render in a thread to keep the event loop free.
+async def _render_html_to_pdf(html: str) -> Optional[bytes]:
+    import asyncio as _aio
+    def _render():
+        try:
+            from weasyprint import HTML  # noqa: WPS433
+            return HTML(string=html).write_pdf()
+        except Exception:
+            return None
+    try:
+        return await _aio.to_thread(_render)
+    except Exception:
+        return None
+
+
+
 @app.post("/api/eob/send-report")
 async def send_eob_report(req: EobEmailRequest, request: Request):
     import logging as _logging
@@ -414,8 +434,23 @@ async def send_eob_report(req: EobEmailRequest, request: Request):
     from email_service import send_email
 
     farm_label = req.farmName or "your farm"
+    pdf_attachment: Optional[dict] = None
     if req.report:
         html = _render_eob_html(req.report, req.farmName or "Broiler Base Mate", user.get("email") or "")
+        # Attach a PDF copy for head-office archiving. Uses headless Chrome
+        # to render the SAME HTML → PDF, so the email and PDF are visually
+        # identical. Silent no-op if Chrome isn't available (email still sends).
+        try:
+            pdf_bytes = await _render_html_to_pdf(html)
+            if pdf_bytes:
+                import base64 as _b64
+                batch_slug = "".join(c if c.isalnum() else "-" for c in (req.report.batchName or f"batch-{req.report.batchNumber or 'report'}"))
+                pdf_attachment = {
+                    "filename": f"EOB-{batch_slug}.pdf",
+                    "content": _b64.b64encode(pdf_bytes).decode("ascii"),
+                }
+        except Exception as e:
+            _log.warning("EOB PDF generation failed (email will still send without attachment): %s", e)
     else:
         # Legacy fallback — plain text dump (for backwards compat)
         safe_body = (
@@ -451,6 +486,7 @@ async def send_eob_report(req: EobEmailRequest, request: Request):
                 subject=req.subject,
                 html=html,
                 reply_to=user.get("email"),
+                attachments=[pdf_attachment] if pdf_attachment else None,
             )
             sent_to.append(addr)
         except Exception as e:

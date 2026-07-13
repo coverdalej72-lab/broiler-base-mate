@@ -33,9 +33,12 @@ def _reply_to() -> Optional[str]:
     return r or None
 
 
-async def send_email(*, to: str, subject: str, html: str, reply_to: Optional[str] = None) -> dict:
+async def send_email(*, to: str, subject: str, html: str, reply_to: Optional[str] = None, attachments: Optional[list] = None) -> dict:
     """Send an email via Resend. Returns {"ok": bool, "id": str|None, "skipped": bool}.
-    If `reply_to` is omitted, falls back to the REPLY_TO_EMAIL env var."""
+    If `reply_to` is omitted, falls back to the REPLY_TO_EMAIL env var.
+
+    `attachments` is an optional list of dicts, each: {"filename": str, "content": base64 str}
+    (Resend expects base64-encoded content, matching their API spec)."""
     key = _key()
     if not key:
         logger.warning("RESEND_API_KEY missing — skipping email to %s (subject=%r)", to, subject)
@@ -46,6 +49,8 @@ async def send_email(*, to: str, subject: str, html: str, reply_to: Optional[str
     rt = reply_to or _reply_to()
     if rt:
         params["reply_to"] = rt
+    if attachments:
+        params["attachments"] = attachments
     try:
         email = await asyncio.to_thread(resend.Emails.send, params)
         return {"ok": True, "id": email.get("id") if isinstance(email, dict) else None, "skipped": False}
