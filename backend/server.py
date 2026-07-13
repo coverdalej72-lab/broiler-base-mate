@@ -419,6 +419,71 @@ async def _render_html_to_pdf(html: str) -> Optional[bytes]:
 
 
 
+from fastapi.responses import HTMLResponse
+
+@app.get("/api/eob/preview-sample", response_class=HTMLResponse)
+async def eob_preview_sample():
+    """Preview-only endpoint that renders the End-of-Batch HTML with sample
+    Batch 121 data so the user can eyeball the layout before sending real
+    reports. Not linked from the UI — access via /api/eob/preview-sample."""
+    r = EobReport(
+        farmName="Double B", batchNumber=121, lastBatchNumber=114,
+        batchName="Batch #121", generatedDate="13 Jul 2026",
+        totalPlaced=532589, totalCaught=515872, totalMorts=16717, mortalityPct=3.14,
+        aveWeight=3.069, fcr=1.522, cfcr=1.355, actualAge=41.4, correctedAge=33.0,
+        totalLiveWeightKg=1567081, totalPurchased=2306260,
+        lastBatchLeft=118000, totalDelivered=2306260, totalUsed=2306260,
+        feedLeft=140000, netConsumed=2166260,
+        sheds=[
+            EobShedRow(shed="1",  placed=41000, morts=872,  caught=40128, balance=0, mtec=1898),
+            EobShedRow(shed="2",  placed=44000, morts=1072, caught=42928, balance=0, mtec=1735),
+            EobShedRow(shed="3",  placed=40500, morts=2820, caught=37680, balance=0, mtec=1657),
+            EobShedRow(shed="4",  placed=41200, morts=592,  caught=40608, balance=0, mtec=1740),
+            EobShedRow(shed="5",  placed=41200, morts=1440, caught=39760, balance=0, mtec=1906),
+            EobShedRow(shed="7",  placed=49500, morts=396,  caught=49104, balance=0, mtec=2282),
+            EobShedRow(shed="8",  placed=47083, morts=2027, caught=45056, balance=0, mtec=2323),
+            EobShedRow(shed="9",  placed=46000, morts=2832, caught=43168, balance=0, mtec=2416),
+            EobShedRow(shed="10", placed=46000, morts=1704, caught=44296, balance=0, mtec=2728),
+            EobShedRow(shed="11", placed=46406, morts=1502, caught=44904, balance=0, mtec=2390),
+            EobShedRow(shed="12", placed=48500, morts=1708, caught=46792, balance=0, mtec=1940),
+        ],
+        feedTypes=[
+            EobFeedType(name="STARTER",   color="#8B5A2B", total=175380, rows=[
+                EobDeliveryRow(date="13/05/26", docket="57171", kg=43800),
+                EobDeliveryRow(date="13/05/26", docket="57169", kg=43880),
+                EobDeliveryRow(date="13/05/26", docket="57168", kg=43720),
+                EobDeliveryRow(date="13/05/26", docket="57170", kg=43980),
+            ]),
+            EobFeedType(name="GROWER",    color="#B8860B", total=524340, rows=[
+                EobDeliveryRow(date="23/05/26", docket="57447", kg=44020),
+                EobDeliveryRow(date="24/05/26", docket="57448", kg=43540),
+                EobDeliveryRow(date="29/05/26", docket="57571", kg=43720),
+                EobDeliveryRow(date="29/05/26", docket="57572", kg=43460),
+                EobDeliveryRow(date="02/06/26", docket="58626", kg=43740),
+                EobDeliveryRow(date="02/06/26", docket="58627", kg=43580),
+                EobDeliveryRow(date="04/06/26", docket="58675", kg=43900),
+                EobDeliveryRow(date="04/06/26", docket="58673", kg=43580),
+                EobDeliveryRow(date="04/06/26", docket="58674", kg=43040),
+                EobDeliveryRow(date="07/06/26", docket="58676", kg=43840),
+            ]),
+            EobFeedType(name="FINISHER",  color="#556B2F", total=868080, rows=[
+                EobDeliveryRow(date="10/06/26", docket="58712", kg=43500),
+                EobDeliveryRow(date="11/06/26", docket="58789", kg=43880),
+                EobDeliveryRow(date="13/06/26", docket="58842", kg=43620),
+                EobDeliveryRow(date="16/06/26", docket="58941", kg=43900),
+                EobDeliveryRow(date="18/06/26", docket="59012", kg=43760),
+                EobDeliveryRow(date="20/06/26", docket="59088", kg=43420),
+            ]),
+            EobFeedType(name="WITHDRAWL", color="#4682B4", total=738460, rows=[
+                EobDeliveryRow(date="22/06/26", docket="59245", kg=43800),
+                EobDeliveryRow(date="23/06/26", docket="59289", kg=43520),
+                EobDeliveryRow(date="25/06/26", docket="59356", kg=43880),
+            ]),
+        ],
+    )
+    return _render_eob_html(r, "Double B", "grower@doubleb.au")
+
+
 @app.post("/api/eob/send-report")
 async def send_eob_report(req: EobEmailRequest, request: Request):
     import logging as _logging
