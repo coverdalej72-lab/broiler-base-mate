@@ -160,6 +160,8 @@ class EobShedRow(BaseModel):
     morts:   int = 0
     caught:  int = 0
     balance: int = 0
+    mtec:    Optional[float] = None  # NEW — MTEC (mortality trend) column from processor sheet
+
 
 class EobReport(BaseModel):
     """Structured End-of-Batch payload. When sent, the backend renders a
@@ -188,7 +190,11 @@ class EobReport(BaseModel):
     actualAge:        Optional[float] = None   # Average catch age (days)
     correctedAge:     Optional[float] = None   # Age corrected to 2.45 kg standard
     totalLiveWeightKg: Optional[float] = None  # Total kg of birds picked up
-    farmLogoData:     Optional[str] = None  # base64 PNG, if user uploaded one
+    # NEW — head-office additions matching the physical Excel report
+    farmName:         Optional[str] = None   # e.g. "Double B"
+    batchNumber:      Optional[int] = None   # e.g. 121
+    lastBatchNumber:  Optional[int] = None   # e.g. 114
+    farmLogoData:     Optional[str] = None   # base64 PNG, if user uploaded one
 
 
 class EobEmailRequest(BaseModel):
@@ -224,7 +230,8 @@ def _render_eob_html(r: EobReport, farm_name: str, sender: str) -> str:
         if r.farmLogoData else
         "https://broilerbasemate.com.au/reader-assets/icon-192.png"
     )
-    batch = r.batchName or "Batch"
+    batch = r.batchName or (f"Batch #{r.batchNumber}" if r.batchNumber else "Batch")
+    prev_batch_note = f" · Prev Batch #{r.lastBatchNumber}" if r.lastBatchNumber else ""
     gen   = r.generatedDate or datetime.now(timezone.utc).strftime("%d %b %Y")
 
     # ── HERO ────────────────────────────────────────────────────────────
@@ -236,8 +243,8 @@ def _render_eob_html(r: EobReport, farm_name: str, sender: str) -> str:
           </td>
           <td valign="middle">
             <div style="font-size:12px;letter-spacing:2.5px;color:#C9A227;font-weight:700;margin-bottom:2px;">END OF BATCH REPORT</div>
-            <div style="font-size:24px;font-weight:800;letter-spacing:-0.4px;line-height:1.15;">{farm_name}</div>
-            <div style="font-size:13px;opacity:0.85;margin-top:4px;">{batch} · Generated {gen}</div>
+            <div style="font-size:24px;font-weight:800;letter-spacing:-0.4px;line-height:1.15;">{r.farmName or farm_name}</div>
+            <div style="font-size:13px;opacity:0.85;margin-top:4px;">{batch}{prev_batch_note} · Generated {gen}</div>
           </td>
         </tr></table>
       </div>
@@ -313,6 +320,10 @@ def _render_eob_html(r: EobReport, farm_name: str, sender: str) -> str:
 
     # ── Per-shed bird table ────────────────────────────────────────────
     if r.sheds:
+        # Only show the MTEC column if at least one shed has an MTEC value —
+        # keeps the table clean for growers who don't track it.
+        show_mtec = any((s.mtec or 0) > 0 for s in r.sheds)
+        total_mtec = sum((s.mtec or 0) for s in r.sheds) if show_mtec else 0
         shed_rows = "".join(
             f"""<tr>
               <td style="padding:8px 12px;border-bottom:1px solid #f0ece1;font-weight:700;color:#0f3d24;">Shed {s.shed}</td>
@@ -320,6 +331,7 @@ def _render_eob_html(r: EobReport, farm_name: str, sender: str) -> str:
               <td style="padding:8px 12px;border-bottom:1px solid #f0ece1;text-align:right;color:#a83e00;font-variant-numeric:tabular-nums;">{('−' + format(s.morts, ',')) if s.morts > 0 else '—'}</td>
               <td style="padding:8px 12px;border-bottom:1px solid #f0ece1;text-align:right;font-variant-numeric:tabular-nums;">{(format(s.caught, ',') if s.caught > 0 else '—')}</td>
               <td style="padding:8px 12px;border-bottom:1px solid #f0ece1;text-align:right;font-weight:700;font-variant-numeric:tabular-nums;color:{'#0f3d24' if s.balance >= 0 else '#a83e00'};">{s.balance:,}</td>
+              {f'<td style="padding:8px 12px;border-bottom:1px solid #f0ece1;text-align:right;font-variant-numeric:tabular-nums;color:#5d6660;">{int(s.mtec or 0):,}</td>' if show_mtec else ''}
             </tr>"""
             for s in r.sheds
         )
@@ -329,7 +341,9 @@ def _render_eob_html(r: EobReport, farm_name: str, sender: str) -> str:
             <td style="padding:10px 12px;text-align:right;font-weight:800;color:#ffb3a7;font-variant-numeric:tabular-nums;">{('−' + (fmt_n(r.totalMorts))) if (r.totalMorts or 0) > 0 else '—'}</td>
             <td style="padding:10px 12px;text-align:right;font-weight:800;font-variant-numeric:tabular-nums;">{fmt_n(r.totalCaught)}</td>
             <td style="padding:10px 12px;text-align:right;font-weight:800;font-variant-numeric:tabular-nums;">{fmt_n(r.totalBalance)}</td>
+            {f'<td style="padding:10px 12px;text-align:right;font-weight:800;font-variant-numeric:tabular-nums;">{int(total_mtec):,}</td>' if show_mtec else ''}
           </tr>"""
+        mtec_header = '<th style="padding:9px 12px;text-align:right;font-size:10px;color:#5d6660;letter-spacing:1px;text-transform:uppercase;font-weight:700;border-bottom:1px solid #e3dccb;">MTEC</th>' if show_mtec else ''
         bird_section = f"""
           <h3 style="margin:28px 0 10px;color:#0f3d24;font-size:14px;letter-spacing:1.5px;text-transform:uppercase;font-weight:800;border-bottom:2px solid #C9A227;padding-bottom:6px;">🐔 Bird Summary</h3>
           <div style="background:#fff;border:1px solid #e3dccb;border-radius:10px;overflow:hidden;">
@@ -341,6 +355,7 @@ def _render_eob_html(r: EobReport, farm_name: str, sender: str) -> str:
                   <th style="padding:9px 12px;text-align:right;font-size:10px;color:#5d6660;letter-spacing:1px;text-transform:uppercase;font-weight:700;border-bottom:1px solid #e3dccb;">Morts</th>
                   <th style="padding:9px 12px;text-align:right;font-size:10px;color:#5d6660;letter-spacing:1px;text-transform:uppercase;font-weight:700;border-bottom:1px solid #e3dccb;">Caught</th>
                   <th style="padding:9px 12px;text-align:right;font-size:10px;color:#5d6660;letter-spacing:1px;text-transform:uppercase;font-weight:700;border-bottom:1px solid #e3dccb;">Balance</th>
+                  {mtec_header}
                 </tr>
               </thead>
               <tbody>{shed_rows}{totals_row}</tbody>
