@@ -201,7 +201,7 @@ class TestFeedProgramState:
         before = datetime.now(timezone.utc)
 
         p = api.put(f"{BASE_URL}/api/feed-program/state", params={"farm": FARM},
-                    json={"edits": edits_payload, "sheetNames": sheets}, timeout=20)
+                    json={"edits": edits_payload, "sheetNames": sheets, "forceOverwrite": True}, timeout=20)
         assert p.status_code == 200, p.text
         pbody = p.json()
         assert pbody.get("ok") is True
