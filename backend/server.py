@@ -474,7 +474,7 @@ async def eob_preview_sample():
                 EobDeliveryRow(date="18/06/26", docket="59012", kg=43760),
                 EobDeliveryRow(date="20/06/26", docket="59088", kg=43420),
             ]),
-            EobFeedType(name="WITHDRAWL", color="#4682B4", total=738460, rows=[
+            EobFeedType(name="WITHDRAWAL", color="#4682B4", total=738460, rows=[
                 EobDeliveryRow(date="22/06/26", docket="59245", kg=43800),
                 EobDeliveryRow(date="23/06/26", docket="59289", kg=43520),
                 EobDeliveryRow(date="25/06/26", docket="59356", kg=43880),
