@@ -86,8 +86,25 @@ class TestReadingsSyncChain:
     def test_today_filters_to_today_only(self, api, first_group_silos):
         """POST a reading dated yesterday → /api/readings/today should not surface it as 'saved' for today."""
         group, gsilos = first_group_silos
-        # Use second silo so we don't collide with previous test
-        silo = gsilos[1] if len(gsilos) > 1 else gsilos[0]
+        # Use last silo of the group so we don't collide with previous tests that
+        # write to gsilos[0]. If only one silo exists, we can't reliably assert
+        # isolation, so skip.
+        if len(gsilos) < 2:
+            pytest.skip("Need at least 2 silos in the first shed-group for isolation")
+        silo = gsilos[-1]
+
+        # Pre-clean: remove ANY existing readings on this silo (today or otherwise)
+        # so the test is deterministic regardless of previous runs / stale data.
+        existing = api.get(
+            f"{BASE_URL}/api/readings",
+            params={"farm": FARM, "siloId": silo["id"], "limit": 1000},
+            timeout=20,
+        )
+        assert existing.status_code == 200, existing.text
+        for row in existing.json():
+            d = api.delete(f"{BASE_URL}/api/readings/{row['id']}", timeout=20)
+            assert d.status_code in (204, 404), d.text
+
         yesterday = "2025-01-01T03:00:00+00:00"  # well in the past
         payload = {
             "readingDate": yesterday,
@@ -106,13 +123,21 @@ class TestReadingsSyncChain:
         assert t.status_code == 200
         body = t.json()
         target = next((sh for sh in body["sheds"] if sh["shedGroupId"] == group["id"]), None)
+        assert target is not None, f"Shed group {group['id']} missing from response"
         sil = next((x for x in target["silos"] if x["siloId"] == silo["id"]), None)
-        # If we didn't ALSO post a today reading for this silo, saved should be False
-        # (depending on previous test it might be saved=True for silo[0] but this silo is fresh)
-        # Note: gsilos[1] may equal gsilos[0] only if there's a single silo
-        if silo["id"] != gsilos[0]["id"]:
-            assert sil is not None
-            assert sil["saved"] is False, f"Yesterday's reading leaked into today: {sil}"
+        assert sil is not None, f"Silo {silo['id']} missing from response"
+        assert sil["saved"] is False, f"Yesterday's reading leaked into today: {sil}"
+
+        # Post-clean: remove the yesterday reading we just inserted so we don't
+        # pollute other test runs.
+        again = api.get(
+            f"{BASE_URL}/api/readings",
+            params={"farm": FARM, "siloId": silo["id"], "limit": 100},
+            timeout=20,
+        )
+        if again.status_code == 200:
+            for row in again.json():
+                api.delete(f"{BASE_URL}/api/readings/{row['id']}", timeout=20)
 
 
 # ── 2) Farm Buddy alerts (threshold-based) ──────────────────────────────
