@@ -1,34 +1,65 @@
-.App-logo {
-    height: 40vmin;
-    pointer-events: none;
+/* Coop Overwatch component styles */
+
+.shed-tile {
+    position: relative;
+    background: #14120F;
+    border: 1px solid #2E2B27;
+    border-radius: 4px;
+    overflow: hidden;
+    transition: border-color 200ms ease, background-color 200ms ease;
+}
+.shed-tile:hover {
+    border-color: #F59E0B;
+    background: #1A1815;
 }
 
-@media (prefers-reduced-motion: no-preference) {
-    .App-logo {
-        animation: App-logo-spin infinite 20s linear;
-    }
+.status-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    display: inline-block;
+    flex-shrink: 0;
+}
+.status-healthy { background: #10B981; box-shadow: 0 0 8px rgba(16, 185, 129, 0.6); }
+.status-warning { background: #F59E0B; box-shadow: 0 0 8px rgba(245, 158, 11, 0.7); }
+.status-critical { background: #EF4444; box-shadow: 0 0 10px rgba(239, 68, 68, 0.8); animation: pulse-crit 1.4s ease-in-out infinite; }
+.status-offline { background: #57534E; }
+
+@keyframes pulse-crit {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
 }
 
-.App-header {
-    background-color: #0f0f10;
-    min-height: 100vh;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    font-size: calc(10px + 2vmin);
-    color: white;
+.data-cell {
+    padding: 10px 12px;
+    background: #14120F;
+    border: 1px solid #24211E;
+    border-radius: 3px;
+}
+.data-value {
+    font-family: 'IBM Plex Mono', monospace;
+    font-weight: 600;
+    color: #FAFAFA;
+}
+.big-num {
+    font-family: 'IBM Plex Mono', monospace;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    color: #FAFAFA;
 }
 
-.App-link {
-    color: #61dafb;
+.orb {
+    width: 42px;
+    height: 42px;
+    border-radius: 50%;
+    background: radial-gradient(circle at 30% 30%, #FBBF24, #D97706 45%, #7C2D12 100%);
+    box-shadow: 0 0 24px rgba(245, 158, 11, 0.55), inset 0 0 12px rgba(0,0,0,0.25);
 }
 
-@keyframes App-logo-spin {
-    from {
-        transform: rotate(0deg);
-    }
-    to {
-        transform: rotate(360deg);
-    }
+.orb-sm {
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    background: radial-gradient(circle at 30% 30%, #FBBF24, #D97706 45%, #7C2D12 100%);
+    box-shadow: 0 0 12px rgba(245, 158, 11, 0.6);
 }

@@ -1,0 +1,33 @@
+{
+  "summary": "Full backend + frontend testing of Coop Overwatch. All 17 pytest backend tests pass covering dashboard, farms/sheds/batches CRUD, breeds, breed curves, reading ingestion with anomaly-triggered alerts/decisions, ack, decision approval, policies, and Mother Hen LLM (Claude Sonnet 4.5 via Emergent key). Frontend: dashboard, filter buttons, shed detail (Simulate + Ask Mother Hen → amber panel with LLM summary rendered), Batches list, Mother Hen policies+tabs, Alerts (ack buttons present), and Settings forms all load and render correctly.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "ShedDetail (initial load)", "issues": ["Recharts warns 'width(-1) and height(-1)' on first render; chart appears fine after animation but console warning suggests missing min height for ResponsiveContainer parent."]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_backend.py", "/app/test_reports/pytest/pytest_results.xml"],
+  "action_items": [
+    "Optional: align data-testids with review spec: MotherHen tab is `tab-auto` (review said `tab-auto-applied`), BatchList uses `batch-row-{id}` (review said `batch-card-`), Settings ingest select uses `ingest-shed` (review said `ingest-shed-select`). Functionality works, only test-id naming differs.",
+    "Optional: set explicit min-height on Recharts ResponsiveContainer to silence width(-1)/height(-1) console warnings."
+  ],
+  "critical_code_review_comments": [
+    "Batch closing behaviour verified: creating a new batch on a shed correctly closes previous active batch (server.py create_batch).",
+    "Alert + Decision pipeline triggered only on POST /api/readings (as expected). Seed inserts raw readings without pipeline — documented in review, works as intended.",
+    "MongoDB `_id` correctly excluded via projections {\"_id\": 0} across list endpoints.",
+    "Mother Hen deep_analysis returns {'summary': 'Insufficient data...'} when no active batch/latest reading — soft-fail without HTTP error, good UX.",
+    "Ingest endpoint returns bare Reading object (no wrapping in {reading, findings}). If the frontend needs findings it must re-fetch /alerts and /decisions. Currently ShedDetail does this via reloads — works."
+  ],
+  "updated_files": ["/app/backend/tests/test_backend.py"],
+  "success_rate": {"backend": "100% (17/17)", "frontend": "100% core flows"},
+  "test_credentials": "N/A - no auth in Phase 1",
+  "seed_data_creation": "None additional; relies on backend startup seed (2 farms, 5 sheds, 5 batches, historical readings). Tests create/delete TEST_ prefixed farms/sheds and additional batches/readings on sheds[0] as part of flow verification.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Backend tests live at /app/backend/tests/test_backend.py. pytest.ini has xdist auto by default; use `pytest ... -o addopts=''` to disable parallelism when tests share mutable state (e.g., closing/reopening batches on sheds[0]). LLM analyze endpoint takes ~5–15s; use timeout=90. To trigger the alert pipeline, POST /api/readings with anomalous values (temp_c=40, ammonia_ppm=50)."
+}
