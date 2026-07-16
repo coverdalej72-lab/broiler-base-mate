@@ -1,0 +1,139 @@
+{
+  "theme_strategy": "dark-only",
+  "design_archetype": "The Performance Pro + Organic & Earthy (Night-Shift Operator)",
+  "vibe_direction": "Industrial control panel meets farm-tech. Serious operational tool but alive and caring (Mother Hen). High contrast, big glanceable numbers, traffic-light coloring.",
+  "colors": {
+    "background": "#0F0E0C",
+    "surface": "#1A1816",
+    "surface_hover": "#24211E",
+    "border": "#2E2B27",
+    "primary": "#F59E0B",
+    "primary_hover": "#D97706",
+    "text_main": "#FAFAFA",
+    "text_muted": "#A8A29E",
+    "status": {
+      "healthy": "#10B981",
+      "warning": "#F59E0B",
+      "critical": "#EF4444",
+      "ai_glow": "rgba(245, 158, 11, 0.4)"
+    }
+  },
+  "typography": {
+    "heading": "Chivo",
+    "body": "IBM Plex Sans",
+    "data_numbers": "IBM Plex Mono",
+    "banned": [
+      "Inter",
+      "Roboto",
+      "Space Grotesk",
+      "Open Sans"
+    ],
+    "rules": [
+      "Use IBM Plex Mono for all sensor readings and big glanceable numbers.",
+      "Headings must use Chivo with tracking-tight.",
+      "Overlines/Labels must be uppercase, tiny (text-xs), wide spacing (tracking-[0.2em])."
+    ]
+  },
+  "layouts_and_grids": {
+    "dashboard_mode": "High Density Grid (Bento Mode B)",
+    "rules": [
+      "Base Grid: grid-cols-1 md:grid-cols-3 lg:grid-cols-4 lg:grid-cols-6 for dense data.",
+      "Gap Strategy: Tight (gap-4 or gap-6).",
+      "Shed Tiles: Use border-collapse style layout (Grid Borders technical look) where possible, exposing the skeleton.",
+      "Optical Alignment: Left-align labels and values for fast scanning.",
+      "Big Glanceable Numbers: text-4xl or 5xl for primary metrics like Temp, Ammonia, Mortality."
+    ]
+  },
+  "surfaces_and_micro_themes": {
+    "cards": "Flat background, 1px subtle border (border-white/5 or border-[#2E2B27]), no shadow. Dark mode only.",
+    "ai_panel": "The 'Tracing Beam' or subtle 'Glassmorphism' with heavy amber tint (bg-amber-950/20 border-amber-900/50) to distinguish Mother Hen from standard mechanical data.",
+    "header": "Solid background with a hard bottom border. No transparency over scrolling content.",
+    "interactive": "Neumorphism (Tactile) variant for toggles/switches (dark clay feel with sharp inner contrast)."
+  },
+  "components": {
+    "libraries": [
+      "lucide-react (fallback), @phosphor-icons/react (primary)",
+      "recharts",
+      "framer-motion",
+      "sonner"
+    ],
+    "shadcn_customizations": [
+      "Remove heavy rounded corners. Use rounded-sm or max 4px radius for industrial feel.",
+      "Tabs: Make them look like physical hardware toggles or sharp bordered segments.",
+      "Switch: Use traffic light colors depending on state.",
+      "Badge: Sharp edges, dense padding (px-2 py-0.5 text-xs)."
+    ],
+    "charts": "Recharts for batch history. Temp/Humidity/Water with a dashed line representing the 'Breed Benchmark Overlay'."
+  },
+  "motion_and_interactions": {
+    "ai_motif": "Mother Hen status needs a slow 'breathing' or pulse animation using framer-motion to feel 'alive'. Soft amber glow.",
+    "hover_states": "Explicit text color on hover. Subtle bg lightening. No wild transforms.",
+    "loading": "ASCII art loaders or matrix-like data cascading for industrial vibe."
+  },
+  "image_urls": [
+    {
+      "category": "Farm / Shed Background",
+      "url": "https://images.unsplash.com/photo-1641405535694-ca023d6ee815?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjA2OTV8MHwxfHNlYXJjaHw0fHxiYXJuJTIwaW50ZXJpb3J8ZW58MHx8fHwxNzg0MTYwODYzfDA&ixlib=rb-4.1.0&q=85",
+      "description": "Dimly lit barn window at night, good for subtle ambient background or login screen."
+    },
+    {
+      "category": "Farm / Shed Background",
+      "url": "https://images.unsplash.com/photo-1533155929419-7b6cb0b49ccb?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjA2OTV8MHwxfHNlYXJjaHwxfHxiYXJuJTIwaW50ZXJpb3J8ZW58MHx8fHwxNzg0MTYwODYzfDA&ixlib=rb-4.1.0&q=85",
+      "description": "Brown wooden barn interior."
+    },
+    {
+      "category": "Mother Hen AI Avatar / Motif",
+      "url": "https://images.unsplash.com/photo-1773060787658-0071830db588?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NDQ2Mzl8MHwxfHNlYXJjaHwyfHxnbG93aW5nJTIwb3JiJTIwYW1iZXJ8ZW58MHx8fHwxNzg0MTYwODYzfDA&ixlib=rb-4.1.0&q=85",
+      "description": "Cluster of glowing amber orbs on black background. Use as the avatar or visual representation of the AI."
+    },
+    {
+      "category": "Livestock",
+      "url": "https://images.unsplash.com/photo-1763336332404-db22e7f90e7c?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NDk1NzZ8MHwxfHNlYXJjaHwxfHxwb3VsdHJ5JTIwZmFybSUyMG5pZ2h0fGVufDB8fHx8MTc4NDE2MDg1MXww&ixlib=rb-4.1.0&q=85",
+      "description": "Black and white close-up of a chicken, fits the dark industrial theme perfectly."
+    },
+    {
+      "category": "Livestock",
+      "url": "https://images.unsplash.com/photo-1763517174823-61148e142c8e?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NDk1NzZ8MHwxfHNlYXJjaHw0fHxwb3VsdHJ5JTIwZmFybSUyMG5pZ2h0fGVufDB8fHx8MTc4NDE2MDg1MXww&ixlib=rb-4.1.0&q=85",
+      "description": "Rooster with golden lighting."
+    },
+    {
+      "category": "User Profile",
+      "url": "https://images.unsplash.com/photo-1723220708463-9d9987bf9920?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NDQ2NDN8MHwxfHNlYXJjaHwxfHxmYXJtJTIwb3duZXIlMjBwb3J0cmFpdHxlbnwwfHx8fDE3ODQxNjA4NTJ8MA&ixlib=rb-4.1.0&q=85",
+      "description": "Farmer portrait."
+    }
+  ],
+  "accessibility": {
+    "contrast": "Ensure APCA contrast standards are met. Deep background with high brightness text. Color-blind friendly status colors (use icons + text, not just color).",
+    "focus": "High contrast amber focus rings.",
+    "testing": "All interactive and key informational elements MUST include a data-testid attribute (e.g., data-testid='shed-tile-status', data-testid='ai-decision-log')."
+  },
+  "instructions_to_main_agent": [
+    "Install required dependencies: @phosphor-icons/react, recharts, framer-motion, sonner.",
+    "Use dark theme by default, hardcoded to dark mode (remove light mode variants if easier, or force dark classes).",
+    "Implement the 'Global Dashboard' as the landing view. Grid of sheds with traffic lights.",
+    "In the Shed Detail view, make it look like a modernized SCADA screen. Lots of data points: Temp, Airflow, Damper %, etc., neatly aligned in grids.",
+    "The 'Mother Hen AI Panel' should be a distinct section or sidebar. Use the amber glowing orb image or CSS animations to indicate 'She is watching'.",
+    "Charts must include a breed benchmark overlay (dashed line) comparing actual data to standard breed curve.",
+    "Use IBM Plex Mono for all numerical data values to ensure they are highly readable and align well vertically.",
+    "DO NOT use a generic SaaS layout. It must feel like an industrial control panel.",
+    "Ensure all components use the provided color palette (Obsidian base, Terracotta/Amber accents).",
+    "Add 'data-testid' to all buttons, tabs, charts, and key data points."
+  ],
+  "UNIVERSAL GUIDELINES FOR MAIN AGENT": [
+    "You tend to converge toward generic, 'on distribution' outputs. In frontend design, this creates what users call the 'AI slop' aesthetic. Avoid this: make creative, distinctive frontends that surprise and delight.",
+    "Dark colors look good when used independently without gradients. DO NOT use dark colors as gradients.",
+    "Don't make generic centered layouts, simplistic gradients, and uniform styling.",
+    "Create depth through layered design elements with z-index hierarchy.",
+    "Use glass-morphism effects with backdrop filters (12-24px blur) where appropriate.",
+    "You MUST NOT apply universal transition. Eg: transition: all. This results in breaking transforms. Always add transitions for specific interactive elements like button, input excluding transforms.",
+    "You MUST NOT center align the app container, ie do not add .App { text-align: center; } in the css file. This disrupts the human natural reading flow of text.",
+    "Always use modern button styles like pill-shaped, or sharp button with interaction animations & color relevant to the app style.",
+    "NEVER: use AI assistant Emoji characters like 🤖🧠💭💡🔮🎯 etc for icons.",
+    "Every interaction needs micro-animations - hover states, transitions, parallax effects, and entrance animations. Static = dead.",
+    "Use 2-3x more spacing than feels comfortable. Cramped designs look cheap.",
+    "Subtle grain textures, noise overlays, custom cursors, selection states, and loading animations: separates good from extraordinary.",
+    "Main agent relies on these image URLs. Missing categories = main agent will use placeholder text which is FORBIDDEN.",
+    "Prioritize using pre-existing components from src/components/ui when applicable.",
+    "Use sonner for toasts. Sonner component are located in /app/src/components/ui/sonner.js or .tsx."
+  ]
+}
