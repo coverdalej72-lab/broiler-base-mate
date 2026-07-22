@@ -107,8 +107,26 @@
       padding: 8px 14px; font-size: 13px; font-weight: 700; color: var(--muted); display: inline-flex; align-items: center; gap: 6px; }
     .pill.green { color: var(--green-500); border-color: var(--green-600); background: var(--green-soft); cursor: pointer; }
     .date-head { font-size: 11px; color: var(--muted); letter-spacing: 1.5px; font-weight: 800;
-      margin: 18px 0 8px; }
+      margin: 18px 0 8px; display: flex; align-items: baseline; justify-content: space-between; }
+    .date-head .day-total { font-size: 12px; color: var(--accent-orange); font-weight: 900; letter-spacing: 0.5px; }
     .hist-group { background: var(--panel); border-radius: 12px; padding: 4px 0; border: 1px solid var(--line); }
+    /* NEW — shed-card style history (mirrors the "Read Silo" today tab: SHED N&M header + silos A/B/C in one row + total) */
+    .hist-shed-card { background: var(--panel); border: 1px solid var(--line); border-radius: 14px;
+      padding: 12px 14px; margin-bottom: 10px; }
+    .hist-shed-card .hs-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+    .hist-shed-card .hs-head .lbl { font-size: 10px; color: var(--muted); letter-spacing: 1.5px; font-weight: 700; }
+    .hist-shed-card .hs-head .num { font-size: 20px; font-weight: 900; letter-spacing: -0.5px; margin-top: 1px; }
+    .hist-shed-card .hs-head .shed-total { font-size: 12px; color: var(--muted); font-weight: 700; }
+    .hist-shed-card .hs-head .shed-total b { color: var(--accent-orange); font-size: 15px; }
+    .hist-shed-card .silos-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+    .hist-silo-cell { background: var(--panel-2); border-radius: 10px; padding: 8px 10px;
+      display: flex; align-items: center; justify-content: space-between; gap: 6px; }
+    .hist-silo-cell .lft { display: flex; align-items: center; gap: 6px; }
+    .hist-silo-cell .amt-val { font-weight: 900; font-size: 16px; }
+    .hist-silo-cell .amt-u { font-size: 10px; color: var(--muted); margin-left: 2px; }
+    .hist-silo-cell .del { background: transparent; border: 0; color: var(--muted); cursor: pointer; padding: 4px; font-size: 13px; }
+    .hist-silo-cell .del:hover { color: var(--danger); }
+    /* Legacy hist-row kept for fallback, not used after refactor */
     .hist-row { display: grid; grid-template-columns: 1fr auto auto; gap: 10px; align-items: center;
       padding: 12px 14px; border-bottom: 1px solid var(--line); }
     .hist-row:last-child { border-bottom: 0; }
@@ -796,32 +814,120 @@
     // ─── History ───────────────────────────────────────────────────────
     async function loadHistory(){
       const r=await fetch("/api/readings?limit=300"); readingsHistory=await r.json();
+      // Group readings: date → shedGroupName → { rows[], total_t, unit }
       const byDate={};
-      for (const x of readingsHistory){ const k=x.readingDate.slice(0,10); (byDate[k]=byDate[k]||[]).push(x); }
+      for (const x of readingsHistory){
+        const dk = x.readingDate.slice(0,10);
+        const gk = x.shedGroupName || "—";
+        (byDate[dk]=byDate[dk]||{});
+        (byDate[dk][gk]=byDate[dk][gk]||{ rows: [], total_t: 0 });
+        byDate[dk][gk].rows.push(x);
+        // Convert every reading to tonnes for the running total
+        const amt = Number(x.amountRemaining) || 0;
+        const t = (String(x.unit||"").toLowerCase()==="kg") ? amt/1000 : amt;
+        byDate[dk][gk].total_t += t;
+      }
       const dates=Object.keys(byDate).sort().reverse();
       const list=$("#history-list");
       if (!dates.length){ list.innerHTML='<div style="color:var(--muted);text-align:center;padding:40px 0;">No silo readings yet.</div>'; return; }
-      list.innerHTML = dates.map(d=>`
-        <div class="date-head">${fmtDateLong(d)}</div>
-        <div class="hist-group">
-          ${byDate[d].map(x=>`
-            <div class="hist-row">
-              <div><div class="l-name">${x.shedGroupName||"—"} <span class="silo-tag ${x.siloLetter}">SILO ${x.siloLetter}</span></div><div class="l-time">${fmtTime(x.readingDate)}</div></div>
-              <div class="amt"><div class="num">${Math.round(x.amountRemaining)}</div><div class="unit">${x.unit}</div></div>
-              <button class="icon-btn" data-del-r="${x.id}">🗑</button>
-            </div>`).join("")}
-        </div>`).join("");
+
+      list.innerHTML = dates.map(d=>{
+        // Grand-total for this day across all shed groups (in tonnes)
+        const dayTotal_t = Object.values(byDate[d]).reduce((s,g)=>s+g.total_t, 0);
+        const shedNames = Object.keys(byDate[d]).sort((a,b)=>{
+          // Sort shed groups by the first number ("Shed 1&2" → 1)
+          const na = parseInt((a.match(/\d+/) || ["0"])[0], 10);
+          const nb = parseInt((b.match(/\d+/) || ["0"])[0], 10);
+          return na - nb;
+        });
+        return `
+          <div class="date-head">
+            <span>${fmtDateLong(d)}</span>
+            <span class="day-total">DAY TOTAL: ${dayTotal_t.toFixed(1)} t</span>
+          </div>
+          ${shedNames.map(name=>{
+            const g = byDate[d][name];
+            const num = name.replace(/[^\d&]/g,"").trim() || name;
+            const timeStr = fmtTime(g.rows[0].readingDate);
+            // Sort silos alphabetically so A, B, C always appear in order
+            const rowsSorted = [...g.rows].sort((a,b)=>String(a.siloLetter||"").localeCompare(String(b.siloLetter||"")));
+            return `<div class="hist-shed-card">
+              <div class="hs-head">
+                <div>
+                  <div class="lbl">SHEDS · ${timeStr}</div>
+                  <div class="num">${num}</div>
+                </div>
+                <div class="shed-total">TOTAL <b>${g.total_t.toFixed(1)} t</b></div>
+              </div>
+              <div class="silos-row">
+                ${rowsSorted.map(x=>{
+                  const amt = Number(x.amountRemaining) || 0;
+                  return `<div class="hist-silo-cell">
+                    <div class="lft">
+                      <div class="silo-badge ${x.siloLetter}">${x.siloLetter}</div>
+                      <div>
+                        <div class="amt-val">${amt.toLocaleString(undefined,{maximumFractionDigits:1})}<span class="amt-u">${x.unit}</span></div>
+                      </div>
+                    </div>
+                    <button class="del" data-del-r="${x.id}" title="Delete this silo reading">🗑</button>
+                  </div>`;
+                }).join("")}
+              </div>
+            </div>`;
+          }).join("")}
+        `;
+      }).join("");
+
       list.querySelectorAll("[data-del-r]").forEach(b=>b.addEventListener("click", async()=>{ if(!confirm("Delete this reading?"))return; await fetch(`/api/readings/${b.dataset.delR}`,{method:"DELETE"}); loadHistory(); loadAll(); }));
     }
 
     $("#export-excel").addEventListener("click",async()=>{
       if (!readingsHistory.length){ toast("Nothing to export","err"); return; }
-      const rows = [["Date","Time","Shed Group","Silo","Feed Type","Amount","Unit"]];
-      readingsHistory.forEach(x=>rows.push([x.readingDate.slice(0,10),fmtTime(x.readingDate),x.shedGroupName,x.siloLetter,x.feedType,x.amountRemaining,x.unit]));
+      // Pivot into: Date · Shed Group · Silo A · Silo B · Silo C · Total (t)
+      // Adds a "DAY TOTAL" row after each date section for the grower's head-office summary.
+      const pivot = {};   // dateKey → shedGroupName → { A?, B?, C?, unit, time }
+      const dateGroupOrder = {}; // dateKey → [shedGroupName ordered]
+      for (const x of readingsHistory){
+        const dk = x.readingDate.slice(0,10);
+        const gk = x.shedGroupName || "—";
+        if (!pivot[dk]) { pivot[dk] = {}; dateGroupOrder[dk] = []; }
+        if (!pivot[dk][gk]) { pivot[dk][gk] = { time: fmtTime(x.readingDate) }; dateGroupOrder[dk].push(gk); }
+        // Store amount in tonnes for consistency
+        const amt = Number(x.amountRemaining) || 0;
+        const t   = (String(x.unit||"").toLowerCase()==="kg") ? amt/1000 : amt;
+        pivot[dk][gk][x.siloLetter] = t;
+      }
+      const rows = [["Date","Time","Shed Group","Silo A (t)","Silo B (t)","Silo C (t)","Shed Total (t)"]];
+      const dates = Object.keys(pivot).sort().reverse();
+      for (const d of dates){
+        const groupsSorted = [...dateGroupOrder[d]].sort((a,b)=>{
+          const na = parseInt((a.match(/\d+/) || ["0"])[0], 10);
+          const nb = parseInt((b.match(/\d+/) || ["0"])[0], 10);
+          return na - nb;
+        });
+        let dayTotal = 0;
+        for (const g of groupsSorted){
+          const p  = pivot[d][g];
+          const a  = p.A ?? 0, b = p.B ?? 0, c = p.C ?? 0;
+          const st = a + b + c;
+          dayTotal += st;
+          rows.push([
+            d, p.time || "",
+            g,
+            p.A != null ? a.toFixed(2) : "",
+            p.B != null ? b.toFixed(2) : "",
+            p.C != null ? c.toFixed(2) : "",
+            st.toFixed(2),
+          ]);
+        }
+        // Grand-total row for the day
+        rows.push([d, "", "DAY TOTAL", "", "", "", dayTotal.toFixed(2)]);
+        rows.push([]); // blank separator row
+      }
       const csv = rows.map(r=>r.map(v=>`"${String(v??"").replace(/"/g,'""')}"`).join(",")).join("\n");
       const blob = new Blob([csv],{type:"text/csv"}); const a=document.createElement("a");
       a.href=URL.createObjectURL(blob); a.download=`silo-readings-${new Date().toISOString().slice(0,10)}.csv`; a.click();
-      toast("✓ Exported","ok");
+      toast("✓ Exported — grouped with day totals","ok");
     });
 
     // ── Share History to Head Office ────────────────────────────────────
