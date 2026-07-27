@@ -402,11 +402,11 @@
               <div style="color:#e6d68e;font-weight:800;font-size:15px;">The Silo Reader — 8 seconds per shed.</div>
             </div>
             <ul style="color:#c9d8cd;font-size:15px;line-height:1.8;margin:0;padding-left:20px;">
-              <li>Scan the QR at each shed → silo A/B/C boxes open.</li>
-              <li>Tap the tonnes, hit Save — three silos in one press.</li>
+              <li>Open the reader on your phone — every shed group is listed.</li>
+              <li>Tap the tonnes for Silo A/B/C, hit Save — three silos in one press.</li>
               <li>Farm Buddy warns you the moment any silo goes red.</li>
               <li>Every reading syncs to head office in under 2 minutes.</li>
-              <li>Add to Home Screen — behaves like a native app.</li>
+              <li>Add to Home Screen — behaves like a native app, works offline.</li>
             </ul>
             <div style="margin-top:20px;padding:14px 18px;background:rgba(201,162,39,0.12);border-left:3px solid #C9A227;border-radius:8px;">
               <div style="color:#e6d68e;font-weight:800;font-size:13px;margin-bottom:4px;">🧠 What the phone screenshot shows</div>
@@ -438,7 +438,7 @@
       <div class="feature"><div class="badge-ico c2">🥚</div><div class="label">Egg Production</div></div>
       <div class="feature"><div class="badge-ico c3">⚖️</div><div class="label">Body Weight Curves</div></div>
       <div class="feature"><div class="badge-ico c4">🏠</div><div class="label">Up to 30 Sheds</div></div>
-      <div class="feature"><div class="badge-ico c5">📷</div><div class="label">QR Scanning</div></div>
+      <div class="feature"><div class="badge-ico c5">📷</div><div class="label">Docket Scanning</div></div>
       <div class="feature"><div class="badge-ico c6">🔄</div><div class="label">Cross-device Sync</div></div>
       <div class="feature"><div class="badge-ico c7">📥</div><div class="label">CSV / Excel Export</div></div>
       <div class="feature"><div class="badge-ico c1">🔒</div><div class="label">Secure Data</div></div>
@@ -506,7 +506,7 @@
       <h2>Simple enough to use <span class="accent">on day one.</span></h2>
       <p class="sub">No installation. No training. Open the link, log silo readings, scan a docket, and you're managing a flock from your phone.</p>
       <div class="steps">
-        <div class="step"><div class="n">1</div><h3>📲 Scan to open</h3><p>Scan the QR in your Feed Program. The mobile reader opens — Add to Home Screen and it's an app.</p></div>
+        <div class="step"><div class="n">1</div><h3>📲 Open on your phone</h3><p>Bookmark your farm's reader link (or tap Add to Home Screen) — no app store, no download. Every grower on the farm can open it.</p></div>
         <div class="step"><div class="n">2</div><h3>📋 Tap silo readings</h3><p>Walk the sheds. Type each silo's tonnes left. One tap saves all three silos in a shed group.</p></div>
         <div class="step"><div class="n">3</div><h3>🚚 Scan dockets on arrival</h3><p>Photo or QR — Ingham's, Baiada, BPL all auto-detected. Feed type, kg, docket # filled instantly.</p></div>
         <div class="step"><div class="n">4</div><h3>📊 Spreadsheet auto-updates</h3><p>Within 2 minutes, the Feed Program's End-of-Batch section reflects every reading and delivery — no copying.</p></div>
@@ -651,7 +651,7 @@
           <ul style="color:#bdd3c4;font-size:13px;line-height:1.9;margin:0 0 18px;padding-left:18px;">
             <li><b style="color:#fff;">30% recurring</b> commission on every grower you refer</li>
             <li>Co-branded onboarding landing page</li>
-            <li>QR-code stickers for your silos that open the app</li>
+            <li>Docket-scanning that recognises your delivery paperwork</li>
             <li>Logo on broilerbasemate.com.au partner wall</li>
           </ul>
           <div style="background:rgba(201,162,39,.1);border-left:3px solid #C9A227;padding:8px 12px;font-size:12px;color:#fff;font-style:italic;">Roxell · Big Dutchman · Munters · AvaTech · BBM Silos</div>
@@ -823,7 +823,7 @@
         <details style="background:#fff;border:1px solid var(--line);border-radius:12px;"><summary style="padding:18px 22px;cursor:pointer;font-weight:800;font-size:15px;list-style:none;display:flex;justify-content:space-between;align-items:center;">Is my data secure?<span style="color:var(--green-700);font-size:20px;">+</span></summary><div style="padding:0 22px 18px;color:var(--muted);font-size:14px;line-height:1.7;">Yes. All data is encrypted in transit (HTTPS) and at rest in MongoDB Atlas. Payments are processed entirely by Stripe — we never see your card details.</div></details>
         <details style="background:#fff;border:1px solid var(--line);border-radius:12px;"><summary style="padding:18px 22px;cursor:pointer;font-weight:800;font-size:15px;list-style:none;display:flex;justify-content:space-between;align-items:center;">What if I have more than 30 sheds?<span style="color:var(--green-700);font-size:20px;">+</span></summary><div style="padding:0 22px 18px;color:var(--muted);font-size:14px;line-height:1.7;">Talk to us! The Integrator plan is $60/farm/month with volume pricing for 5+ farms. We've already wired multi-farm support into the codebase.</div></details>
         <details style="background:#fff;border:1px solid var(--line);border-radius:12px;"><summary style="padding:18px 22px;cursor:pointer;font-weight:800;font-size:15px;list-style:none;display:flex;justify-content:space-between;align-items:center;">Do you support Ingham's, Baiada, AND BPL Adelaide dockets?<span style="color:var(--green-700);font-size:20px;">+</span></summary><div style="padding:0 22px 18px;color:var(--muted);font-size:14px;line-height:1.7;">Yes — all three. The AI auto-detects the supplier from the docket header. If you've got a docket from a smaller mill, send us a photo and we'll add it.</div></details>
-        <details style="background:#fff;border:1px solid var(--line);border-radius:12px;"><summary style="padding:18px 22px;cursor:pointer;font-weight:800;font-size:15px;list-style:none;display:flex;justify-content:space-between;align-items:center;">Can my workers use it without an account?<span style="color:var(--green-700);font-size:20px;">+</span></summary><div style="padding:0 22px 18px;color:var(--muted);font-size:14px;line-height:1.7;">Yes. They scan a QR code that opens the field reader. No login needed on the phone — just open and tap silo readings.</div></details>
+        <details style="background:#fff;border:1px solid var(--line);border-radius:12px;"><summary style="padding:18px 22px;cursor:pointer;font-weight:800;font-size:15px;list-style:none;display:flex;justify-content:space-between;align-items:center;">Can my workers use it without an account?<span style="color:var(--green-700);font-size:20px;">+</span></summary><div style="padding:0 22px 18px;color:var(--muted);font-size:14px;line-height:1.7;">Yes. You share a private reader link with them — no login needed on the phone. Just open and tap silo readings.</div></details>
         <details style="background:#fff;border:1px solid var(--line);border-radius:12px;"><summary style="padding:18px 22px;cursor:pointer;font-weight:800;font-size:15px;list-style:none;display:flex;justify-content:space-between;align-items:center;">Do I keep my data if I cancel?<span style="color:var(--green-700);font-size:20px;">+</span></summary><div style="padding:0 22px 18px;color:var(--muted);font-size:14px;line-height:1.7;">Always. Export to CSV/Excel anytime. After cancelling, your data stays exportable for 90 days.</div></details>
       </div>
     </div>
@@ -1350,29 +1350,14 @@
           </div>`,
       },
       {
-        title: "Scan the QR — your phone becomes the silo reader",
-        body: "Settings → Pair Phone shows a private QR code unique to your farm. Point your phone camera at it — the mobile Reader app opens instantly in your browser. No app store, no install, no Apple/Google approval bottleneck. Tap &quot;Add to Home Screen&quot; and it lives on your phone exactly like a real app, even offline. Give the same QR to your operator, your manager, your missus — they each pair their own device in 5 seconds.",
+        title: "Open the reader on your phone — instantly",
+        body: "Your farm gets a private reader link. Open it once on your phone → tap &quot;Add to Home Screen&quot; and it lives on your device like a real app (works offline too). No app store, no install, no Apple/Google approval bottleneck. Share the same link with your operator, your manager, your missus — everyone reads silos from their own phone.",
         mockup: `
           <div style="display:flex;gap:24px;align-items:center;justify-content:center;flex-wrap:wrap;">
-            <div style="background:#fff;border-radius:14px;padding:16px;box-shadow:0 6px 18px rgba(0,0,0,.22);">
-              <svg width="140" height="140" viewBox="0 0 140 140" style="display:block;">
-                <rect width="140" height="140" fill="#fff"/>
-                ${(() => {
-                  // Generate a fake QR-ish pattern
-                  let cells = '';
-                  const seed = [0,1,1,0,1,0,0,1,1,1,0,1,0,1,0,0,1,0,1,1,0,1,1,0,0,1,0,1,1,0,1,0];
-                  for (let y = 0; y < 12; y++) for (let x = 0; x < 12; x++) {
-                    if (seed[(y*7+x*3) % seed.length]) cells += `<rect x="${10+x*10}" y="${10+y*10}" width="9" height="9" fill="#0f3d24"/>`;
-                  }
-                  // Corner finders
-                  ['10,10','110,10','10,110'].forEach(p => {
-                    const [x,y] = p.split(',').map(Number);
-                    cells += `<rect x="${x}" y="${y}" width="29" height="29" fill="#0f3d24"/><rect x="${x+4}" y="${y+4}" width="21" height="21" fill="#fff"/><rect x="${x+8}" y="${y+8}" width="13" height="13" fill="#0f3d24"/>`;
-                  });
-                  return cells;
-                })()}
-              </svg>
-              <div style="text-align:center;font-size:11px;color:#666;margin-top:6px;font-weight:700;">Scan with phone camera</div>
+            <div style="background:#fff;border-radius:14px;padding:20px 24px;box-shadow:0 6px 18px rgba(0,0,0,.22);text-align:center;max-width:220px;">
+              <div style="font-size:11px;letter-spacing:1.5px;color:#666;font-weight:800;margin-bottom:10px;">YOUR FARM'S PRIVATE READER LINK</div>
+              <div style="background:#f4f8f2;border:1px dashed #a8c9b0;border-radius:8px;padding:10px 12px;font-family:'SF Mono',Menlo,monospace;font-size:11px;color:#0f3d24;font-weight:700;word-break:break-all;line-height:1.5;">broilerbasemate.com.au<br>/reader?farm=<span style="color:#C9A227;">your-farm</span></div>
+              <div style="margin-top:12px;font-size:11px;color:#666;font-weight:700;">Open on any phone →</div>
             </div>
             <div style="font-size:48px;color:#C9A227;animation:arrowpulse 1.4s infinite;">→</div>
             <div style="position:relative;width:140px;height:240px;background:#0a0a0a;border-radius:20px;padding:8px;box-shadow:0 8px 24px rgba(0,0,0,.35);">
