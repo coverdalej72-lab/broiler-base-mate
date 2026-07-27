@@ -1114,29 +1114,33 @@
       window.location.href = "https://auth.emergentagent.com/?redirect=" + encodeURIComponent(redirect);
     });
 
-    document.querySelectorAll("[data-pkg]").forEach(btn => btn.addEventListener("click", () => {
+    document.querySelectorAll("[data-pkg]").forEach(btn => btn.addEventListener("click", async () => {
+      // Skip the "buyer details" modal — Stripe already collects email on its own
+      // checkout page, so the extra step just costs conversions. Optional prefill
+      // still flows through when growers arrive from a personalised /g/<slug> link.
       const pkg = btn.dataset.pkg;
       const orig = btn.textContent;
-      openBuyerModal({
-        title: "Almost there",
-        subtitle: "Enter your name & email — we'll auto-set-up your account the moment Stripe confirms.",
-        onSubmit: async (buyerName, email) => {
-          btn.disabled = true; btn.textContent = "Loading…";
-          try {
-            const res = await fetch("/api/checkout", {
-              method: "POST", headers: {"Content-Type": "application/json"},
-              body: JSON.stringify({ packageId: pkg, originUrl: window.location.origin, email, buyerName })
-            });
-            if (!res.ok) throw new Error(await res.text());
-            const data = await res.json();
-            if (data.url) window.location.href = data.url;
-            else throw new Error("No checkout URL returned");
-          } catch (e) {
-            console.error(e); toast("Payment couldn't start: " + e.message, true);
-            btn.disabled = false; btn.textContent = orig;
-          }
-        }
-      });
+      const buyerEmail = (localStorage.getItem("bbm-buyer-email") || "").trim();
+      const buyerName  = (localStorage.getItem("bbm-buyer-name")  || "").trim();
+      btn.disabled = true; btn.textContent = "Loading Stripe…";
+      try {
+        const res = await fetch("/api/checkout", {
+          method: "POST", headers: {"Content-Type": "application/json"},
+          body: JSON.stringify({
+            packageId: pkg,
+            originUrl: window.location.origin,
+            ...(buyerEmail ? { email: buyerEmail } : {}),
+            ...(buyerName  ? { buyerName }        : {}),
+          })
+        });
+        if (!res.ok) throw new Error(await res.text());
+        const data = await res.json();
+        if (data.url) window.location.href = data.url;
+        else throw new Error("No checkout URL returned");
+      } catch (e) {
+        console.error(e); toast("Payment couldn't start: " + e.message, true);
+        btn.disabled = false; btn.textContent = orig;
+      }
     }));
 
     // ── Operation Manager Pack bundle builder ──
@@ -1201,29 +1205,32 @@
       });
       computeTotal();
     });
-    document.getElementById("ops-checkout").onclick = () => {
+    document.getElementById("ops-checkout").onclick = async () => {
+      // Direct-to-Stripe (skips buyer modal). Stripe collects email itself.
       const tierOrder = ["bronze", "silver", "gold", "platinum"];
       const highest = opsFarms.reduce((best, f) =>
         tierOrder.indexOf(f.tier) > tierOrder.indexOf(best) ? f.tier : best, "bronze");
       const pkg = `ops_${highest}`;
       const btn = document.getElementById("ops-checkout");
       const farmsSnapshot = opsFarms.map(f => ({ name: f.name, tier: f.tier }));
-      openBuyerModal({
-        title: `Ops Pack — ${farmsSnapshot.length} farm${farmsSnapshot.length !== 1 ? 's' : ''}`,
-        subtitle: "Enter your name & email — we'll auto-create the farms in your Ops dashboard the moment Stripe confirms.",
-        onSubmit: async (buyerName, email) => {
-          btn.disabled = true; btn.textContent = "Loading…";
-          try {
-            const res = await fetch("/api/checkout", {
-              method: "POST", headers: {"Content-Type":"application/json"},
-              body: JSON.stringify({ packageId: pkg, originUrl: window.location.origin, email, buyerName, farms: farmsSnapshot })
-            });
-            const data = await res.json();
-            if (data.url) window.location.href = data.url;
-            else throw new Error("No URL");
-          } catch (e) { toast("Bundle checkout failed: " + e.message, true); btn.disabled = false; btn.textContent = "Subscribe Bundle →"; }
-        }
-      });
+      const buyerEmail = (localStorage.getItem("bbm-buyer-email") || "").trim();
+      const buyerName  = (localStorage.getItem("bbm-buyer-name")  || "").trim();
+      btn.disabled = true; btn.textContent = "Loading Stripe…";
+      try {
+        const res = await fetch("/api/checkout", {
+          method: "POST", headers: {"Content-Type":"application/json"},
+          body: JSON.stringify({
+            packageId: pkg,
+            originUrl: window.location.origin,
+            farms: farmsSnapshot,
+            ...(buyerEmail ? { email: buyerEmail } : {}),
+            ...(buyerName  ? { buyerName }        : {}),
+          })
+        });
+        const data = await res.json();
+        if (data.url) window.location.href = data.url;
+        else throw new Error("No URL");
+      } catch (e) { toast("Bundle checkout failed: " + e.message, true); btn.disabled = false; btn.textContent = "Subscribe Bundle →"; }
     };
     renderOps();
 
