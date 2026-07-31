@@ -2444,6 +2444,69 @@ async def _provision_purchase(session_id: str) -> Optional[dict]:
     }
 
 
+@app.post("/api/checkout/resend-welcome/{session_id}")
+async def resend_welcome_email(session_id: str):
+    """Resend the welcome email for an already-provisioned Stripe session.
+
+    Used by the success-page "didn't get it? resend" button so growers don't
+    get stuck waiting for the first email + churn silently.
+    """
+    from email_service import send_email
+    cur = await payments_col.find_one({"session_id": session_id})
+    if not cur:
+        raise HTTPException(status_code=404, detail="Session not found")
+    if not cur.get("provisioned"):
+        raise HTTPException(status_code=409, detail="Payment not yet fully provisioned — try again in a moment")
+    buyer_email = cur.get("email")
+    if not buyer_email:
+        raise HTTPException(status_code=400, detail="No buyer email on file — pass it back via Stripe if you paid without an account")
+    farms = cur.get("createdFarms") or []
+    if not farms:
+        raise HTTPException(status_code=404, detail="No farms found for this session")
+    # Basic rate-limit: max 3 resends per session, min 20s between sends
+    now = datetime.now(timezone.utc)
+    resends = cur.get("welcomeResends", [])
+    if len(resends) >= 3:
+        raise HTTPException(status_code=429, detail="Resend limit reached — email support if you still can't find it")
+    if resends:
+        last = resends[-1]
+        if isinstance(last, dict) and last.get("at"):
+            last_at = last["at"] if isinstance(last["at"], datetime) else datetime.fromisoformat(str(last["at"]).replace("Z", "+00:00"))
+            if (now - last_at).total_seconds() < 20:
+                raise HTTPException(status_code=429, detail="Please wait 20 seconds between resends")
+
+    public_url = os.environ.get("APP_PUBLIC_URL", "").rstrip("/")
+    ops_dashboard_url = f"{public_url}/ops-dashboard" if public_url else "/ops-dashboard"
+    is_ops = cur.get("kind") == "ops_bundle"
+    buyer_name = cur.get("buyerName") or "there"
+    farm_rows = "".join([
+        f"<tr><td style='padding:8px 12px;background:#f7fbf4;font-weight:700'>{fc['name']}</td>"
+        f"<td style='padding:8px 12px;background:#fff;border:1px solid #e8ecea'><a href='{fc['readerUrl']}'>{fc['readerUrl']}</a></td></tr>"
+        for fc in farms
+    ])
+    html = f"""
+    <div style="font-family:system-ui,-apple-system,sans-serif;max-width:580px;margin:0 auto;padding:20px;">
+      <h2 style="color:#0f3d24;margin:0 0 10px;">🔗 Your Broiler Base Mate links, {buyer_name}</h2>
+      <p style="font-size:15px;color:#1a3d24;line-height:1.6;">
+        Here they are again — bookmark them or share with your team.
+      </p>
+      <h3 style="color:#0f3d24;margin:24px 0 8px;font-size:16px;">Your Field Reader links:</h3>
+      <table cellpadding="0" cellspacing="0" style="border-collapse:collapse;width:100%;font-size:13px;">{farm_rows}</table>
+      { f'<p style="text-align:center;margin:28px 0;"><a href="{ops_dashboard_url}" style="background:#C9A227;color:#000;text-decoration:none;padding:14px 28px;border-radius:99px;font-weight:900;font-size:15px;display:inline-block;">📊 Open Ops Dashboard</a></p>' if is_ops else f'<p style="text-align:center;margin:28px 0;"><a href="{public_url or ""}/" style="background:#C9A227;color:#000;text-decoration:none;padding:14px 28px;border-radius:99px;font-weight:900;font-size:15px;display:inline-block;">📊 Open Feed Program</a></p>' }
+    </div>
+    """
+    result = await send_email(
+        to=buyer_email,
+        subject=f"🔗 Your Broiler Base Mate access links (resend)",
+        html=html,
+    )
+    await payments_col.update_one(
+        {"session_id": session_id},
+        {"$push": {"welcomeResends": {"at": now, "ok": bool(result.get("ok"))}}},
+    )
+    return {"ok": bool(result.get("ok")), "skipped": bool(result.get("skipped")), "email": buyer_email}
+
+
 @app.post("/api/webhook/stripe")
 async def stripe_webhook(request: Request):
     raw = await request.body() if hasattr(request, "body") else b""

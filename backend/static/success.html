@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Thank you — Farm Buddy</title>
+<title>You're in — Broiler Base Mate</title>
 <link rel="icon" href="/reader-assets/favicon.png" />
 <style>
   *{box-sizing:border-box;margin:0;padding:0}
@@ -11,81 +11,168 @@
     background:linear-gradient(180deg,#0a1410,#0f3d24); color:#fff; min-height:100vh;
     display:flex; align-items:center; justify-content:center; padding:24px;}
   .card{background:rgba(255,255,255,.05); border:1px solid rgba(201,162,39,.4); border-radius:24px;
-    padding:50px 40px; max-width:520px; width:100%; text-align:center;}
-  .card img { width:80px; height:80px; border-radius:16px; margin-bottom:20px;}
-  h1{font-size:34px; font-weight:900; margin-bottom:10px; letter-spacing:-1px;}
-  .status{font-size:14px; font-weight:700; color:#C9A227; letter-spacing:2px; text-transform:uppercase; margin-bottom:24px;}
-  .details{background:rgba(0,0,0,.3); border-radius:12px; padding:18px; margin:20px 0; font-size:14px;}
-  .details .row{display:flex; justify-content:space-between; padding:4px 0; color:#cbd5d0;}
-  .details .row b{color:#fff;}
-  .btns{display:flex; gap:10px; justify-content:center; flex-wrap:wrap; margin-top:24px;}
-  .btn{padding:13px 26px; border-radius:99px; border:0; font-weight:800; font-size:14px;
-    text-decoration:none; cursor:pointer;}
-  .btn-gold{background:#C9A227; color:#000;}
-  .btn-ghost{background:rgba(255,255,255,.08); color:#fff; border:1px solid rgba(255,255,255,.2);}
-  .spinner{display:inline-block; width:18px; height:18px; border-radius:99px;
-    border:2.5px solid #C9A227; border-top-color:transparent; animation:spin .8s linear infinite;
-    vertical-align:middle; margin-right:8px;}
+    padding:40px 34px; max-width:560px; width:100%;}
+  .icon-row{display:flex;justify-content:center;margin-bottom:18px;}
+  .icon-row img{width:64px;height:64px;border-radius:14px;}
+
+  /* Status pill top-of-card */
+  .status-pill{display:flex;align-items:center;gap:10px;justify-content:center;
+    background:rgba(0,0,0,.35);border:1px solid rgba(255,255,255,.1);border-radius:99px;
+    padding:8px 18px;font-size:12px;font-weight:800;letter-spacing:1.5px;margin:0 auto 22px;
+    color:#C9A227;width:fit-content;text-transform:uppercase;}
+  .status-pill.paid{color:#2dbd5e;border-color:rgba(45,189,94,.35);}
+
+  h1{font-size:32px; font-weight:900; margin-bottom:8px; letter-spacing:-1px;text-align:center;}
+  .subhead{color:#bdd3c4;font-size:15px;line-height:1.5;text-align:center;margin-bottom:22px;}
+
+  /* Primary CTA */
+  .cta-block{background:linear-gradient(135deg,#C9A227 0%,#e6b93a 100%);color:#000;
+    border-radius:18px;padding:22px;margin:22px 0 8px;text-align:center;
+    box-shadow:0 8px 24px rgba(201,162,39,.28);}
+  .cta-block .label{font-size:11px;font-weight:900;letter-spacing:2px;margin-bottom:6px;opacity:0.75;}
+  .cta-block .title{font-size:18px;font-weight:900;margin-bottom:14px;letter-spacing:-0.3px;}
+  .cta-block a.big-cta{display:block;background:#000;color:#C9A227;text-decoration:none;
+    padding:16px 24px;border-radius:99px;font-weight:900;font-size:16px;letter-spacing:0.5px;
+    transition:transform .12s ease;}
+  .cta-block a.big-cta:hover{transform:translateY(-2px);}
+  .cta-block .no-email-note{font-size:12px;font-weight:700;margin-top:12px;opacity:0.75;letter-spacing:0.3px;}
+
+  /* Farms list */
+  .farms{margin:12px 0;display:flex;flex-direction:column;gap:8px;}
+  .farm-row{background:rgba(0,0,0,.25);border:1px solid rgba(201,162,39,.3);border-radius:12px;
+    padding:14px 16px;display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;}
+  .farm-row .name{font-weight:800;font-size:14px;color:#fff;}
+  .farm-row .tier{color:#C9A227;font-size:11px;text-transform:uppercase;margin-left:6px;font-weight:700;}
+  .farm-row a.open{background:rgba(201,162,39,.2);color:#C9A227;text-decoration:none;
+    padding:8px 14px;border-radius:99px;font-size:12px;font-weight:800;border:1px solid rgba(201,162,39,.4);}
+  .farm-row a.open:hover{background:rgba(201,162,39,.35);}
+
+  /* Email block */
+  .email-block{background:rgba(0,0,0,.25);border:1px dashed rgba(255,255,255,.15);border-radius:12px;
+    padding:14px 16px;margin-top:16px;font-size:13px;color:#bdd3c4;line-height:1.5;}
+  .email-block .em-hdr{display:flex;align-items:center;gap:8px;font-weight:800;color:#fff;margin-bottom:6px;font-size:13px;}
+  .email-block .em-actions{margin-top:10px;display:flex;gap:8px;flex-wrap:wrap;align-items:center;}
+  .email-block button.resend-btn{background:transparent;color:#C9A227;border:1px solid rgba(201,162,39,.4);
+    padding:7px 14px;border-radius:99px;font-size:12px;font-weight:800;cursor:pointer;font-family:inherit;}
+  .email-block button.resend-btn:hover{background:rgba(201,162,39,.15);}
+  .email-block button.resend-btn:disabled{opacity:0.5;cursor:not-allowed;}
+  .email-block .em-timer{font-size:11px;color:#7a9a85;letter-spacing:0.5px;}
+
+  /* Details */
+  .details{background:rgba(0,0,0,.3); border-radius:10px; padding:14px 16px; margin:16px 0 0;
+    font-size:12px;display:flex;justify-content:space-between;gap:14px;flex-wrap:wrap;color:#8fa89a;}
+  .details b{color:#fff;}
+
+  /* Secondary CTAs */
+  .btns{display:flex; gap:8px; justify-content:center; flex-wrap:wrap; margin-top:20px;}
+  .btn-ghost{padding:10px 20px; border-radius:99px; background:transparent;
+    color:#bdd3c4; text-decoration:none; font-weight:800; font-size:12px;
+    border:1px solid rgba(255,255,255,.15);}
+  .btn-ghost:hover{background:rgba(255,255,255,.05);color:#fff;}
+
+  .spinner{display:inline-block; width:14px; height:14px; border-radius:99px;
+    border:2px solid #C9A227; border-top-color:transparent; animation:spin .8s linear infinite;
+    vertical-align:middle;}
   @keyframes spin{to{transform:rotate(360deg)}}
+  .toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);
+    background:#1a5c36;color:#fff;padding:12px 22px;border-radius:99px;font-weight:800;font-size:13px;
+    box-shadow:0 6px 24px rgba(0,0,0,.3);opacity:0;pointer-events:none;transition:opacity .2s;}
+  .toast.show{opacity:1;}
+  .toast.err{background:#a12222;}
 </style>
 </head>
 <body>
   <div class="card">
-    <img src="/reader-assets/icon-192.png" alt="" />
-    <div id="status-line" class="status"><span class="spinner"></span>Checking payment…</div>
-    <h1 id="title">Thank you!</h1>
-    <p id="message" style="color:#bdd3c4">Confirming your payment with Stripe…</p>
-    <div class="details" id="details" style="display:none">
-      <div class="row"><span>Plan</span><b id="d-pkg">—</b></div>
-      <div class="row"><span>Amount</span><b id="d-amt">—</b></div>
-      <div class="row"><span>Status</span><b id="d-status">—</b></div>
+    <div class="icon-row"><img src="/reader-assets/icon-192.png" alt="" /></div>
+
+    <div id="status-pill" class="status-pill"><span class="spinner"></span> <span id="status-label">Checking payment…</span></div>
+
+    <h1 id="title">Confirming your payment…</h1>
+    <p id="message" class="subhead">Stripe usually confirms in a few seconds. Sit tight.</p>
+
+    <!-- Primary CTA — appears once paid + provisioned -->
+    <div class="cta-block" id="cta-block" style="display:none;">
+      <div class="label">🎉 YOU'RE IN — START RIGHT NOW</div>
+      <div class="title" id="cta-title">Open your dashboard</div>
+      <a class="big-cta" id="primary-cta" href="/">Open the App →</a>
+      <div class="no-email-note">No email needed — this link is your direct entry.</div>
     </div>
-    <div class="onboarding" id="onboarding" style="display:none;text-align:left;margin-top:18px;">
-      <div style="font-size:12px;font-weight:800;color:#C9A227;letter-spacing:2px;margin-bottom:10px;">YOUR FARMS</div>
-      <div id="farms-list" style="display:flex;flex-direction:column;gap:8px;"></div>
-      <p id="email-note" style="font-size:12px;color:#bdd3c4;margin-top:14px;line-height:1.5;"></p>
-      <p style="background:rgba(201,162,39,.15);border:1px solid rgba(201,162,39,.4);border-radius:8px;padding:10px 12px;font-size:12px;color:#fff;margin-top:10px;line-height:1.5;">
-        🔐 <b>Important:</b> When you open the app, sign in with the <b>same Google account email</b> you just paid with. That's how we know it's you.
-      </p>
+
+    <!-- Farms list -->
+    <div class="farms" id="farms-list" style="display:none;"></div>
+
+    <!-- Email + resend block -->
+    <div class="email-block" id="email-block" style="display:none;">
+      <div class="em-hdr">📧 <span>We've also emailed you these links</span></div>
+      <div>Bookmark or share with your team. Look in your inbox — sometimes it lands in spam or the "Promotions" tab in Gmail.</div>
+      <div class="em-actions">
+        <button class="resend-btn" id="resend-btn">Didn't get it? Resend</button>
+        <span class="em-timer" id="em-timer"></span>
+      </div>
     </div>
+
+    <div class="details" id="details" style="display:none;">
+      <span>Plan: <b id="d-pkg">—</b></span>
+      <span>Amount: <b id="d-amt">—</b></span>
+      <span>Status: <b id="d-status">—</b></span>
+    </div>
+
     <div class="btns">
-      <a class="btn btn-gold" id="primary-cta" href="/">Open the App</a>
-      <a class="btn btn-ghost" href="/onboarding-guide" data-testid="open-onboarding-guide">📄 Getting Started Guide</a>
-      <a class="btn btn-ghost" href="/landing">Back to Plans</a>
+      <a class="btn-ghost" href="/onboarding-guide" data-testid="open-onboarding-guide">📄 Getting Started Guide</a>
+      <a class="btn-ghost" href="/">Back to home</a>
     </div>
   </div>
+
+  <div class="toast" id="toast"></div>
+
   <script>
     const params = new URLSearchParams(location.search);
     const sid = params.get("session_id");
     if (!sid) {
-      document.getElementById("status-line").textContent = "No session id found";
+      setStatus("No session ID", null);
+      document.getElementById("title").textContent = "Missing session ID";
       document.getElementById("message").textContent = "If you completed payment, your subscription is active. Otherwise return to the plans page.";
-    } else poll(sid, 0);
+    } else {
+      poll(sid, 0);
+    }
+
+    function setStatus(text, kind){
+      document.getElementById("status-label").textContent = text;
+      const pill = document.getElementById("status-pill");
+      pill.classList.toggle("paid", kind === "paid");
+      if (kind === "paid" || kind === "expired" || kind === "error") {
+        const spin = pill.querySelector(".spinner");
+        if (spin) spin.style.display = "none";
+      }
+    }
 
     async function poll(sid, attempt){
-      if (attempt > 15) {
-        document.getElementById("status-line").textContent = "Status check timed out";
-        document.getElementById("message").textContent = "Check your email — you'll receive a confirmation when the payment clears.";
+      if (attempt > 20) {
+        setStatus("Timed out", "error");
+        document.getElementById("title").textContent = "Taking longer than expected";
+        document.getElementById("message").innerHTML = "Your payment is still processing. Check back in a few minutes, or reply to your Stripe receipt if you need help.";
         return;
       }
       try {
         const r = await fetch(`/api/checkout/status/${sid}`);
         const d = await r.json();
-        document.getElementById("details").style.display = "block";
+        // Details panel
+        document.getElementById("details").style.display = "flex";
         document.getElementById("d-pkg").textContent = d.metadata?.label || d.metadata?.package_id || "—";
-        document.getElementById("d-amt").textContent = `$${(d.amount_total/100).toFixed(2)} ${d.currency?.toUpperCase()}`;
-        document.getElementById("d-status").textContent = d.payment_status || d.status;
+        document.getElementById("d-amt").textContent = d.amount_total ? `$${(d.amount_total/100).toFixed(2)} ${d.currency?.toUpperCase()}` : "—";
+        document.getElementById("d-status").textContent = d.payment_status || d.status || "—";
+
         if (d.payment_status === "paid") {
-          document.getElementById("status-line").innerHTML = "✓ Payment confirmed";
-          document.getElementById("status-line").style.color = "#2dbd5e";
-          document.getElementById("title").textContent = "You're all set! 🎉";
+          setStatus("✓ Payment confirmed", "paid");
+          document.getElementById("title").textContent = "You're in! 🎉";
           document.getElementById("message").textContent = `Welcome aboard. Your ${d.metadata?.label || "subscription"} is now active.`;
-          renderOnboarding(d.onboarding);
+          renderReady(d.onboarding);
           return;
         }
         if (d.status === "expired") {
-          document.getElementById("status-line").textContent = "Payment session expired";
-          document.getElementById("message").textContent = "You can try again from the plans page.";
+          setStatus("Session expired", "expired");
+          document.getElementById("title").textContent = "Payment session expired";
+          document.getElementById("message").textContent = "The Stripe checkout timed out. You can try again from the plans page.";
           return;
         }
         setTimeout(()=>poll(sid, attempt+1), 2000);
@@ -94,34 +181,79 @@
       }
     }
 
-    function renderOnboarding(o) {
-      if (!o || !o.createdFarms || !o.createdFarms.length) return;
-      const wrap = document.getElementById("onboarding");
-      wrap.style.display = "block";
-      const list = document.getElementById("farms-list");
-      list.innerHTML = o.createdFarms.map(f => `
-        <div style="background:rgba(0,0,0,.25);border:1px solid rgba(201,162,39,.3);border-radius:10px;padding:12px 14px;">
-          <div style="font-weight:800;font-size:14px;color:#fff;">${escapeHtml(f.name)}${f.tier ? `<span style='color:#C9A227;font-size:11px;margin-left:6px;text-transform:uppercase;'>${escapeHtml(f.tier)}</span>` : ''}</div>
-          <a href="${escapeHtml(f.readerUrl)}" style="color:#C9A227;font-size:12px;font-weight:700;text-decoration:none;display:inline-block;margin-top:4px;">📲 Open Field Reader →</a>
-        </div>
-      `).join("");
-      const cta = document.getElementById("primary-cta");
-      if (o.createdFarms.length > 1) {
-        cta.href = o.opsDashboardUrl || "/ops-dashboard";
-        cta.textContent = "Open Ops Dashboard";
-      } else {
-        cta.href = o.createdFarms[0].readerUrl;
-        cta.textContent = "Open My Farm";
+    function renderReady(o) {
+      const cta = document.getElementById("cta-block");
+      cta.style.display = "block";
+      if (!o || !o.createdFarms || !o.createdFarms.length) {
+        // Payment confirmed but provisioning still catching up — show gentle wait
+        document.getElementById("cta-title").textContent = "Setting up your farm…";
+        document.getElementById("primary-cta").textContent = "Wait a moment";
+        document.getElementById("primary-cta").href = "javascript:void(0)";
+        return;
       }
-      const note = document.getElementById("email-note");
-      if (o.emailSkipped) {
-        note.innerHTML = "📧 Welcome email queued (will send once your Resend API key is configured).";
-      } else if (o.emailSent) {
-        note.innerHTML = "📧 We've also emailed these links to you — bookmark them or share with your team.";
+      // Wire primary CTA
+      const primaryHref = o.createdFarms.length > 1 ? (o.opsDashboardUrl || "/ops-dashboard") : o.createdFarms[0].readerUrl;
+      const primaryLabel = o.createdFarms.length > 1 ? "Open Ops Dashboard →" : "Open My Farm →";
+      document.getElementById("cta-title").textContent = o.createdFarms.length > 1
+        ? `${o.createdFarms.length} farms ready` : `${o.createdFarms[0].name} — ready`;
+      const primary = document.getElementById("primary-cta");
+      primary.href = primaryHref;
+      primary.textContent = primaryLabel;
+
+      // Render farms list (secondary)
+      if (o.createdFarms.length > 1 || o.createdFarms.length === 1) {
+        const list = document.getElementById("farms-list");
+        list.style.display = "flex";
+        list.innerHTML = o.createdFarms.map(f => `
+          <div class="farm-row">
+            <div class="name">${escapeHtml(f.name)}${f.tier ? `<span class='tier'>${escapeHtml(f.tier)}</span>` : ''}</div>
+            <a class="open" href="${escapeHtml(f.readerUrl)}">📲 Field Reader</a>
+          </div>
+        `).join("");
+      }
+
+      // Show email block if we sent one
+      if (o.emailSent) {
+        document.getElementById("email-block").style.display = "block";
       }
     }
 
+    // Resend welcome email
+    document.getElementById("resend-btn").addEventListener("click", async () => {
+      const btn = document.getElementById("resend-btn");
+      const timer = document.getElementById("em-timer");
+      btn.disabled = true;
+      const orig = btn.textContent;
+      btn.innerHTML = '<span class="spinner"></span> Sending…';
+      try {
+        const r = await fetch(`/api/checkout/resend-welcome/${sid}`, { method: "POST" });
+        const d = await r.json().catch(() => ({}));
+        if (!r.ok) {
+          throw new Error(d.detail || `HTTP ${r.status}`);
+        }
+        btn.textContent = "✓ Sent — check your inbox";
+        timer.textContent = `To: ${d.email || "your inbox"}`;
+        toast(d.skipped ? "Email queued (sender not configured yet)" : "✓ Resent — check your inbox");
+        // Re-enable after 22s cooldown
+        let s = 22;
+        const iv = setInterval(() => {
+          s--;
+          btn.textContent = s > 0 ? `Resend in ${s}s` : orig;
+          if (s <= 0) { clearInterval(iv); btn.disabled = false; }
+        }, 1000);
+      } catch (e) {
+        btn.disabled = false; btn.textContent = orig;
+        toast(String(e.message || e), true);
+      }
+    });
+
+    // ── Utility ──
     function escapeHtml(s){return String(s||"").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));}
+    function toast(msg, err){
+      const t = document.getElementById("toast");
+      t.textContent = msg; t.classList.toggle("err", !!err); t.classList.add("show");
+      setTimeout(() => t.classList.remove("show"), 3200);
+    }
   </script>
 </body>
 </html>
