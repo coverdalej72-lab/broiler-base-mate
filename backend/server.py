@@ -1694,7 +1694,130 @@ async def delete_delivery(delivery_id: str):
 # ── Stubs (unused in standalone but called by silo-tracker) ───────────────
 @api.post("/weigh-bird")
 async def weigh_bird(payload: dict):
-    return {"ok": True, "stored": False}
+    """Estimate a live bird's weight from a photo using Gemini vision.
+
+    Body: { imageBase64: str, mimeType?: str, ageDays?: int, shedNum?: int }
+    Returns: { ok, estimatedWeightKg, confidenceLevel: 'high'|'medium'|'low', notes }
+    """
+    image_b64 = (payload or {}).get("imageBase64")
+    if not image_b64:
+        raise HTTPException(400, "imageBase64 required")
+    # Strip data-URL prefix if present
+    if "," in image_b64 and image_b64.startswith("data:"):
+        image_b64 = image_b64.split(",", 1)[1]
+    age_days = (payload or {}).get("ageDays")
+    api_key = os.environ.get("EMERGENT_LLM_KEY")
+    if not api_key:
+        raise HTTPException(503, "LLM key not configured")
+    try:
+        from emergentintegrations.llm.chat import LlmChat, UserMessage, ImageContent
+    except Exception as e:
+        raise HTTPException(503, f"LLM lib missing: {e}")
+
+    age_hint = f"The bird is approximately {age_days} days old — use this as a sanity anchor against the Ross 308 / Cobb 500 growth standard." if age_days else "The age is unknown — estimate purely on visual size."
+    system_msg = f"""You are an experienced Australian broiler grower assessing bird weight from a single photograph. You must reply with ONLY a JSON object, no markdown.
+
+{age_hint}
+
+JSON schema:
+{{
+  "estimatedWeightKg": <float, 2 decimals — best-guess live weight>,
+  "confidenceLevel": "high" | "medium" | "low",
+  "notes": "One short sentence: what you see + reason for the confidence rating"
+}}
+
+If the photo does NOT clearly show a live broiler chicken, return:
+{{ "estimatedWeightKg": null, "confidenceLevel": "low", "notes": "No bird detected in photo" }}
+"""
+    chat = LlmChat(
+        api_key=api_key,
+        session_id=f"weigh-bird-{uuid.uuid4().hex[:8]}",
+        system_message=system_msg,
+    ).with_model("gemini", "gemini-2.5-flash")
+    try:
+        msg = UserMessage(
+            text="Estimate this bird's live weight and return JSON only.",
+            file_contents=[ImageContent(image_base64=image_b64)],
+        )
+        raw = await chat.send_message(msg)
+        text = str(raw).strip()
+        # Strip ```json fences if present
+        if text.startswith("```"):
+            text = text.strip("`").split("\n", 1)[-1] if "\n" in text else text
+            if text.endswith("```"): text = text[:-3]
+        # Extract first JSON object
+        import json as _json
+        start = text.find("{"); end = text.rfind("}")
+        if start == -1 or end == -1:
+            return {"ok": False, "estimatedWeightKg": None, "confidenceLevel": "low", "notes": "AI did not return JSON"}
+        data = _json.loads(text[start:end+1])
+        return {"ok": True, **data}
+    except Exception as e:
+        return {"ok": False, "estimatedWeightKg": None, "confidenceLevel": "low", "notes": f"AI error: {str(e)[:120]}"}
+
+
+@api.post("/count-chicks")
+async def count_chicks(payload: dict):
+    """Count day-old chicks visible in a crate photo using Gemini vision.
+
+    Body: { imageBase64: str, mimeType?: str, cratesInPhoto?: int }
+    Returns: { ok, count, confidenceLevel: 'high'|'medium'|'low', notes }
+    """
+    image_b64 = (payload or {}).get("imageBase64")
+    if not image_b64:
+        raise HTTPException(400, "imageBase64 required")
+    if "," in image_b64 and image_b64.startswith("data:"):
+        image_b64 = image_b64.split(",", 1)[1]
+    crates_hint = (payload or {}).get("cratesInPhoto")
+    api_key = os.environ.get("EMERGENT_LLM_KEY")
+    if not api_key:
+        raise HTTPException(503, "LLM key not configured")
+    try:
+        from emergentintegrations.llm.chat import LlmChat, UserMessage, ImageContent
+    except Exception as e:
+        raise HTTPException(503, f"LLM lib missing: {e}")
+
+    crate_line = f"The photo shows {crates_hint} crate(s). Australian chick crates are typically packed at 100 chicks per crate — use that as a sanity anchor." if crates_hint else "If you can identify the number of crates, note it. Australian chick crates typically hold 100 chicks each."
+    system_msg = f"""You are counting day-old broiler chicks in a crate photograph from an Australian poultry farm. Return ONLY a JSON object, no markdown.
+
+{crate_line}
+
+JSON schema:
+{{
+  "count": <integer, best-estimate total chicks visible>,
+  "cratesDetected": <integer or null>,
+  "confidenceLevel": "high" | "medium" | "low",
+  "notes": "One short sentence: counting method + what makes this confidence rating"
+}}
+
+Counting method: try to detect distinct chicks. Where chicks overlap, estimate. Where they are so densely packed that individual counting is impossible, use crateCount × 100 as a sanity estimate and set confidenceLevel to "medium".
+
+If the photo does NOT show chicks, return:
+{{ "count": 0, "cratesDetected": null, "confidenceLevel": "low", "notes": "No chicks detected in photo" }}
+"""
+    chat = LlmChat(
+        api_key=api_key,
+        session_id=f"count-chicks-{uuid.uuid4().hex[:8]}",
+        system_message=system_msg,
+    ).with_model("gemini", "gemini-2.5-flash")
+    try:
+        msg = UserMessage(
+            text="Count the day-old chicks visible in this photo and return JSON only.",
+            file_contents=[ImageContent(image_base64=image_b64)],
+        )
+        raw = await chat.send_message(msg)
+        text = str(raw).strip()
+        if text.startswith("```"):
+            text = text.strip("`").split("\n", 1)[-1] if "\n" in text else text
+            if text.endswith("```"): text = text[:-3]
+        import json as _json
+        start = text.find("{"); end = text.rfind("}")
+        if start == -1 or end == -1:
+            return {"ok": False, "count": None, "confidenceLevel": "low", "notes": "AI did not return JSON"}
+        data = _json.loads(text[start:end+1])
+        return {"ok": True, **data}
+    except Exception as e:
+        return {"ok": False, "count": None, "confidenceLevel": "low", "notes": f"AI error: {str(e)[:120]}"}
 
 
 @api.post("/bootstrap/first-operator")
