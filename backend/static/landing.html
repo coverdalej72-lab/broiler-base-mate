@@ -1223,6 +1223,7 @@
             packageId: pkg,
             originUrl: window.location.origin,
             farms: farmsSnapshot,
+            billingPeriod: opsBilling,
             ...(buyerEmail ? { email: buyerEmail } : {}),
             ...(buyerName  ? { buyerName }        : {}),
           })

@@ -2143,6 +2143,10 @@ app.include_router(api)
 
 # ─── Stripe Checkout ─────────────────────────────────────────────────────
 # Server-side fixed packages — frontend must NEVER send amounts.
+#
+# The Ops Manager bundle is priced dynamically (see `_price_ops_bundle`
+# below) so its `amount` here is only a legacy fallback for callers that
+# somehow POST without a `farms` array.
 PACKAGES = {
     # 🚀 LAUNCH SPECIAL — all prices halved to drive sign-ups. Original RRP
     # shown in comments so they can be restored later by doubling the amount.
@@ -2151,18 +2155,16 @@ PACKAGES = {
     "silver_monthly":      {"label": "Silver",   "amount": 37.50, "kind": "subscription"},   # RRP $75
     "gold_monthly":        {"label": "Gold",     "amount": 50.0,  "kind": "subscription"},   # RRP $100
     "platinum_monthly":    {"label": "Platinum", "amount": 75.0,  "kind": "subscription"},   # RRP $150
-    "ops_bronze":          {"label": "Ops Pack (Bronze farms)",   "amount": 25.0,  "kind": "subscription"},   # RRP $50
-    "ops_silver":          {"label": "Ops Pack (Silver farms)",   "amount": 37.50, "kind": "subscription"},   # RRP $75
-    "ops_gold":            {"label": "Ops Pack (Gold farms)",     "amount": 50.0,  "kind": "subscription"},   # RRP $100
-    "ops_platinum":        {"label": "Ops Pack (Platinum farms)", "amount": 75.0,  "kind": "subscription"},   # RRP $150
     # Annual variants (~15% off RRP, then halved)
     "bronze_annual":       {"label": "Bronze Annual",   "amount": 255.0,  "kind": "subscription"},   # RRP $510
     "silver_annual":       {"label": "Silver Annual",   "amount": 510.0,  "kind": "subscription"},   # RRP $1020
     "gold_annual":         {"label": "Gold Annual",     "amount": 765.0,  "kind": "subscription"},   # RRP $1530
-    # Operation Manager Pack — multi-farm bundles for ops managers
-    "ops_bronze":          {"label": "Ops Manager — Bronze (≤6 sheds/farm)",  "amount": 25.0,  "kind": "ops_bundle"},   # RRP $50
-    "ops_silver":          {"label": "Ops Manager — Silver (7-12 sheds/farm)", "amount": 45.0, "kind": "ops_bundle"},   # RRP $90
-    "ops_gold":            {"label": "Ops Manager — Gold (12+ sheds/farm)",   "amount": 75.0,  "kind": "ops_bundle"},   # RRP $150
+    # Operation Manager Pack — multi-farm bundles (priced dynamically from `farms` list).
+    # The `amount` here is a legacy fallback only.
+    "ops_bronze":          {"label": "Ops Manager Pack",  "amount": 25.0, "kind": "ops_bundle"},
+    "ops_silver":          {"label": "Ops Manager Pack",  "amount": 37.50, "kind": "ops_bundle"},
+    "ops_gold":            {"label": "Ops Manager Pack",  "amount": 50.0, "kind": "ops_bundle"},
+    "ops_platinum":        {"label": "Ops Manager Pack",  "amount": 75.0, "kind": "ops_bundle"},
     # Sponsor tiers
     "sponsor_10":          {"label": "Sponsor — $5/mo",   "amount": 5.0,   "kind": "sponsor"},   # RRP $10
     "sponsor_25":          {"label": "Sponsor — $12.50/mo", "amount": 12.50, "kind": "sponsor"}, # RRP $25
@@ -2172,6 +2174,40 @@ PACKAGES = {
     "back_project":        {"label": "Project Backer",       "amount": 250.0,  "kind": "donation"},   # RRP $500
     "back_foundation":     {"label": "Foundation Partner",   "amount": 500.0,  "kind": "donation"},   # RRP $1000
 }
+
+# Single source of truth for Ops-bundle per-farm pricing (launch 50%-off).
+# Must stay in sync with the landing page's `TIERS` object at
+# `/app/backend/static/landing.html` (search `const TIERS`). When one changes,
+# update the other and add a test in `/app/backend/tests/test_ops_pricing.py`.
+_OPS_TIER_PRICE = {"bronze": 25.0, "silver": 37.50, "gold": 50.0, "platinum": 75.0}
+
+
+def _ops_volume_discount(n_farms: int) -> float:
+    """Return the multiplier applied AFTER summing tier prices. Mirrors the
+    landing-page `volumeDiscount()` percentages exactly."""
+    if n_farms >= 10: return 0.75  # 25% off
+    if n_farms >=  7: return 0.80  # 20% off
+    if n_farms >=  4: return 0.85  # 15% off
+    if n_farms >=  2: return 0.90  # 10% off
+    return 1.0
+
+
+def _price_ops_bundle(farms: List["CheckoutFarmConfig"], billing_period: str) -> float:
+    """Deterministic server-side price for an Ops bundle.
+
+    Formula (matches `computeTotal()` in landing.html):
+        subtotal = sum(TIER_PRICES[f.tier] for f in farms)
+        monthlyAfter = subtotal * volumeDiscountMultiplier(len(farms))
+        total = monthlyAfter * (12 * 0.85 if billing_period == 'annual' else 1)
+        total is rounded to the nearest whole dollar (same as landing rendering).
+    """
+    if not farms:
+        return 0.0
+    subtotal = sum(_OPS_TIER_PRICE.get((f.tier or "bronze").lower(), _OPS_TIER_PRICE["bronze"]) for f in farms)
+    monthly_after = subtotal * _ops_volume_discount(len(farms))
+    if billing_period == "annual":
+        return float(round(monthly_after * 12 * 0.85))
+    return float(round(monthly_after))
 
 
 class CheckoutFarmConfig(BaseModel):
@@ -2186,6 +2222,7 @@ class CheckoutRequest(BaseModel):
     farms: Optional[List[CheckoutFarmConfig]] = None  # for ops_* bundles
     buyerName: Optional[str] = None
     ref: Optional[str] = None  # referral code (farm slug) of the grower who referred this buyer
+    billingPeriod: Optional[str] = None  # "monthly" | "annual" — ops-bundle only
 
 
 @app.post("/api/checkout")
@@ -2213,11 +2250,16 @@ async def create_checkout(body: CheckoutRequest):
     if body.email: meta["email"] = body.email
     if body.ref: meta["ref"] = body.ref.strip().lower()
 
-    # Calculate dynamic amount for ops_bundle if farms list is provided
+    # Calculate dynamic amount for ops_bundle. Uses the single-source-of-truth
+    # pricer that mirrors the landing page's `computeTotal()` math (tier prices,
+    # volume discount, annual multiplier). See `_price_ops_bundle` above.
     amount = float(pkg["amount"])
     if pkg["kind"] == "ops_bundle" and body.farms:
-        tier_prices = {"bronze": 25.0, "silver": 45.0, "gold": 75.0}  # LAUNCH 50% OFF — RRP $50/$90/$150
-        amount = sum(tier_prices.get((f.tier or "bronze").lower(), 50.0) for f in body.farms)
+        billing = (body.billingPeriod or "monthly").lower()
+        amount = _price_ops_bundle(body.farms, billing)
+        # Reflect period in metadata so we can audit charges later
+        meta["billing_period"] = billing
+        meta["farm_count"]     = str(len(body.farms))
 
     req = CheckoutSessionRequest(
         amount=amount, currency="aud",
@@ -2318,10 +2360,23 @@ async def checkout_status(session_id: str):
 
 
 async def _provision_purchase(session_id: str) -> Optional[dict]:
-    """When a Stripe session lands as 'paid', create farms + email buyer (idempotent)."""
+    """When a Stripe session lands as 'paid', create farms + email buyer.
+
+    Atomic idempotency guard: `update_one({session_id, provisioned:False}, $set: provisioned:True)`
+    only succeeds for the FIRST concurrent caller — subsequent races (poll +
+    webhook firing within seconds) short-circuit at the guard and return None.
+    Prevents duplicate farms + duplicate welcome emails.
+    """
     from email_service import send_email
+    # Atomic check-and-claim. matched_count == 1 means we won the race.
+    claim = await payments_col.update_one(
+        {"session_id": session_id, "provisioned": {"$ne": True}},
+        {"$set": {"provisioned": True, "provisioningStartedAt": datetime.now(timezone.utc)}},
+    )
+    if claim.matched_count == 0:
+        return None
     cur = await payments_col.find_one({"session_id": session_id})
-    if not cur or cur.get("provisioned"):
+    if not cur:
         return None
 
     kind = cur.get("kind")
@@ -2411,10 +2466,10 @@ async def _provision_purchase(session_id: str) -> Optional[dict]:
             html=html,
         )
 
-    # Mark provisioned
+    # Persist final result (provisioned flag was already set atomically at the top)
     await payments_col.update_one(
         {"session_id": session_id},
-        {"$set": {"provisioned": True, "createdFarms": created_farms, "provisionedAt": datetime.now(timezone.utc)}},
+        {"$set": {"createdFarms": created_farms, "provisionedAt": datetime.now(timezone.utc)}},
     )
 
     # Also notify admin
