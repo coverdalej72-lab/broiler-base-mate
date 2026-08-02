@@ -59,6 +59,14 @@
 - Demo requests stored in MongoDB `demo_requests` collection; readable via GET `/api/demo-request`.
 
 ## Changelog
+- **2026-02-16 (Appcovi rebrand rollout)**:
+  - Received new Appcovi brand assets from Jason (shield + rooster/leaf logo, navy/forest/gold palette).
+  - Saved originals to `/app/backend/static/brand/` (circle logo, hero, business card).
+  - Replaced all app icons with the Appcovi shield: `favicon.png`, `icon-32/64/192/512.png`, `apple-touch-icon.png`, `company-logo.png`, `logo.png` in `/app/backend/static/`.
+  - Redesigned `landing.html` footer: replaced compact "Crafted By" ribbon with full Appcovi business card block containing logo, "Poultry Management Software" tagline, Jason Coverdale · Founder & Lead Developer, phone (0428 337 887), email (appcovi2026@gmail.com), address (432 Wheat Road, Beaufort SA 5550), website link and ABN.
+  - Fixed "Jock Coverdale" typo → "Jason Coverdale" in the Founding Grower band on landing page (line 960).
+  - Product name kept as "Broiler Base Mate" (SEO + domain equity) — Appcovi positioned as parent brand.
+  - Awaiting redeploy to push assets to broilerbasemate.com.au.
 - **2026-02-16 (Whole-Farm Flock Forecast)**:
   - New `/app/silo/artifacts/feed-program/src/lib/breedStandards.ts` — daily-resolution Ross 308 FF + Cobb 500 performance objectives (0–56 days) with `stdAt()` linear interpolation helper.
   - Added "🌾 Whole-Farm Forecast" section at the top of the Flock Forecast page in `App.tsx`. Aggregates weigh-ins + catch averages across all sheds (weighted by birds), picks dominant breed standard, projects forward to user-selected pickup age (35 / 42 / 49 d).
