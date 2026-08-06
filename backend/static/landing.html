@@ -18,8 +18,9 @@
 <meta name="twitter:description" content="Live silo tracking, AI docket scanning, FCR &amp; cFCR results for Australian broiler farms." />
 <link rel="icon" href="/reader-assets/favicon.png" />
 <style>
-  :root { --green-900:#0f3d24; --green-700:#1a5c36; --green-500:#2dbd5e; --gold:#C9A227;
-    --gold-light:#f5e8b8; --ink:#0d1f14; --muted:#5a7268; --paper:#fbfaf4; --line:#d8e4d0; }
+  :root { --green-900:#1e2f4d; --green-700:#2b4266; --green-500:#3d5f9c; --gold:#C9A227;
+    --gold-light:#f5e8b8; --ink:#0f1a2f; --muted:#5a6a86; --paper:#f7f9fc; --line:#dce3ee;
+    --navy:#1e2f4d; --navy-deep:#0f1a2f; --navy-mid:#2b4266; --success:#2dbd5e; }
   *{box-sizing:border-box;margin:0;padding:0}
   html,body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;color:var(--ink);background:var(--paper);line-height:1.5;-webkit-font-smoothing:antialiased}
   /* Hero */
@@ -27,7 +28,7 @@
     background:
       linear-gradient(180deg, rgba(10,20,16,.45) 0%, rgba(10,20,16,.55) 40%, rgba(10,20,16,.88) 100%),
       url("/reader-assets/hero-poultry.jpg") center/cover no-repeat,
-      linear-gradient(180deg, #0a1f12, #0f3d24);
+      linear-gradient(180deg, #0a1f12, #1e2f4d);
     display:flex; flex-direction:column; }
   .hero::before { content:""; position:absolute; left:0; right:0; bottom:0; height:14%;
     background:linear-gradient(180deg, transparent, rgba(0,0,0,.5)); pointer-events:none;}
@@ -66,7 +67,7 @@
   .feature .badge-ico { width:48px; height:48px; border-radius:14px; display:grid; place-items:center;
     font-size:24px; color:#fff; box-shadow:0 4px 10px rgba(0,0,0,.12); }
   .feature .label { font-size:12px; font-weight:800; color:var(--ink); letter-spacing:.3px; }
-  .badge-ico.c1 { background:linear-gradient(135deg,#2dbd5e,#0f3d24);}
+  .badge-ico.c1 { background:linear-gradient(135deg,#2dbd5e,#1e2f4d);}
   .badge-ico.c2 { background:linear-gradient(135deg,#ff7a1a,#c94e07);}
   .badge-ico.c3 { background:linear-gradient(135deg,#C9A227,#8b6f0c);}
   .badge-ico.c4 { background:linear-gradient(135deg,#1f70c4,#0c3b6f);}
@@ -117,7 +118,7 @@
   .sponsor-card button { width:100%; padding:12px; border:0; border-radius:10px; background:var(--green-700);
     color:#fff; font-weight:800; font-size:14px; cursor:pointer; }
   /* Back the Build */
-  .build { background:#0f3d24; color:#fff; }
+  .build { background:#1e2f4d; color:#fff; }
   .build h2 { color:#fff; }
   .build h2 .accent { color:var(--gold); }
   .build .sub { color:#bdd3c4; }
@@ -130,10 +131,10 @@
   .build-card button { width:100%; padding:12px; border:0; border-radius:10px; background:var(--gold);
     color:#000; font-weight:800; font-size:14px; cursor:pointer; }
   /* Footer */
-  footer { background:#0a1410; color:#8aa094; padding:50px 24px; text-align:center; font-size:13px; }
+  footer { background:#0a1428; color:#8aa094; padding:50px 24px; text-align:center; font-size:13px; }
   footer a { color:var(--gold); text-decoration:none; font-weight:600; }
   /* Toast */
-  .toast { position:fixed; left:50%; bottom:30px; transform:translateX(-50%); background:#0d1f14;
+  .toast { position:fixed; left:50%; bottom:30px; transform:translateX(-50%); background:#0f1a2f;
     color:#fff; padding:14px 20px; border-radius:99px; font-weight:700; box-shadow:0 8px 26px rgba(0,0,0,.3);
     opacity:0; transition:opacity .2s; pointer-events:none; z-index:50; max-width:90vw; text-align:center;}
   .toast.show { opacity:1; }
@@ -143,7 +144,7 @@
      2026 MODERNIZATION LAYER — polish without touching the structure
      ═══════════════════════════════════════════════════════════════════ */
   html { scroll-behavior:smooth; }
-  ::selection { background:var(--gold); color:#0f3d24; }
+  ::selection { background:var(--gold); color:#1e2f4d; }
   body { font-feature-settings:"ss01","cv11","cv02"; }
 
   /* Headlines — sharper letterforms, kinetic accent */
@@ -218,7 +219,7 @@
   .reveal.visible { opacity:1; transform:translateY(0); }
 
   /* Countdown chip inside the launch banner */
-  .countdown-chip { display:inline-flex; align-items:center; gap:6px; background:#0f3d24; color:#fff;
+  .countdown-chip { display:inline-flex; align-items:center; gap:6px; background:#1e2f4d; color:#fff;
     padding:3px 12px; border-radius:99px; font-size:11px; font-family:'SF Mono',Menlo,monospace;
     margin-left:8px; letter-spacing:0.5px; font-weight:800; }
   .countdown-chip .dot { width:6px; height:6px; border-radius:50%; background:var(--gold); animation:pulse 1.5s ease-in-out infinite; }
@@ -226,7 +227,7 @@
   /* Custom scrollbar (webkit) */
   ::-webkit-scrollbar { width:10px; height:10px; }
   ::-webkit-scrollbar-track { background:#fbfaf4; }
-  ::-webkit-scrollbar-thumb { background:linear-gradient(180deg,#1a5c36,#0f3d24); border-radius:5px; border:2px solid #fbfaf4; }
+  ::-webkit-scrollbar-thumb { background:linear-gradient(180deg,#2b4266,#1e2f4d); border-radius:5px; border:2px solid #fbfaf4; }
   ::-webkit-scrollbar-thumb:hover { background:#C9A227; }
 
   /* Reduced motion — respect user preference */
@@ -238,14 +239,14 @@
 </head>
 <body>
   <!-- 🚀 LAUNCH BANNER — half-price across the board to drive sign-ups -->
-  <div data-testid="launch-banner" style="background:linear-gradient(90deg,#C9A227,#e6b835,#C9A227);color:#0f3d24;text-align:center;padding:10px 16px;font-weight:800;font-size:13px;letter-spacing:0.4px;border-bottom:2px solid #0f3d24;box-shadow:0 2px 8px rgba(0,0,0,0.15);position:relative;z-index:50;">
-    🚀 LAUNCH SPECIAL · <b>50% OFF every plan</b> · <a href="#plans" style="color:#0f3d24;text-decoration:underline;font-weight:900;">lock in half-price →</a>
+  <div data-testid="launch-banner" style="background:linear-gradient(90deg,#C9A227,#e6b835,#C9A227);color:#1e2f4d;text-align:center;padding:10px 16px;font-weight:800;font-size:13px;letter-spacing:0.4px;border-bottom:2px solid #1e2f4d;box-shadow:0 2px 8px rgba(0,0,0,0.15);position:relative;z-index:50;">
+    🚀 LAUNCH SPECIAL · <b>50% OFF every plan</b> · <a href="#plans" style="color:#1e2f4d;text-decoration:underline;font-weight:900;">lock in half-price →</a>
     <span class="countdown-chip" id="countdown" data-testid="launch-countdown"><span class="dot"></span><span id="countdown-val">ends soon</span></span>
   </div>
   <!-- HERO -->
   <div class="hero">
     <div style="position:absolute;top:18px;left:24px;z-index:5;display:flex;align-items:center;gap:10px;background:rgba(0,0,0,0.4);padding:8px 14px 8px 8px;border-radius:99px;border:1px solid rgba(201,162,39,0.3);backdrop-filter:blur(6px);">
-      <img src="/reader-assets/company-logo.png" alt="Company logo" style="height:36px;width:36px;object-fit:contain;border-radius:8px;background:#0a1410;" />
+      <img src="/reader-assets/company-logo.png" alt="Company logo" style="height:36px;width:36px;object-fit:contain;border-radius:8px;background:#0a1428;" />
       <span style="font-size:11px;letter-spacing:2px;color:#C9A227;font-weight:800;text-transform:uppercase;" id="hero-company-name">APPCOVI</span>
     </div>
     <nav class="nav" style="padding-left:240px;">
@@ -286,7 +287,7 @@
   </div>
 
   <!-- ── APPCOVI TRUST KIT — Jason's spin on trust ───────────────────────── -->
-  <section id="trust-kit" style="background:linear-gradient(180deg,#0f3d24 0%,#082617 100%);padding:56px 24px;border-bottom:1px solid #1a5c36;">
+  <section id="trust-kit" style="background:linear-gradient(180deg,#1e2f4d 0%,#0f1a2f 100%);padding:56px 24px;border-bottom:1px solid #2b4266;">
     <div style="max-width:1200px;margin:0 auto;text-align:center;">
       <div style="display:inline-block;background:rgba(201,162,39,0.15);color:#C9A227;padding:6px 16px;border-radius:99px;font-weight:800;font-size:11px;letter-spacing:2px;margin-bottom:22px;border:1px solid rgba(201,162,39,0.3);">APPCOVI TRUST KIT</div>
       <h2 style="font-size:26px;font-weight:900;color:#fff;margin:0 0 6px;letter-spacing:-0.3px;">Why growers can back us in.</h2>
@@ -294,31 +295,31 @@
 
       <div class="trust-strip" style="display:grid;grid-template-columns:repeat(6,1fr);gap:14px;align-items:stretch;">
         <!-- 1. Poultry Focused -->
-        <div class="trust-badge" style="background:#0f3d24;border:4px solid #C9A227;border-radius:50%;aspect-ratio:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:18px 8px;box-shadow:0 6px 22px rgba(0,0,0,0.25);">
+        <div class="trust-badge" style="background:#1e2f4d;border:4px solid #C9A227;border-radius:50%;aspect-ratio:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:18px 8px;box-shadow:0 6px 22px rgba(0,0,0,0.25);">
           <div style="font-size:34px;line-height:1;margin-bottom:6px;">🐔</div>
           <div style="color:#fff;font-weight:900;font-size:11px;letter-spacing:0.5px;line-height:1.15;">POULTRY<br>FOCUSED</div>
           <div style="color:#C9A227;font-size:8.5px;font-weight:700;letter-spacing:1.2px;margin-top:4px;">TRUST KIT</div>
         </div>
         <!-- 2. Practical Tools -->
-        <div class="trust-badge" style="background:#0f3d24;border:4px solid #dbe4ea;border-radius:50%;aspect-ratio:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:18px 8px;box-shadow:0 6px 22px rgba(0,0,0,0.25);">
+        <div class="trust-badge" style="background:#1e2f4d;border:4px solid #dbe4ea;border-radius:50%;aspect-ratio:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:18px 8px;box-shadow:0 6px 22px rgba(0,0,0,0.25);">
           <div style="font-size:34px;line-height:1;margin-bottom:6px;">🐓</div>
           <div style="color:#fff;font-weight:900;font-size:11px;letter-spacing:0.5px;line-height:1.15;">PRACTICAL<br>TOOLS</div>
           <div style="color:#dbe4ea;font-size:8.5px;font-weight:700;letter-spacing:1.2px;margin-top:4px;">MADE FOR FARM WORK</div>
         </div>
         <!-- 3. Appcovi Original -->
-        <div class="trust-badge" style="background:#0f3d24;border:4px solid #C9A227;border-radius:50%;aspect-ratio:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:18px 8px;box-shadow:0 6px 22px rgba(0,0,0,0.25);">
+        <div class="trust-badge" style="background:#1e2f4d;border:4px solid #C9A227;border-radius:50%;aspect-ratio:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:18px 8px;box-shadow:0 6px 22px rgba(0,0,0,0.25);">
           <div style="font-size:34px;line-height:1;margin-bottom:6px;">🦚</div>
           <div style="color:#fff;font-weight:900;font-size:11px;letter-spacing:0.5px;line-height:1.15;">APPCOVI<br>ORIGINAL</div>
           <div style="color:#C9A227;font-size:8.5px;font-weight:700;letter-spacing:1.2px;margin-top:4px;">BUILT WITH PURPOSE</div>
         </div>
         <!-- 4. No Payment Data -->
-        <div class="trust-badge" style="background:#0f3d24;border:4px solid #dbe4ea;border-radius:50%;aspect-ratio:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:18px 8px;box-shadow:0 6px 22px rgba(0,0,0,0.25);">
+        <div class="trust-badge" style="background:#1e2f4d;border:4px solid #dbe4ea;border-radius:50%;aspect-ratio:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:18px 8px;box-shadow:0 6px 22px rgba(0,0,0,0.25);">
           <div style="font-size:34px;line-height:1;margin-bottom:6px;">🐣</div>
           <div style="color:#fff;font-weight:900;font-size:11px;letter-spacing:0.5px;line-height:1.15;">STRIPE<br>SECURED</div>
           <div style="color:#dbe4ea;font-size:8.5px;font-weight:700;letter-spacing:1.2px;margin-top:4px;">WE NEVER SEE YOUR CARD</div>
         </div>
         <!-- 5. Clear Product Info -->
-        <div class="trust-badge" style="background:#0f3d24;border:4px solid #dbe4ea;border-radius:50%;aspect-ratio:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:18px 8px;box-shadow:0 6px 22px rgba(0,0,0,0.25);">
+        <div class="trust-badge" style="background:#1e2f4d;border:4px solid #dbe4ea;border-radius:50%;aspect-ratio:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:18px 8px;box-shadow:0 6px 22px rgba(0,0,0,0.25);">
           <div style="font-size:34px;line-height:1;margin-bottom:6px;">🦃</div>
           <div style="color:#fff;font-weight:900;font-size:11px;letter-spacing:0.5px;line-height:1.15;">CLEAR<br>PRODUCT INFO</div>
           <div style="color:#dbe4ea;font-size:8.5px;font-weight:700;letter-spacing:1.2px;margin-top:4px;">EXPLORE THE SUITE</div>
@@ -500,7 +501,7 @@
   </section>
 
   <!-- ── FARM BUDDY AI SHOWCASE ─────────────────────────────────── -->
-  <section style="background:linear-gradient(135deg,#0f3d24 0%,#1a5c36 60%,#2d8a4f 100%);padding:80px 24px;color:#fff;position:relative;overflow:hidden;">
+  <section style="background:linear-gradient(135deg,#1e2f4d 0%,#2b4266 60%,#3d5f9c 100%);padding:80px 24px;color:#fff;position:relative;overflow:hidden;">
     <div style="max-width:1100px;margin:0 auto;display:grid;grid-template-columns:1fr 1fr;gap:50px;align-items:center;" class="fb-grid">
       <div>
         <div style="display:inline-block;background:rgba(255,255,255,0.15);color:#fff;font-size:11px;font-weight:800;padding:6px 14px;border-radius:99px;letter-spacing:1.5px;margin-bottom:18px;">
@@ -524,11 +525,11 @@
         </a>
       </div>
       <div style="background:#fff;color:#1f2937;border-radius:18px;padding:22px;box-shadow:0 20px 60px rgba(0,0,0,0.4);position:relative;transform:rotate(0.5deg);">
-        <div style="background:linear-gradient(135deg,#0f3d24,#1a5c36);color:#fff;padding:10px 14px;border-radius:10px;display:flex;align-items:center;gap:10px;margin-bottom:14px;">
+        <div style="background:linear-gradient(135deg,#1e2f4d,#2b4266);color:#fff;padding:10px 14px;border-radius:10px;display:flex;align-items:center;gap:10px;margin-bottom:14px;">
           <span style="background:#C9A227;color:#000;padding:3px 9px;border-radius:99px;font-size:10px;font-weight:800;letter-spacing:0.5px;">🧠 FARM BUDDY</span>
           <span style="font-size:11px;opacity:0.7;">Just now</span>
         </div>
-        <div style="font-weight:700;font-size:15px;line-height:1.4;color:#0f3d24;margin-bottom:10px;">
+        <div style="font-weight:700;font-size:15px;line-height:1.4;color:#1e2f4d;margin-bottom:10px;">
           Drop 22.5t into Shed 5&6 first — only 1.4 days left
         </div>
         <ul style="font-size:13px;line-height:1.7;color:#374151;padding-left:20px;margin:8px 0 14px;">
@@ -686,7 +687,7 @@
   </section>
 
   <!-- ── PARTNER PROGRAM (Resellers / Bulk / Equipment) ─────────────────── -->
-  <section style="background:linear-gradient(180deg,#0f3d24 0%,#082617 100%);color:#fff;padding:80px 24px;" id="partners">
+  <section style="background:linear-gradient(180deg,#1e2f4d 0%,#0f1a2f 100%);color:#fff;padding:80px 24px;" id="partners">
     <div class="wrap">
       <div style="text-align:center;margin-bottom:50px;">
         <div style="display:inline-block;background:rgba(201,162,39,.15);color:#C9A227;border:1px solid #C9A227;border-radius:99px;padding:6px 18px;font-size:11px;letter-spacing:2px;font-weight:800;margin-bottom:18px;">FOR EQUIPMENT SUPPLIERS · INTEGRATORS · FEED MILLS</div>
@@ -755,7 +756,7 @@
 
       <!-- Contact Sales form -->
       <div style="max-width:580px;margin:0 auto;background:#fff;color:#1a2622;border-radius:18px;padding:34px 30px;box-shadow:0 20px 50px rgba(0,0,0,.35);">
-        <div style="font-size:11px;letter-spacing:2px;color:#1a5c36;font-weight:800;margin-bottom:8px;">📞 PARTNERSHIP ENQUIRY</div>
+        <div style="font-size:11px;letter-spacing:2px;color:#2b4266;font-weight:800;margin-bottom:8px;">📞 PARTNERSHIP ENQUIRY</div>
         <h3 style="margin:0 0 18px;font-size:22px;font-weight:900;letter-spacing:-0.5px;">Let&apos;s chat about a partnership.</h3>
         <form id="partner-form" style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
           <input id="pf-name"    placeholder="Your full name" required style="padding:12px 14px;border:1px solid #e0e8e4;border-radius:10px;font-size:14px;-webkit-appearance:none;" />
@@ -832,7 +833,7 @@
   </section>
 
   <!-- STATS STRIP -->
-  <section style="background:#0f3d24;color:#fff;padding:50px 24px;">
+  <section style="background:#1e2f4d;color:#fff;padding:50px 24px;">
     <div class="wrap" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:24px;text-align:center;">
       <div><div style="font-size:42px;font-weight:900;color:#C9A227;letter-spacing:-1px;">30+</div><div style="font-size:11px;letter-spacing:2px;font-weight:700;color:#bdd3c4;">SHEDS SUPPORTED</div></div>
       <div><div style="font-size:42px;font-weight:900;color:#C9A227;letter-spacing:-1px;">3</div><div style="font-size:11px;letter-spacing:2px;font-weight:700;color:#bdd3c4;">AI DOCKET FORMATS</div></div>
@@ -850,7 +851,7 @@
         <div style="background:var(--paper);border:1px solid var(--line);border-radius:18px;padding:28px;">
           <div style="color:var(--gold);font-size:18px;margin-bottom:10px;">★★★★★</div>
           <p style="font-size:15px;line-height:1.6;color:var(--ink);">"Saved me 4 hours every week. The phone scan of dockets is a game-changer — no more squinting at carbon paper in the office."</p>
-          <div style="margin-top:18px;display:flex;align-items:center;gap:10px;"><div style="width:40px;height:40px;border-radius:99px;background:linear-gradient(135deg,#2dbd5e,#0f3d24);display:grid;place-items:center;color:#fff;font-weight:900;">DK</div><div><div style="font-weight:800;font-size:14px;">Dave K.</div><div style="font-size:12px;color:var(--muted);">Broiler grower · Toowoomba QLD</div></div></div>
+          <div style="margin-top:18px;display:flex;align-items:center;gap:10px;"><div style="width:40px;height:40px;border-radius:99px;background:linear-gradient(135deg,#2dbd5e,#1e2f4d);display:grid;place-items:center;color:#fff;font-weight:900;">DK</div><div><div style="font-weight:800;font-size:14px;">Dave K.</div><div style="font-size:12px;color:var(--muted);">Broiler grower · Toowoomba QLD</div></div></div>
         </div>
         <div style="background:var(--paper);border:1px solid var(--line);border-radius:18px;padding:28px;">
           <div style="color:var(--gold);font-size:18px;margin-bottom:10px;">★★★★★</div>
@@ -1053,7 +1054,7 @@
   <div class="toast" id="toast"></div>
 
   <!-- ── MOBILE STICKY CTA BAR ── -->
-  <div id="sticky-cta" style="position:fixed;bottom:0;left:0;right:0;background:#0f3d24;border-top:2px solid #C9A227;padding:12px 16px;display:none;z-index:90;box-shadow:0 -8px 24px rgba(0,0,0,.25);">
+  <div id="sticky-cta" style="position:fixed;bottom:0;left:0;right:0;background:#1e2f4d;border-top:2px solid #C9A227;padding:12px 16px;display:none;z-index:90;box-shadow:0 -8px 24px rgba(0,0,0,.25);">
     <div style="max-width:760px;margin:0 auto;display:flex;align-items:center;justify-content:space-between;gap:12px;">
       <div style="color:#fff;font-size:13px;font-weight:800;line-height:1.2;">14-day free trial<br><span style="color:#bdd3c4;font-size:11px;font-weight:600;">No card needed</span></div>
       <a href="#plans" style="text-decoration:none;background:#C9A227;color:#000;padding:12px 20px;border-radius:99px;font-weight:900;font-size:14px;letter-spacing:0.3px;white-space:nowrap;">Start free trial →</a>
@@ -1117,7 +1118,7 @@
 
   <!-- ── HOW IT WORKS DEMO MODAL ── -->
   <div id="demo-modal" style="display:none;position:fixed;inset:0;background:rgba(5,15,10,0.92);z-index:100;align-items:center;justify-content:center;padding:24px;backdrop-filter:blur(8px);">
-    <div style="background:#0f3d24;border:1px solid #C9A227;border-radius:24px;max-width:780px;width:100%;padding:32px;color:#fff;position:relative;max-height:90vh;overflow-y:auto;">
+    <div style="background:#1e2f4d;border:1px solid #C9A227;border-radius:24px;max-width:780px;width:100%;padding:32px;color:#fff;position:relative;max-height:90vh;overflow-y:auto;">
       <button id="demo-close" style="position:absolute;top:14px;right:18px;background:rgba(255,255,255,.1);border:0;color:#fff;width:36px;height:36px;border-radius:99px;cursor:pointer;font-size:18px;">✕</button>
       <div id="demo-stage" style="min-height:380px;display:flex;flex-direction:column;justify-content:center;align-items:center;text-align:center;gap:18px;"></div>
       <div style="display:flex;justify-content:space-between;align-items:center;margin-top:24px;border-top:1px solid rgba(201,162,39,.3);padding-top:18px;">
@@ -1266,7 +1267,7 @@
       opsBilling = b.dataset.bill;
       document.querySelectorAll(".bill-toggle").forEach(x => {
         x.classList.toggle("active", x === b);
-        x.style.background = x === b ? "#1a5c36" : "transparent";
+        x.style.background = x === b ? "#2b4266" : "transparent";
         x.style.color = x === b ? "#fff" : "#5a7268";
       });
       computeTotal();
@@ -1311,7 +1312,7 @@
         body: "Sign in once with Google → go to Summary. Punch in your placement date and the bird numbers placed in each shed. The Feed Program does the rest — it auto-builds every shed sheet for the full 42 (or 49 / 56) day grow-out, pulls in your breed standard (Ross 308 or Cobb 500), and pre-calculates every feed allocation. Took 60 seconds. No formulas, no version conflicts, no &quot;which file is the latest&quot;.",
         mockup: `
           <div style="background:#fff;border:1px solid #e0e8e4;border-radius:12px;padding:14px 16px;font-family:Calibri,sans-serif;color:#1a3a5c;text-align:left;width:100%;max-width:520px;box-shadow:0 4px 14px rgba(0,0,0,.18);">
-            <div style="background:linear-gradient(135deg,#1a5c36,#2d8052);color:#fff;margin:-14px -16px 12px;padding:8px 16px;border-radius:12px 12px 0 0;font-weight:800;font-size:13px;">📋 SUMMARY · Double B Farm</div>
+            <div style="background:linear-gradient(135deg,#2b4266,#2d8052);color:#fff;margin:-14px -16px 12px;padding:8px 16px;border-radius:12px 12px 0 0;font-weight:800;font-size:13px;">📋 SUMMARY · Double B Farm</div>
             <div style="display:grid;grid-template-columns:130px 1fr;row-gap:8px;font-size:13px;align-items:center;">
               <div style="color:#666;">Placement date:</div>
               <div style="background:#fff8e0;border:1px solid #e8d070;border-radius:5px;padding:3px 8px;font-weight:700;color:#7a6000;animation:typein 1.6s steps(11,end) 0.3s forwards;overflow:hidden;white-space:nowrap;width:0;">20 March 2026</div>
@@ -1338,7 +1339,7 @@
             </div>
             <table style="width:100%;border-collapse:collapse;font-size:11px;">
               <thead>
-                <tr style="background:#f6f9f7;color:#1a5c36;font-weight:700;">
+                <tr style="background:#f6f9f7;color:#2b4266;font-weight:700;">
                   <th style="padding:5px 6px;text-align:left;">Age</th>
                   <th style="padding:5px 6px;text-align:left;">Date</th>
                   <th style="padding:5px 6px;text-align:right;">Ordered</th>
@@ -1351,7 +1352,7 @@
                 <tr><td style="padding:4px 6px;">15</td><td>3 Apr</td><td style="text-align:right;">22,000</td><td style="text-align:right;font-weight:700;">5,920</td><td style="text-align:right;color:#1a7a40;font-weight:700;">22,320</td><td style="text-align:right;">79,612</td></tr>
                 <tr style="background:#fafcfb;"><td style="padding:4px 6px;">16</td><td>4 Apr</td><td style="text-align:right;color:#aaa;">—</td><td style="text-align:right;font-weight:700;">6,000</td><td style="text-align:right;color:#e67e22;font-weight:700;">16,320</td><td style="text-align:right;">79,591</td></tr>
                 <tr><td style="padding:4px 6px;">17</td><td>5 Apr</td><td style="text-align:right;color:#2980b9;font-weight:700;animation:flash 1.6s 0.4s infinite;">22,000</td><td style="text-align:right;font-weight:700;">6,400</td><td style="text-align:right;color:#1a7a40;font-weight:700;">31,920</td><td style="text-align:right;">79,570</td></tr>
-                <tr style="background:#fff5d6;animation:rowpulse 2s 1s infinite;"><td style="padding:4px 6px;font-weight:800;">18</td><td><strong>6 Apr</strong></td><td style="text-align:right;color:#aaa;">—</td><td style="text-align:right;font-weight:800;color:#1a5c36;">6,960</td><td style="text-align:right;font-weight:800;color:#1a7a40;">24,960</td><td style="text-align:right;font-weight:700;">79,549</td></tr>
+                <tr style="background:#fff5d6;animation:rowpulse 2s 1s infinite;"><td style="padding:4px 6px;font-weight:800;">18</td><td><strong>6 Apr</strong></td><td style="text-align:right;color:#aaa;">—</td><td style="text-align:right;font-weight:800;color:#2b4266;">6,960</td><td style="text-align:right;font-weight:800;color:#1a7a40;">24,960</td><td style="text-align:right;font-weight:700;">79,549</td></tr>
                 <tr style="opacity:0.45;"><td style="padding:4px 6px;">19</td><td>7 Apr</td><td style="text-align:right;color:#aaa;">—</td><td style="text-align:right;">7,440</td><td style="text-align:right;">17,520</td><td style="text-align:right;">79,528</td></tr>
               </tbody>
             </table>
@@ -1365,8 +1366,8 @@
           <div style="display:flex;gap:18px;align-items:center;justify-content:center;flex-wrap:wrap;">
             <!-- Phone -->
             <div style="position:relative;width:160px;height:280px;background:#0a0a0a;border-radius:22px;padding:10px;box-shadow:0 8px 26px rgba(0,0,0,.32);">
-              <div style="width:100%;height:100%;background:#0f3d24;border-radius:16px;overflow:hidden;color:#fff;">
-                <div style="background:#1a5c36;padding:8px;font-size:10px;font-weight:800;color:#C9A227;text-align:center;">SHED 3 · SILO B</div>
+              <div style="width:100%;height:100%;background:#1e2f4d;border-radius:16px;overflow:hidden;color:#fff;">
+                <div style="background:#2b4266;padding:8px;font-size:10px;font-weight:800;color:#C9A227;text-align:center;">SHED 3 · SILO B</div>
                 <div style="padding:14px 10px;display:flex;flex-direction:column;gap:10px;">
                   <div style="font-size:11px;color:#bdd3c4;">Tonnes remaining</div>
                   <div style="font-size:34px;font-weight:900;color:#fff;">5.7<span style="font-size:14px;color:#bdd3c4;">t</span></div>
@@ -1380,7 +1381,7 @@
             </div>
             <!-- Sync animation arrows -->
             <div style="display:flex;flex-direction:column;align-items:center;gap:6px;">
-              <div style="font-size:11px;color:#1a5c36;font-weight:800;">&lt; 2 sec</div>
+              <div style="font-size:11px;color:#2b4266;font-weight:800;">&lt; 2 sec</div>
               <div style="width:48px;height:3px;background:linear-gradient(90deg,#16a085,#C9A227);border-radius:99px;animation:flash 1.2s infinite;"></div>
               <div style="width:48px;height:3px;background:linear-gradient(90deg,#C9A227,#16a085);border-radius:99px;animation:flash 1.2s 0.3s infinite;"></div>
               <div style="font-size:9px;color:#666;letter-spacing:1px;">LIVE</div>
@@ -1393,7 +1394,7 @@
                 </div>
                 <table style="width:100%;border-collapse:collapse;font-size:9px;font-family:Calibri,sans-serif;color:#1a3a5c;">
                   <thead>
-                    <tr style="background:#f6f9f7;color:#1a5c36;font-weight:700;">
+                    <tr style="background:#f6f9f7;color:#2b4266;font-weight:700;">
                       <th style="padding:4px;text-align:left;">Shed</th><th style="padding:4px;text-align:left;">Silo</th>
                       <th style="padding:4px;text-align:right;">Reading</th><th style="padding:4px;text-align:right;">When</th>
                     </tr>
@@ -1404,7 +1405,7 @@
                     <tr><td style="padding:3px 4px;">3&amp;4</td><td>A</td><td style="text-align:right;">8.2 t</td><td style="text-align:right;color:#888;">10:18</td></tr>
                     <tr style="background:#fff5d6;animation:rowpulse 2s 1.5s infinite;opacity:0;animation:fadeup 0.4s 1.7s forwards, rowpulse 2s 2.1s infinite;">
                       <td style="padding:3px 4px;font-weight:800;">3&amp;4</td><td style="font-weight:800;">B</td>
-                      <td style="text-align:right;font-weight:900;color:#1a5c36;">5.7 t</td>
+                      <td style="text-align:right;font-weight:900;color:#2b4266;">5.7 t</td>
                       <td style="text-align:right;color:#16a085;font-weight:700;">just now</td>
                     </tr>
                   </tbody>
@@ -1423,13 +1424,13 @@
           <div style="display:flex;gap:24px;align-items:center;justify-content:center;flex-wrap:wrap;">
             <div style="background:#fff;border-radius:14px;padding:20px 24px;box-shadow:0 6px 18px rgba(0,0,0,.22);text-align:center;max-width:220px;">
               <div style="font-size:11px;letter-spacing:1.5px;color:#666;font-weight:800;margin-bottom:10px;">YOUR FARM'S PRIVATE READER LINK</div>
-              <div style="background:#f4f8f2;border:1px dashed #a8c9b0;border-radius:8px;padding:10px 12px;font-family:'SF Mono',Menlo,monospace;font-size:11px;color:#0f3d24;font-weight:700;word-break:break-all;line-height:1.5;">broilerbasemate.com.au<br>/reader?farm=<span style="color:#C9A227;">your-farm</span></div>
+              <div style="background:#f4f8f2;border:1px dashed #a8c9b0;border-radius:8px;padding:10px 12px;font-family:'SF Mono',Menlo,monospace;font-size:11px;color:#1e2f4d;font-weight:700;word-break:break-all;line-height:1.5;">broilerbasemate.com.au<br>/reader?farm=<span style="color:#C9A227;">your-farm</span></div>
               <div style="margin-top:12px;font-size:11px;color:#666;font-weight:700;">Open on any phone →</div>
             </div>
             <div style="font-size:48px;color:#C9A227;animation:arrowpulse 1.4s infinite;">→</div>
             <div style="position:relative;width:140px;height:240px;background:#0a0a0a;border-radius:20px;padding:8px;box-shadow:0 8px 24px rgba(0,0,0,.35);">
-              <div style="width:100%;height:100%;background:#0f3d24;border-radius:14px;overflow:hidden;position:relative;">
-                <div style="background:#1a5c36;padding:8px 6px;color:#C9A227;font-size:9px;font-weight:800;text-align:center;">SILO READER</div>
+              <div style="width:100%;height:100%;background:#1e2f4d;border-radius:14px;overflow:hidden;position:relative;">
+                <div style="background:#2b4266;padding:8px 6px;color:#C9A227;font-size:9px;font-weight:800;text-align:center;">SILO READER</div>
                 <div style="padding:8px 6px;display:flex;flex-direction:column;gap:6px;">
                   <div style="background:rgba(201,162,39,.15);border:1px solid #C9A227;border-radius:5px;padding:5px;color:#fff;font-size:9px;font-weight:700;">Shed 1&amp;2 →</div>
                   <div style="background:rgba(255,255,255,.05);border-radius:5px;padding:5px;color:#bdd3c4;font-size:9px;">Shed 3&amp;4</div>
@@ -1445,7 +1446,7 @@
         title: "Walk the sheds — tap silo readings on your phone",
         body: "In the shed yard with the phone in your pocket. Tap the shed → tap silo A, B, or C → type the tonnes (or kg) → Save. The previous reading is pre-filled so you only ever type the delta. Coloured fill bars warn you when a silo is below 20% — the gold &quot;NEEDS DELIVERY&quot; pill flips on automatically. Hit Save and the office spreadsheet is up to date before your boots are off.",
         mockup: `
-          <div style="background:#0f3d24;border-radius:18px;padding:16px;width:280px;color:#fff;font-family:system-ui,sans-serif;box-shadow:0 8px 24px rgba(0,0,0,.35);">
+          <div style="background:#1e2f4d;border-radius:18px;padding:16px;width:280px;color:#fff;font-family:system-ui,sans-serif;box-shadow:0 8px 24px rgba(0,0,0,.35);">
             <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
               <div style="font-weight:800;font-size:14px;">Shed 3 &amp; 4</div>
               <div style="background:#C9A227;color:#000;border-radius:5px;padding:2px 8px;font-size:10px;font-weight:800;">Day 18</div>
@@ -1476,7 +1477,7 @@
           <div style="display:flex;gap:20px;align-items:center;justify-content:center;flex-wrap:wrap;">
             <div style="background:#fff;border-radius:8px;padding:10px;width:160px;box-shadow:0 6px 18px rgba(0,0,0,.22);transform:rotate(-3deg);">
               <div style="background:#f5f5f0;border:1px dashed #c9a227;border-radius:4px;padding:10px;font-family:'Courier New',monospace;font-size:9px;color:#222;line-height:1.5;text-align:left;">
-                <div style="font-weight:800;color:#1a5c36;">BAIADA POULTRY</div>
+                <div style="font-weight:800;color:#2b4266;">BAIADA POULTRY</div>
                 <div style="border-bottom:1px solid #c9a227;margin:4px 0;"></div>
                 <div>Docket: 8842-A</div>
                 <div>Date: 06/04/26</div>
@@ -1488,9 +1489,9 @@
             </div>
             <div style="font-size:36px;color:#C9A227;animation:arrowpulse 1.4s infinite;">→</div>
             <div style="background:#fff;border-radius:10px;padding:12px 14px;width:260px;box-shadow:0 6px 18px rgba(0,0,0,.22);text-align:left;">
-              <div style="font-weight:800;font-size:12px;color:#1a5c36;margin-bottom:8px;">🤖 AI EXTRACTED</div>
+              <div style="font-weight:800;font-size:12px;color:#2b4266;margin-bottom:8px;">🤖 AI EXTRACTED</div>
               ${[
-                ['Supplier','Baiada','#1a5c36'],
+                ['Supplier','Baiada','#2b4266'],
                 ['Docket #','8842-A','#222'],
                 ['Feed type','Finisher 7%','#8e44ad'],
                 ['Amount','22,000 kg','#16a085'],
@@ -1511,7 +1512,7 @@
           <div style="display:flex;gap:20px;align-items:flex-start;justify-content:center;flex-wrap:wrap;">
             <!-- Weigh-in card -->
             <div style="background:#fff;border-radius:12px;padding:14px 16px;width:240px;box-shadow:0 6px 18px rgba(0,0,0,.2);text-align:left;">
-              <div style="background:#1a5c36;color:#fff;margin:-14px -16px 12px;padding:7px 14px;border-radius:12px 12px 0 0;font-weight:800;font-size:12px;">⚖️ WEIGH-IN · DAY 28 · SHED 3</div>
+              <div style="background:#2b4266;color:#fff;margin:-14px -16px 12px;padding:7px 14px;border-radius:12px 12px 0 0;font-weight:800;font-size:12px;">⚖️ WEIGH-IN · DAY 28 · SHED 3</div>
               <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;font-size:12px;margin-bottom:10px;">
                 ${[
                   ['Bird 1','1.79 kg'],['Bird 2','1.82 kg'],
@@ -1522,7 +1523,7 @@
               </div>
               <div style="border-top:1px solid #e0e8e4;padding-top:8px;display:flex;justify-content:space-between;align-items:center;">
                 <span style="font-size:11px;color:#666;font-weight:700;">AVERAGE</span>
-                <span style="font-size:18px;font-weight:900;color:#1a5c36;">1.80 kg</span>
+                <span style="font-size:18px;font-weight:900;color:#2b4266;">1.80 kg</span>
               </div>
               <div style="background:#f0faf4;color:#1a7a40;border-radius:5px;padding:5px 8px;font-size:10px;font-weight:800;text-align:center;margin-top:8px;opacity:0;animation:fadeup 0.4s 1s forwards;">▲ +3.5% above Ross 308 std (1.74kg)</div>
             </div>
@@ -1535,11 +1536,11 @@
                   <tr><td style="padding:3px;">#1 04:30</td><td style="text-align:right;">8,420</td><td style="text-align:right;font-weight:700;">3.04 kg</td></tr>
                   <tr style="background:#fafcfb;"><td style="padding:3px;">#2 05:50</td><td style="text-align:right;">8,510</td><td style="text-align:right;font-weight:700;">3.08 kg</td></tr>
                   <tr><td style="padding:3px;">#3 07:10</td><td style="text-align:right;">8,455</td><td style="text-align:right;font-weight:700;">3.06 kg</td></tr>
-                  <tr style="background:#fff5d6;animation:rowpulse 2s 1s infinite;"><td style="padding:3px;font-weight:800;">#4 08:30</td><td style="text-align:right;font-weight:800;">8,498</td><td style="text-align:right;font-weight:800;color:#1a5c36;">3.10 kg</td></tr>
+                  <tr style="background:#fff5d6;animation:rowpulse 2s 1s infinite;"><td style="padding:3px;font-weight:800;">#4 08:30</td><td style="text-align:right;font-weight:800;">8,498</td><td style="text-align:right;font-weight:800;color:#2b4266;">3.10 kg</td></tr>
                 </tbody>
               </table>
               <div style="border-top:1px solid #e0e8e4;margin-top:8px;padding-top:6px;display:flex;justify-content:space-between;font-size:11px;font-weight:700;color:#1a3a5c;">
-                <span>Total so far:</span><span style="color:#1a5c36;">33,883 birds · 3.07 kg avg</span>
+                <span>Total so far:</span><span style="color:#2b4266;">33,883 birds · 3.07 kg avg</span>
               </div>
               <div style="background:#f0faf4;color:#1a7a40;border-radius:5px;padding:5px 8px;font-size:10px;font-weight:800;text-align:center;margin-top:6px;">Live FCR after load #4: <span style="font-size:13px;">1.448</span></div>
             </div>
@@ -1556,7 +1557,7 @@
             </div>
             <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:10px;">
               ${[
-                ['479k','Birds','#1a5c36'],
+                ['479k','Birds','#2b4266'],
                 ['3.05kg','Proj Wt','#8e44ad'],
                 ['1.46','Proj FCR','#2980b9'],
                 ['1462t','Live Wt','#16a085'],
@@ -1601,7 +1602,7 @@
         title: "End of batch — FCR &amp; results, calculated for you",
         body: "When the last truck rolls out, every number you need to send to the integrator is already there. <b>FCR, CFCR (cumulative FCR including the last week), cage age, average pickup weight, mortality %, total kg picked up, net feed consumed</b> — all calculated automatically from your delivery dockets and catch data. No more chasing receipts on Sunday night to work out where your batch landed. Compare this batch to your last 12 batches with a single click.",
         mockup: `
-          <div style="background:linear-gradient(135deg,#0f3d24,#1a5c36);border-radius:12px;padding:16px;width:100%;max-width:520px;box-shadow:0 6px 18px rgba(0,0,0,.22);">
+          <div style="background:linear-gradient(135deg,#1e2f4d,#2b4266);border-radius:12px;padding:16px;width:100%;max-width:520px;box-shadow:0 6px 18px rgba(0,0,0,.22);">
             <div style="color:#C9A227;font-weight:800;font-size:12px;margin-bottom:12px;text-align:center;">🏁 BATCH 112 RESULTS — DOUBLE B FARM</div>
             <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;">
               ${[
@@ -1628,7 +1629,7 @@
         body: "Every batch result, every silo reading, every delivery docket is exportable. One-click <b>CSV download</b> for your accountant, <b>PDF batch report</b> for your records, or <b>email straight to your integrator</b> field officer with the figures they need (FCR, kg picked up, mortality, average weight). Historical reports of every batch you've ever run are searchable in seconds — answer audit or contract questions without rifling through boxes of paper.",
         mockup: `
           <div style="background:#fff;border-radius:12px;padding:14px 16px;width:100%;max-width:520px;box-shadow:0 6px 18px rgba(0,0,0,.2);text-align:left;">
-            <div style="font-weight:800;color:#1a5c36;margin-bottom:10px;font-size:13px;">📤 EXPORT BATCH 112 RESULTS</div>
+            <div style="font-weight:800;color:#2b4266;margin-bottom:10px;font-size:13px;">📤 EXPORT BATCH 112 RESULTS</div>
             <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:12px;">
               ${[
                 ['📊','CSV','#16a085'],
@@ -1645,7 +1646,7 @@
               <div><span style="color:#888;">1,</span>79,643, 3.06, 1.452, 3.18, 243,612</div>
               <div><span style="color:#888;">2,</span>80,000, 3.09, 1.448, 3.22, 247,200</div>
               <div><span style="color:#888;">3,</span>79,841, 3.04, 1.461, 3.31, 241,556</div>
-              <div style="color:#1a5c36;font-weight:800;">TOTAL,239,484,3.06,1.452,3.24,732,368</div>
+              <div style="color:#2b4266;font-weight:800;">TOTAL,239,484,3.06,1.452,3.24,732,368</div>
             </div>
             <div style="background:#fff8e0;border:1px solid #e8d070;color:#7a6000;border-radius:7px;padding:7px 10px;margin-top:10px;font-size:11px;font-weight:700;">📨 Field officer Stephen will receive PDF + CSV in 5 seconds.</div>
           </div>`,
@@ -1656,8 +1657,8 @@
         mockup: `
           <div style="background:#fff;border-radius:12px;padding:14px 16px;width:100%;max-width:560px;box-shadow:0 6px 18px rgba(0,0,0,.22);text-align:left;">
             <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
-              <span style="font-weight:800;color:#1a5c36;font-size:13px;">🏘️ OPS MANAGER — 4 FARMS</span>
-              <button style="background:#1a5c36;color:#fff;border:0;border-radius:99px;padding:4px 12px;font-weight:700;font-size:10px;">+ Invite operator</button>
+              <span style="font-weight:800;color:#2b4266;font-size:13px;">🏘️ OPS MANAGER — 4 FARMS</span>
+              <button style="background:#2b4266;color:#fff;border:0;border-radius:99px;padding:4px 12px;font-weight:700;font-size:10px;">+ Invite operator</button>
             </div>
             <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:10px;">
               ${[
@@ -1691,10 +1692,10 @@
               ['🥇','Gold',    '$50','/mo'],
               ['💎','Platinum','$75','/mo'],
             ].map(([ico,tier,price,per]) => `
-              <div style="background:#fff;border:2px solid #1a5c36;border-radius:12px;padding:14px 16px;text-align:center;min-width:96px;box-shadow:0 4px 12px rgba(0,0,0,.18);">
+              <div style="background:#fff;border:2px solid #2b4266;border-radius:12px;padding:14px 16px;text-align:center;min-width:96px;box-shadow:0 4px 12px rgba(0,0,0,.18);">
                 <div style="font-size:28px;line-height:1;">${ico}</div>
-                <div style="font-weight:800;color:#1a5c36;margin-top:4px;font-size:12px;">${tier}</div>
-                <div style="font-weight:900;font-size:20px;color:#0f3d24;margin-top:6px;">${price}<span style="font-size:11px;color:#888;font-weight:600;">${per}</span></div>
+                <div style="font-weight:800;color:#2b4266;margin-top:4px;font-size:12px;">${tier}</div>
+                <div style="font-weight:900;font-size:20px;color:#1e2f4d;margin-top:6px;">${price}<span style="font-size:11px;color:#888;font-weight:600;">${per}</span></div>
               </div>`).join('')}
           </div>`,
         cta: true,
