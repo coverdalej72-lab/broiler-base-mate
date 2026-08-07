@@ -253,6 +253,7 @@
       vertical-align: middle; }
     @keyframes spin { to { transform: rotate(360deg); } }
   </style>
+<script src="/reader-assets/i18n-snippet.js" defer></script>
 </head>
 <body data-page="reader">
 <script src="/reader-assets/auth-guard.js"></script>
@@ -870,7 +871,7 @@
       try {
         const b64 = await fileToB64(file);
         const res = await fetch("/api/weigh-bird", { method: "POST", headers: {"Content-Type":"application/json"},
-          body: JSON.stringify({ imageBase64: b64, mimeType: file.type, ageDays: age, shedNum: shed }) });
+          body: JSON.stringify({ imageBase64: b64, mimeType: file.type, ageDays: age, shedNum: shed, language: localStorage.getItem("appcovi-lang") || "en" }) });
         const data = await res.json();
         const dataUrl = "data:" + file.type + ";base64," + b64;
         if (data.estimatedWeightKg) {
@@ -934,7 +935,7 @@
       try {
         const b64 = await fileToB64(file);
         const res = await fetch("/api/count-chicks", { method: "POST", headers: {"Content-Type":"application/json"},
-          body: JSON.stringify({ imageBase64: b64, mimeType: file.type, cratesInPhoto: crates }) });
+          body: JSON.stringify({ imageBase64: b64, mimeType: file.type, cratesInPhoto: crates, language: localStorage.getItem("appcovi-lang") || "en" }) });
         const data = await res.json();
         const dataUrl = "data:" + file.type + ";base64," + b64;
         if (data.count != null && data.count !== 0) {
@@ -1430,7 +1431,7 @@
         const totalSheds = (farmConfig && farmConfig.totalSheds) || (groupsCache.length * 2) || 8;
         const res = await fetch("/api/parse-mort-sheet", {
           method: "POST", headers: {"Content-Type":"application/json"},
-          body: JSON.stringify({ imageBase64: b64, totalSheds })
+          body: JSON.stringify({ imageBase64: b64, totalSheds, language: localStorage.getItem("appcovi-lang") || "en" })
         });
         const data = await res.json();
         if (!data.ok || !(data.sheds||[]).length) {

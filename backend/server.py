@@ -1692,6 +1692,24 @@ async def delete_delivery(delivery_id: str):
 
 
 # ── Stubs (unused in standalone but called by silo-tracker) ───────────────
+
+# ─── Language directive helper for AI vision endpoints ────────────────
+_LANG_NAMES_AI = {
+    "en":"English","vi":"Vietnamese","zh":"Simplified Chinese","zh-CN":"Simplified Chinese",
+    "pt":"Brazilian Portuguese","es":"Spanish","id":"Indonesian","th":"Thai",
+    "ko":"Korean","tl":"Filipino/Tagalog","hi":"Hindi","ar":"Arabic",
+    "fr":"French","de":"German","ja":"Japanese","ms":"Malay",
+}
+
+def _lang_directive(payload: dict) -> str:
+    """Return a system-message suffix that tells Gemini to write user-visible text in the requested language."""
+    code = ((payload or {}).get("language") or "en").lower()
+    name = _LANG_NAMES_AI.get(code, "English")
+    if code == "en" or name == "English":
+        return ""
+    return f"\n\nIMPORTANT: Write ALL user-visible text (notes, error messages, confidence descriptions) in {name}. Keep JSON keys and numeric values in English."
+
+
 @api.post("/weigh-bird")
 async def weigh_bird(payload: dict):
     """Estimate a live bird's weight from a photo using Gemini vision.
@@ -1728,7 +1746,7 @@ JSON schema:
 
 If the photo does NOT clearly show a live broiler chicken, return:
 {{ "estimatedWeightKg": null, "confidenceLevel": "low", "notes": "No bird detected in photo" }}
-"""
+""" + _lang_directive(payload)
     chat = LlmChat(
         api_key=api_key,
         session_id=f"weigh-bird-{uuid.uuid4().hex[:8]}",
@@ -1794,7 +1812,7 @@ Counting method: try to detect distinct chicks. Where chicks overlap, estimate. 
 
 If the photo does NOT show chicks, return:
 {{ "count": 0, "cratesDetected": null, "confidenceLevel": "low", "notes": "No chicks detected in photo" }}
-"""
+""" + _lang_directive(payload)
     chat = LlmChat(
         api_key=api_key,
         session_id=f"count-chicks-{uuid.uuid4().hex[:8]}",
@@ -1867,7 +1885,7 @@ Rules:
 - If a value is unreadable, set it to 0 and lower the confidenceLevel.
 - If the photo is NOT a mort sheet, return {{"date": null, "sheds": [], "confidenceLevel": "low", "notes": "Photo does not appear to be a mort sheet"}}.
 - morts = dead birds found in the shed. culls = birds humanely culled. Both are separate columns/values on the sheet.
-"""
+""" + _lang_directive(payload)
     chat = LlmChat(
         api_key=api_key,
         session_id=f"parse-mort-sheet-{uuid.uuid4().hex[:8]}",

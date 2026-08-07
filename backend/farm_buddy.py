@@ -65,6 +65,7 @@ class FarmContext(BaseModel):
 class FarmBuddyRequest(BaseModel):
     farmContext: FarmContext
     userQuestion: Optional[str] = None  # If set, conversational mode. Else: proactive overview.
+    language: Optional[str] = None      # 2-letter code (en/vi/zh/pt/es/id/th/ko/tl/hi/ar/fr/de/ja/ms). Default = English.
 
 
 class FarmBuddyResponse(BaseModel):
@@ -306,10 +307,23 @@ async def _call_llm(req: FarmBuddyRequest) -> dict:
     if not api_key:
         raise HTTPException(503, "EMERGENT_LLM_KEY not configured")
 
+    # Append language directive to system message if non-English
+    _LANG_NAMES = {
+        "en":"English","vi":"Vietnamese","zh":"Simplified Chinese","zh-CN":"Simplified Chinese",
+        "pt":"Brazilian Portuguese","es":"Spanish","id":"Indonesian","th":"Thai",
+        "ko":"Korean","tl":"Filipino/Tagalog","hi":"Hindi","ar":"Arabic",
+        "fr":"French","de":"German","ja":"Japanese","ms":"Malay",
+    }
+    lang_code = (req.language or "en").lower()
+    lang_name = _LANG_NAMES.get(lang_code, "English")
+    sys_msg = SYSTEM_MSG
+    if lang_code != "en" and lang_name != "English":
+        sys_msg += f" IMPORTANT: Write ALL headline, detail bullets and reason text in {lang_name}. Keep JSON keys and shed identifiers (like 'Shed 5&6') in English."
+
     chat = LlmChat(
         api_key=api_key,
         session_id=f"farm-buddy-{uuid.uuid4().hex}",
-        system_message=SYSTEM_MSG,
+        system_message=sys_msg,
     ).with_model("gemini", "gemini-2.5-flash")
 
     user_prompt = _build_user_prompt(req.farmContext, req.userQuestion)
