@@ -75,8 +75,10 @@
   .badge-ico.c6 { background:linear-gradient(135deg,#7a3eaa,#3e1f6e);}
   .badge-ico.c7 { background:linear-gradient(135deg,#0d9488,#054944);}
   /* Section */
-  section { padding:90px 24px; }
+  section { padding:56px 24px; }
   section .wrap { max-width:1100px; margin:0 auto; }
+  section h2 { font-size:32px; font-weight:900; letter-spacing:-0.5px; margin:0 0 12px; }
+  section .sub { font-size:15.5px; color:var(--muted); max-width:640px; margin:0 auto 32px; line-height:1.55; }
   h2 { font-size:clamp(32px,4vw,48px); text-align:center; font-weight:900; letter-spacing:-1px; }
   h2 .accent { color:var(--green-700); }
   .sub { text-align:center; color:var(--muted); font-size:16px; max-width:620px; margin:16px auto 0; }
@@ -589,74 +591,9 @@
     </div>
   </section>
 
-  <!-- ── FARM BUDDY AI SHOWCASE ─────────────────────────────────── -->
-  <section style="background:linear-gradient(135deg,#1e2f4d 0%,#2b4266 60%,#3d5f9c 100%);padding:80px 24px;color:#fff;position:relative;overflow:hidden;">
-    <div style="max-width:1100px;margin:0 auto;display:grid;grid-template-columns:1fr 1fr;gap:50px;align-items:center;" class="fb-grid">
-      <div>
-        <div style="display:inline-block;background:rgba(255,255,255,0.15);color:#fff;font-size:11px;font-weight:800;padding:6px 14px;border-radius:99px;letter-spacing:1.5px;margin-bottom:18px;">
-          🧠 NEW · AI-POWERED
-        </div>
-        <h2 style="font-size:38px;line-height:1.15;margin:0 0 18px;font-weight:800;letter-spacing:-0.5px;">
-          Meet <span style="color:#C9A227;">Farm Buddy</span> — your AI feed advisor
-        </h2>
-        <p style="font-size:17px;line-height:1.6;opacity:0.92;margin:0 0 28px;">
-          Stop guessing where to drop your next load. Farm Buddy watches every shed's silo readings, daily usage and bird count — then tells you exactly where the tonnes should go.
-        </p>
-        <ul style="list-style:none;padding:0;margin:0 0 32px;font-size:15px;line-height:1.9;">
-          <li>✅ <b>"Drop 22t in Shed 5&6 — only 1.4 days left"</b> — straight-up recommendations</li>
-          <li>✅ Flags risky sheds <b>48 hours before</b> they run out</li>
-          <li>✅ Splits your incoming load across multiple sheds optimally</li>
-          <li>✅ Ask anything in plain English: <i>"any sheds in trouble?"</i></li>
-          <li>✅ Works offline with built-in math fallback — never silent</li>
-        </ul>
-        <a href="#pricing" class="btn-cta" style="display:inline-block;background:#C9A227;color:#000;padding:14px 32px;border-radius:99px;text-decoration:none;font-weight:800;font-size:15px;">
-          See Farm Buddy in action →
-        </a>
-      </div>
-      <div style="background:#fff;color:#1f2937;border-radius:18px;padding:22px;box-shadow:0 20px 60px rgba(0,0,0,0.4);position:relative;transform:rotate(0.5deg);">
-        <div style="background:linear-gradient(135deg,#1e2f4d,#2b4266);color:#fff;padding:10px 14px;border-radius:10px;display:flex;align-items:center;gap:10px;margin-bottom:14px;">
-          <span style="background:#C9A227;color:#000;padding:3px 9px;border-radius:99px;font-size:10px;font-weight:800;letter-spacing:0.5px;">🧠 FARM BUDDY</span>
-          <span style="font-size:11px;opacity:0.7;">Just now</span>
-        </div>
-        <div style="font-weight:700;font-size:15px;line-height:1.4;color:#1e2f4d;margin-bottom:10px;">
-          Drop 22.5t into Shed 5&6 first — only 1.4 days left
-        </div>
-        <ul style="font-size:13px;line-height:1.7;color:#374151;padding-left:20px;margin:8px 0 14px;">
-          <li>Shed 5&6: 22.5t — using 7.8t/day, 1.4 days left</li>
-          <li>Shed 9&10: 7.5t — using 7.2t/day, 2.8 days left</li>
-          <li>Shed 1&2 is comfortable (6.4 days left), skip this load</li>
-        </ul>
-        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px;">
-          <span style="background:#ecfdf5;border:1px solid #a7f3d0;color:#065f46;padding:5px 11px;border-radius:8px;font-size:12px;font-weight:700;">Shed 5&6: <b>22.5t</b></span>
-          <span style="background:#ecfdf5;border:1px solid #a7f3d0;color:#065f46;padding:5px 11px;border-radius:8px;font-size:12px;font-weight:700;">Shed 9&10: <b>7.5t</b></span>
-        </div>
-        <div style="border-top:1px solid #e5e7eb;padding-top:12px;display:flex;gap:8px;">
-          <input type="text" disabled value="Ask Farm Buddy a question…" style="flex:1;padding:8px 14px;border:1px solid #d1d5db;border-radius:99px;font-size:13px;background:#f9fafb;color:#9ca3af;" />
-          <button disabled style="background:#C9A227;color:#000;border:0;border-radius:99px;padding:0 18px;font-weight:800;font-size:12px;">Ask</button>
-        </div>
-      </div>
-    </div>
-  </section>
-  <style>
-    @media (max-width: 768px) {
-      .fb-grid { grid-template-columns: 1fr !important; gap: 30px !important; }
-      .fb-grid h2 { font-size: 28px !important; }
-    }
-  </style>
+  <!-- Farm Buddy AI Showcase — removed (covered by AI Features card in "See it in action") -->
 
-  <!-- HOW IT WORKS -->
-  <section class="how" id="how">
-    <div class="wrap">
-      <h2>Simple enough to use <span class="accent">on day one.</span></h2>
-      <p class="sub">No installation. No training. Open the link, log silo readings, scan a docket, and you're managing a flock from your phone.</p>
-      <div class="steps">
-        <div class="step"><div class="n">1</div><h3>📲 Open on your phone</h3><p>Bookmark your farm's reader link (or tap Add to Home Screen) — no app store, no download. Every grower on the farm can open it.</p></div>
-        <div class="step"><div class="n">2</div><h3>📋 Tap silo readings</h3><p>Walk the sheds. Type each silo's tonnes left. One tap saves all three silos in a shed group.</p></div>
-        <div class="step"><div class="n">3</div><h3>🚚 Scan dockets on arrival</h3><p>Photo or QR — Ingham's, Baiada, BPL all auto-detected. Feed type, kg, docket # filled instantly.</p></div>
-        <div class="step"><div class="n">4</div><h3>📊 Spreadsheet auto-updates</h3><p>Within 2 minutes, the Feed Program's End-of-Batch section reflects every reading and delivery — no copying.</p></div>
-      </div>
-    </div>
-  </section>
+  <!-- HOW IT WORKS section removed — content covered by "See it in action" cards above -->
 
   <!-- PLANS -->
   <section class="plans" id="plans">
@@ -921,14 +858,20 @@
     </div>
   </section>
 
-  <!-- STATS STRIP -->
-  <section style="background:#1e2f4d;color:#fff;padding:50px 24px;">
-    <div class="wrap" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:24px;text-align:center;">
-      <div><div style="font-size:42px;font-weight:900;color:#C9A227;letter-spacing:-1px;">30+</div><div style="font-size:11px;letter-spacing:2px;font-weight:700;color:#bdd3c4;">SHEDS SUPPORTED</div></div>
-      <div><div style="font-size:42px;font-weight:900;color:#C9A227;letter-spacing:-1px;">3</div><div style="font-size:11px;letter-spacing:2px;font-weight:700;color:#bdd3c4;">AI DOCKET FORMATS</div></div>
-      <div><div style="font-size:42px;font-weight:900;color:#C9A227;letter-spacing:-1px;">2 min</div><div style="font-size:11px;letter-spacing:2px;font-weight:700;color:#bdd3c4;">AUTO-SYNC</div></div>
-      <div><div style="font-size:42px;font-weight:900;color:#C9A227;letter-spacing:-1px;">14 day</div><div style="font-size:11px;letter-spacing:2px;font-weight:700;color:#bdd3c4;">FREE TRIAL</div></div>
-      <div><div style="font-size:42px;font-weight:900;color:#C9A227;letter-spacing:-1px;">🇦🇺</div><div style="font-size:11px;letter-spacing:2px;font-weight:700;color:#bdd3c4;">AUSSIE BUILT</div></div>
+  <!-- STATS + TRUST STRIP (merged) -->
+  <section style="background:#1e2f4d;color:#fff;padding:44px 24px;">
+    <div class="wrap" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:24px;text-align:center;">
+      <div><div style="font-size:38px;font-weight:900;color:#C9A227;letter-spacing:-1px;">30+</div><div style="font-size:11px;letter-spacing:2px;font-weight:700;color:#bdd3c4;">SHEDS SUPPORTED</div></div>
+      <div><div style="font-size:38px;font-weight:900;color:#C9A227;letter-spacing:-1px;">3</div><div style="font-size:11px;letter-spacing:2px;font-weight:700;color:#bdd3c4;">AI DOCKET FORMATS</div></div>
+      <div><div style="font-size:38px;font-weight:900;color:#C9A227;letter-spacing:-1px;">2 min</div><div style="font-size:11px;letter-spacing:2px;font-weight:700;color:#bdd3c4;">AUTO-SYNC</div></div>
+      <div><div style="font-size:38px;font-weight:900;color:#C9A227;letter-spacing:-1px;">14 day</div><div style="font-size:11px;letter-spacing:2px;font-weight:700;color:#bdd3c4;">FREE TRIAL</div></div>
+      <div><div style="font-size:38px;font-weight:900;color:#C9A227;letter-spacing:-1px;">🇦🇺</div><div style="font-size:11px;letter-spacing:2px;font-weight:700;color:#bdd3c4;">AUSSIE BUILT</div></div>
+    </div>
+    <div style="max-width:900px;margin:26px auto 0;padding-top:22px;border-top:1px solid #2b4266;display:flex;justify-content:center;gap:22px;flex-wrap:wrap;color:#bdd3c4;font-size:12px;font-weight:700;letter-spacing:0.4px;">
+      <span>🔒 SSL Encrypted</span>
+      <span>💳 Stripe Verified</span>
+      <span>☁️ Cloud Backup</span>
+      <span>🎯 No Lock-in</span>
     </div>
   </section>
 
@@ -989,16 +932,7 @@
     </div>
   </section>
 
-  <!-- TRUST BADGES -->
-  <section style="background:var(--paper);padding:40px 24px;">
-    <div class="wrap" style="display:flex;justify-content:center;gap:32px;flex-wrap:wrap;align-items:center;color:var(--muted);font-size:13px;font-weight:700;">
-      <span>🔒 SSL Encrypted</span>
-      <span>💳 Stripe Verified</span>
-      <span>🇦🇺 Aussie Owned &amp; Operated</span>
-      <span>☁️ Cloud Backup</span>
-      <span>🎯 No Lock-in Contracts</span>
-    </div>
-  </section>
+  <!-- Trust Badges merged into Stats+Trust strip above -->
 
   <!-- BACK THE BUILD -->
   <section class="build" id="build">
@@ -1029,86 +963,41 @@
   </section>
 
   <!-- ── WHY GROWERS LOVE IT (SEO + crawlable content) ─────────────────────── -->
-  <section style="background:#fbfaf4;padding:80px 24px;border-top:1px solid #e8efe2;">
+  <section style="background:#fbfaf4;padding:56px 24px;border-top:1px solid #e8efe2;">
     <div style="max-width:1100px;margin:0 auto;">
-      <h2 style="font-size:32px;font-weight:900;color:var(--green-900);margin-bottom:14px;text-align:center;letter-spacing:-0.5px;">Why Australian broiler growers switched from paper &amp; Excel</h2>
-      <p style="text-align:center;color:var(--muted);max-width:760px;margin:0 auto 50px;font-size:16px;line-height:1.7;">Broiler Base Mate was built by a working chicken farmer who got sick of squinting at spreadsheets at 5am. Every feature exists because a real grower asked for it during a real batch.</p>
+      <h2 style="font-size:28px;font-weight:900;color:var(--green-900);margin-bottom:32px;text-align:center;letter-spacing:-0.5px;">Why Australian broiler growers switched from paper &amp; Excel</h2>
 
-      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:30px;margin-bottom:50px;">
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:26px;margin-bottom:36px;">
         <div>
-          <h3 style="color:var(--green-700);font-size:18px;font-weight:800;margin-bottom:10px;">📐 The exact maths your processor uses</h3>
-          <p style="color:#3a4a40;font-size:14.5px;line-height:1.7;">FCR, corrected FCR (with the 0.27 slope at the 2.45 kg standard), cage rating, efficiency rating and grower payment per bird are calculated live as you enter your weigh-sheet. No more "I think we got 1.55" — you'll know to three decimal places before the truck has even left the farm. The same formulas Baiada and Ingham use to settle your batch payment.</p>
+          <h3 style="color:var(--green-700);font-size:16px;font-weight:800;margin-bottom:8px;">📐 Processor-exact maths</h3>
+          <p style="color:#3a4a40;font-size:14px;line-height:1.65;">FCR, corrected FCR (0.27 slope, 2.45 kg standard), cage rating, efficiency rating and grower payment — the same formulas Baiada and Ingham use to settle your batch. Live to three decimals before the truck leaves.</p>
         </div>
         <div>
-          <h3 style="color:var(--green-700);font-size:18px;font-weight:800;margin-bottom:10px;">📷 Snap a docket, walk away</h3>
-          <p style="color:#3a4a40;font-size:14.5px;line-height:1.7;">Take a photo of any feed docket — Ingham's, Baiada, BPL Adelaide, Riverina, Manildra — and the AI reads the supplier, feed type, product code, tonnage, delivery date, ticket number and even the outloading bin. The reading drops straight into your feed history and the end-of-batch total. Your phone does the typing while you go fix a feeder.</p>
+          <h3 style="color:var(--green-700);font-size:16px;font-weight:800;margin-bottom:8px;">📷 Snap a docket, walk away</h3>
+          <p style="color:#3a4a40;font-size:14px;line-height:1.65;">Photo any feed docket — Ingham's, Baiada, BPL Adelaide, Riverina, Manildra — AI reads supplier, feed type, product code, tonnage, delivery date and ticket number. Drops straight into your feed history.</p>
         </div>
         <div>
-          <h3 style="color:var(--green-700);font-size:18px;font-weight:800;margin-bottom:10px;">📡 Works in the shed, even with bad reception</h3>
-          <p style="color:#3a4a40;font-size:14.5px;line-height:1.7;">The mobile field reader queues your silo readings on the phone if mobile data drops out, then syncs the moment you walk back near the house Wi-Fi. No more "I'll enter it later" — and no more lost readings when 4G fails halfway down shed 6.</p>
+          <h3 style="color:var(--green-700);font-size:16px;font-weight:800;margin-bottom:8px;">📡 Works with bad reception</h3>
+          <p style="color:#3a4a40;font-size:14px;line-height:1.65;">The mobile reader queues silo readings on-device if 4G drops out, then syncs the moment you're back near Wi-Fi. Never lose a reading again.</p>
         </div>
         <div>
-          <h3 style="color:var(--green-700);font-size:18px;font-weight:800;margin-bottom:10px;">🧠 Farm Buddy — your AI feed advisor</h3>
-          <p style="color:#3a4a40;font-size:14.5px;line-height:1.7;">An on-call assistant that looks at your current bird count, day-age, projected weight and remaining feed, then tells you which shed to drop the next truck into and how long your silos will last. If you ever asked an old hand "where should this load go?" — that's Farm Buddy, except it's awake at 3am with you.</p>
+          <h3 style="color:var(--green-700);font-size:16px;font-weight:800;margin-bottom:8px;">🧠 Farm Buddy AI advisor</h3>
+          <p style="color:#3a4a40;font-size:14px;line-height:1.65;">Looks at every shed's bird count, day-age, projected weight and remaining feed — then tells you which shed to drop the next truck into and how long your silos will last.</p>
         </div>
         <div>
-          <h3 style="color:var(--green-700);font-size:18px;font-weight:800;margin-bottom:10px;">🚚 End-of-batch in one click</h3>
-          <p style="color:#3a4a40;font-size:14.5px;line-height:1.7;">When the last truck rolls off, your end-of-batch report is already done. Feed left in silos, last batch leftover, mortality breakdown, total tonnes delivered, batch costs and a PDF you can email to your supervisor — generated in the time it takes to make a cuppa. No more Sunday-night spreadsheet juggling.</p>
+          <h3 style="color:var(--green-700);font-size:16px;font-weight:800;margin-bottom:8px;">🚚 End-of-batch in one click</h3>
+          <p style="color:#3a4a40;font-size:14px;line-height:1.65;">When the last truck rolls off, your EOB PDF is already done — feed left, mortality breakdown, batch costs, ready to email to your supervisor. Done in the time it takes to boil a kettle.</p>
         </div>
         <div>
-          <h3 style="color:var(--green-700);font-size:18px;font-weight:800;margin-bottom:10px;">🏘 Multi-farm support for Ops Managers</h3>
-          <p style="color:#3a4a40;font-size:14.5px;line-height:1.7;">Running 4, 8 or 20 farms? The Ops Dashboard rolls every farm's batches, mortality, feed usage and unread grower chats into one screen. Push announcements to all growers, jump into any farm with a click, and run the entire region from your kitchen bench.</p>
+          <h3 style="color:var(--green-700);font-size:16px;font-weight:800;margin-bottom:8px;">🏘 Multi-farm for Ops Managers</h3>
+          <p style="color:#3a4a40;font-size:14px;line-height:1.65;">Running 4, 8 or 20 farms? Ops Dashboard rolls every farm's batches, mortality, feed usage and grower chats into one screen. Run the whole region from your kitchen bench.</p>
         </div>
       </div>
 
-      <h2 style="font-size:28px;font-weight:900;color:var(--green-900);margin-top:30px;margin-bottom:30px;text-align:center;">Frequently asked questions</h2>
-
-      <div style="display:grid;gap:18px;max-width:860px;margin:0 auto;">
-        <details style="background:#fff;border:1px solid #e0e8e4;border-radius:12px;padding:18px 22px;box-shadow:0 1px 2px rgba(0,0,0,0.04);">
-          <summary style="font-weight:800;color:var(--green-900);cursor:pointer;font-size:16px;list-style:none;">Do I need to be tech-savvy to use Broiler Base Mate?</summary>
-          <p style="margin-top:12px;color:#3a4a40;font-size:14.5px;line-height:1.7;">If you can take a photo and tap a green button, you're already qualified. The mobile reader has four tabs — Readings, Scan, Add and History. The Feed Program desktop view looks and works like a spreadsheet because it <em>is</em> one underneath, just live-synced. Most growers are up and running inside half an hour, and your kids or grandkids can be set up as readers for the shed walk-around.</p>
-        </details>
-
-        <details style="background:#fff;border:1px solid #e0e8e4;border-radius:12px;padding:18px 22px;box-shadow:0 1px 2px rgba(0,0,0,0.04);">
-          <summary style="font-weight:800;color:var(--green-900);cursor:pointer;font-size:16px;list-style:none;">Will it work with my processor's contract?</summary>
-          <p style="margin-top:12px;color:#3a4a40;font-size:14.5px;line-height:1.7;">Yes. Broiler Base Mate ships with Baiada and Ingham contract formulas built in — FCR, corrected FCR at 2.45 kg, cage rating, efficiency rating and per-bird payment. If your processor uses a different slope, target weight or efficiency formula, drop us a note via the partner form and we'll add it for free. The maths is in code, not chiselled in stone.</p>
-        </details>
-
-        <details style="background:#fff;border:1px solid #e0e8e4;border-radius:12px;padding:18px 22px;box-shadow:0 1px 2px rgba(0,0,0,0.04);">
-          <summary style="font-weight:800;color:var(--green-900);cursor:pointer;font-size:16px;list-style:none;">What happens if my internet drops out mid-shed-walk?</summary>
-          <p style="margin-top:12px;color:#3a4a40;font-size:14.5px;line-height:1.7;">Nothing. The mobile reader stores every silo reading, mortality count and feed docket on your phone first, then syncs to the cloud when reception comes back. You'll see a "📡 Offline — 3 queued" banner at the top so you know the readings are safe. The instant you're back in signal it flushes everything up automatically.</p>
-        </details>
-
-        <details style="background:#fff;border:1px solid #e0e8e4;border-radius:12px;padding:18px 22px;box-shadow:0 1px 2px rgba(0,0,0,0.04);">
-          <summary style="font-weight:800;color:var(--green-900);cursor:pointer;font-size:16px;list-style:none;">Is my farm data private and secure?</summary>
-          <p style="margin-top:12px;color:#3a4a40;font-size:14.5px;line-height:1.7;">Yes. Your batch results, feed history and grower chat are walled off to your farm only. Every account is locked with Google sign-in or a magic link, no shared passwords. Backups run nightly. Your processor doesn't see your data unless you choose to share a PDF — what you grow, how you grow it, and what it cost stay in your kitchen.</p>
-        </details>
-
-        <details style="background:#fff;border:1px solid #e0e8e4;border-radius:12px;padding:18px 22px;box-shadow:0 1px 2px rgba(0,0,0,0.04);">
-          <summary style="font-weight:800;color:var(--green-900);cursor:pointer;font-size:16px;list-style:none;">How much does it cost?</summary>
-          <p style="margin-top:12px;color:#3a4a40;font-size:14.5px;line-height:1.7;">A single farm subscription runs less than the cost of one bag of feed per month. Ops Managers running multiple farms get volume discounts that drop the per-farm price by up to 40%. There's no setup fee, no contract lock-in, and your first month is free so you can run a whole batch through and see what it does for you. Cancel anytime.</p>
-        </details>
-
-        <details style="background:#fff;border:1px solid #e0e8e4;border-radius:12px;padding:18px 22px;box-shadow:0 1px 2px rgba(0,0,0,0.04);">
-          <summary style="font-weight:800;color:var(--green-900);cursor:pointer;font-size:16px;list-style:none;">Can I install it on my phone like a real app?</summary>
-          <p style="margin-top:12px;color:#3a4a40;font-size:14.5px;line-height:1.7;">Yes. On iPhone, tap the Share button in Safari and choose "Add to Home Screen". On Android, Chrome will pop up an "Install app" prompt the second time you visit. Once installed, Broiler Base Mate behaves exactly like a native app — full-screen, no browser bars, works offline. No App Store paperwork, no Play Store delays, no nagging update prompts.</p>
-        </details>
-
-        <details style="background:#fff;border:1px solid #e0e8e4;border-radius:12px;padding:18px 22px;box-shadow:0 1px 2px rgba(0,0,0,0.04);">
-          <summary style="font-weight:800;color:var(--green-900);cursor:pointer;font-size:16px;list-style:none;">What if I already use Excel and don't want to start over?</summary>
-          <p style="margin-top:12px;color:#3a4a40;font-size:14.5px;line-height:1.7;">You don't have to. Broiler Base Mate's Feed Program <em>is</em> the same Excel sheet you've been using — same columns, same formulas, same template — just hosted online and shareable with your team. Import your existing batch xlsx, hit upload, and your historical data is right there. You'll never lose another file to a corrupted USB stick or a phone that took a swim in the water trough.</p>
-        </details>
-
-        <details style="background:#fff;border:1px solid #e0e8e4;border-radius:12px;padding:18px 22px;box-shadow:0 1px 2px rgba(0,0,0,0.04);">
-          <summary style="font-weight:800;color:var(--green-900);cursor:pointer;font-size:16px;list-style:none;">Who built it?</summary>
-          <p style="margin-top:12px;color:#3a4a40;font-size:14.5px;line-height:1.7;">Jason Coverdale — a working broiler grower in regional Australia. Broiler Base Mate is built by Appcovi (ABN 13 659 165 642), supported by sponsors and a partner network of feed companies, silo monitor makers and rural charities. Every feature request goes to a grower-led roadmap, and 20% of every sponsor dollar goes to a rural charity of your choice.</p>
-        </details>
-      </div>
-
-      <div style="text-align:center;margin-top:50px;padding:30px 24px;background:linear-gradient(180deg,#fff,#f5f9f1);border:1px solid #d8e4d0;border-radius:16px;max-width:760px;margin-left:auto;margin-right:auto;">
-        <p style="font-size:18px;font-weight:800;color:var(--green-900);margin-bottom:10px;">Ready to leave Excel in the dust?</p>
-        <p style="color:var(--muted);font-size:14px;line-height:1.6;margin-bottom:20px;">Try Broiler Base Mate free for your next batch. No credit card, no contract, no commitment. If it doesn't save you a Sunday afternoon, we'll refund every cent.</p>
-        <a href="#plans" class="btn btn-gold" style="display:inline-block;padding:14px 32px;font-size:15px;">See Plans &amp; Pricing →</a>
+      <div style="text-align:center;padding:26px 24px;background:linear-gradient(180deg,#fff,#f5f9f1);border:1px solid #d8e4d0;border-radius:16px;max-width:640px;margin:0 auto;">
+        <p style="font-size:17px;font-weight:800;color:var(--green-900);margin-bottom:8px;">Ready to leave Excel in the dust?</p>
+        <p style="color:var(--muted);font-size:13.5px;line-height:1.55;margin-bottom:18px;">Try Broiler Base Mate free for your next batch. No card, no contract. If it doesn't save you a Sunday, we'll refund every cent.</p>
+        <a href="#plans" class="btn btn-gold" style="display:inline-block;padding:12px 28px;font-size:14.5px;">See Plans &amp; Pricing →</a>
       </div>
     </div>
   </section>
