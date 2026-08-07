@@ -1820,6 +1820,97 @@ If the photo does NOT show chicks, return:
         return {"ok": False, "count": None, "confidenceLevel": "low", "notes": f"AI error: {str(e)[:120]}"}
 
 
+@api.post("/parse-mort-sheet")
+async def parse_mort_sheet(payload: dict):
+    """OCR an Australian broiler mort sheet photo and return per-shed dead-bird & cull counts for TODAY.
+
+    Body: { imageBase64: str, mimeType?: str, totalSheds?: int }
+    Returns: { ok, date?, sheds: [{shed:int, morts:int, culls:int}], confidenceLevel, notes }
+    """
+    image_b64 = (payload or {}).get("imageBase64")
+    if not image_b64:
+        raise HTTPException(400, "imageBase64 required")
+    if "," in image_b64 and image_b64.startswith("data:"):
+        image_b64 = image_b64.split(",", 1)[1]
+    total_sheds = int((payload or {}).get("totalSheds") or 8)
+    api_key = os.environ.get("EMERGENT_LLM_KEY")
+    if not api_key:
+        raise HTTPException(503, "LLM key not configured")
+    try:
+        from emergentintegrations.llm.chat import LlmChat, UserMessage, ImageContent
+    except Exception as e:
+        raise HTTPException(503, f"LLM lib missing: {e}")
+
+    system_msg = f"""You are reading a paper mortality (mort) sheet from an Australian broiler poultry farm. The farm has {total_sheds} sheds numbered 1..{total_sheds}.
+
+The mort sheet is a hand-written or printed daily log where the grower records DEAD BIRDS (morts) and CULLED BIRDS per shed per day.
+
+Common layouts:
+- Column per shed (Shed 1, Shed 2, ...) with rows for each day. Values may be split as "morts/culls" or in separate M and C columns.
+- Row per shed with columns for each day of the batch.
+- Free-form paper docket with shed# and death count scribbled next to each other.
+
+Return ONLY a JSON object, no markdown. Extract the MOST RECENT day visible (the latest date on the sheet, or the last non-empty row).
+
+JSON schema:
+{{
+  "date": "YYYY-MM-DD or null if not readable",
+  "sheds": [
+    {{"shed": <int 1..{total_sheds}>, "morts": <int>, "culls": <int>}}
+  ],
+  "confidenceLevel": "high" | "medium" | "low",
+  "notes": "One short sentence describing what you extracted and any uncertainty."
+}}
+
+Rules:
+- Include ONE entry per shed you can see, even if the value is 0.
+- If a value is unreadable, set it to 0 and lower the confidenceLevel.
+- If the photo is NOT a mort sheet, return {{"date": null, "sheds": [], "confidenceLevel": "low", "notes": "Photo does not appear to be a mort sheet"}}.
+- morts = dead birds found in the shed. culls = birds humanely culled. Both are separate columns/values on the sheet.
+"""
+    chat = LlmChat(
+        api_key=api_key,
+        session_id=f"parse-mort-sheet-{uuid.uuid4().hex[:8]}",
+        system_message=system_msg,
+    ).with_model("gemini", "gemini-2.5-flash")
+    try:
+        msg = UserMessage(
+            text=f"Extract today's per-shed morts and culls from this mort sheet photo. Farm has {total_sheds} sheds. Return JSON only.",
+            file_contents=[ImageContent(image_base64=image_b64)],
+        )
+        raw = await chat.send_message(msg)
+        text = str(raw).strip()
+        if text.startswith("```"):
+            text = text.strip("`").split("\n", 1)[-1] if "\n" in text else text
+            if text.endswith("```"): text = text[:-3]
+        import json as _json
+        start = text.find("{"); end = text.rfind("}")
+        if start == -1 or end == -1:
+            return {"ok": False, "sheds": [], "confidenceLevel": "low", "notes": "AI did not return JSON"}
+        data = _json.loads(text[start:end+1])
+        # Sanitise
+        cleaned = []
+        for row in (data.get("sheds") or []):
+            try:
+                s = int(row.get("shed"))
+                m = int(row.get("morts") or 0)
+                c = int(row.get("culls") or 0)
+                if 1 <= s <= total_sheds and m >= 0 and c >= 0:
+                    cleaned.append({"shed": s, "morts": m, "culls": c})
+            except Exception:
+                continue
+        return {
+            "ok": True,
+            "date": data.get("date"),
+            "sheds": cleaned,
+            "confidenceLevel": data.get("confidenceLevel") or "medium",
+            "notes": data.get("notes") or "",
+        }
+    except Exception as e:
+        return {"ok": False, "sheds": [], "confidenceLevel": "low", "notes": f"AI error: {str(e)[:120]}"}
+
+
+
 @api.post("/bootstrap/first-operator")
 async def first_operator():
     return {"ok": True}
