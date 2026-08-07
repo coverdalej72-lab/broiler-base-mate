@@ -2362,38 +2362,34 @@ app.include_router(api)
 # below) so its `amount` here is only a legacy fallback for callers that
 # somehow POST without a `farms` array.
 PACKAGES = {
-    # 🚀 LAUNCH SPECIAL — all prices halved to drive sign-ups. Original RRP
-    # shown in comments so they can be restored later by doubling the amount.
-    # Subscription plans (charged as one-off first-month for v1; user upgrades to recurring in Stripe dashboard)
-    "bronze_monthly":      {"label": "Bronze",   "amount": 25.0,  "kind": "subscription"},   # RRP $50
-    "silver_monthly":      {"label": "Silver",   "amount": 37.50, "kind": "subscription"},   # RRP $75
-    "gold_monthly":        {"label": "Gold",     "amount": 50.0,  "kind": "subscription"},   # RRP $100
-    "platinum_monthly":    {"label": "Platinum", "amount": 75.0,  "kind": "subscription"},   # RRP $150
-    # Annual variants (~15% off RRP, then halved)
-    "bronze_annual":       {"label": "Bronze Annual",   "amount": 255.0,  "kind": "subscription"},   # RRP $510
-    "silver_annual":       {"label": "Silver Annual",   "amount": 510.0,  "kind": "subscription"},   # RRP $1020
-    "gold_annual":         {"label": "Gold Annual",     "amount": 765.0,  "kind": "subscription"},   # RRP $1530
+    # Standard broiler subscription plans (AUD, monthly, LIVE Stripe)
+    "bronze_monthly":      {"label": "Bronze",   "amount": 20.0,  "kind": "subscription"},
+    "silver_monthly":      {"label": "Silver",   "amount": 25.0,  "kind": "subscription"},
+    "gold_monthly":        {"label": "Gold",     "amount": 30.0,  "kind": "subscription"},
+    # Annual variants (~15% off, ~10 months for the price of 12)
+    "bronze_annual":       {"label": "Bronze Annual",   "amount": 204.0,  "kind": "subscription"},
+    "silver_annual":       {"label": "Silver Annual",   "amount": 255.0,  "kind": "subscription"},
+    "gold_annual":         {"label": "Gold Annual",     "amount": 306.0,  "kind": "subscription"},
     # Operation Manager Pack — multi-farm bundles (priced dynamically from `farms` list).
     # The `amount` here is a legacy fallback only.
-    "ops_bronze":          {"label": "Ops Manager Pack",  "amount": 25.0, "kind": "ops_bundle"},
-    "ops_silver":          {"label": "Ops Manager Pack",  "amount": 37.50, "kind": "ops_bundle"},
-    "ops_gold":            {"label": "Ops Manager Pack",  "amount": 50.0, "kind": "ops_bundle"},
-    "ops_platinum":        {"label": "Ops Manager Pack",  "amount": 75.0, "kind": "ops_bundle"},
+    "ops_bronze":          {"label": "Ops Manager Pack",  "amount": 20.0, "kind": "ops_bundle"},
+    "ops_silver":          {"label": "Ops Manager Pack",  "amount": 25.0, "kind": "ops_bundle"},
+    "ops_gold":            {"label": "Ops Manager Pack",  "amount": 30.0, "kind": "ops_bundle"},
     # Sponsor tiers
-    "sponsor_10":          {"label": "Sponsor — $5/mo",   "amount": 5.0,   "kind": "sponsor"},   # RRP $10
-    "sponsor_25":          {"label": "Sponsor — $12.50/mo", "amount": 12.50, "kind": "sponsor"}, # RRP $25
-    "sponsor_50":          {"label": "Sponsor — $25/mo",  "amount": 25.0,  "kind": "sponsor"},   # RRP $50
+    "sponsor_10":          {"label": "Sponsor — $5/mo",   "amount": 5.0,   "kind": "sponsor"},
+    "sponsor_25":          {"label": "Sponsor — $12.50/mo", "amount": 12.50, "kind": "sponsor"},
+    "sponsor_50":          {"label": "Sponsor — $25/mo",  "amount": 25.0,  "kind": "sponsor"},
     # One-off donations
-    "back_seed":           {"label": "Seed Supporter",       "amount": 50.0,   "kind": "donation"},   # RRP $100
-    "back_project":        {"label": "Project Backer",       "amount": 250.0,  "kind": "donation"},   # RRP $500
-    "back_foundation":     {"label": "Foundation Partner",   "amount": 500.0,  "kind": "donation"},   # RRP $1000
+    "back_seed":           {"label": "Seed Supporter",       "amount": 50.0,   "kind": "donation"},
+    "back_project":        {"label": "Project Backer",       "amount": 250.0,  "kind": "donation"},
+    "back_foundation":     {"label": "Foundation Partner",   "amount": 500.0,  "kind": "donation"},
 }
 
-# Single source of truth for Ops-bundle per-farm pricing (launch 50%-off).
+# Single source of truth for Ops-bundle per-farm pricing.
 # Must stay in sync with the landing page's `TIERS` object at
 # `/app/backend/static/landing.html` (search `const TIERS`). When one changes,
 # update the other and add a test in `/app/backend/tests/test_ops_pricing.py`.
-_OPS_TIER_PRICE = {"bronze": 25.0, "silver": 37.50, "gold": 50.0, "platinum": 75.0}
+_OPS_TIER_PRICE = {"bronze": 20.0, "silver": 25.0, "gold": 30.0}
 
 
 def _ops_volume_discount(n_farms: int) -> float:
