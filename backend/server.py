@@ -2514,6 +2514,149 @@ async def create_checkout(body: CheckoutRequest):
     return {"url": session.url, "session_id": session.session_id}
 
 
+# ─── 30-day "no card needed" trial signup ────────────────────────────
+class TrialStartRequest(BaseModel):
+    name: str
+    email: str
+    farmName: Optional[str] = None
+    packageId: Optional[str] = "silver_monthly"
+
+
+class WaitlistJoinRequest(BaseModel):
+    product: str      # "breeders", "layer", etc
+    email: str
+    name: Optional[str] = None
+
+
+@app.post("/api/waitlist/join", status_code=201)
+async def waitlist_join(body: WaitlistJoinRequest):
+    """Capture a waitlist lead (Breeders, Layer, etc). No auth required."""
+    email = (body.email or "").strip().lower()
+    if "@" not in email or "." not in email.split("@")[-1]:
+        raise HTTPException(400, "Valid email required")
+    product = (body.product or "").strip().lower() or "unknown"
+    now = datetime.now(timezone.utc)
+    # Idempotent — one row per (product, email)
+    await db["waitlist"].update_one(
+        {"product": product, "email": email},
+        {"$setOnInsert": {"id": str(uuid.uuid4()), "product": product, "email": email, "name": body.name, "createdAt": now}},
+        upsert=True,
+    )
+    # Best-effort admin ping
+    admin = os.environ.get("ADMIN_EMAIL")
+    if admin:
+        try:
+            from email_service import send_email
+            await send_email(
+                to=admin,
+                subject=f"📋 Waitlist join: {product} · {email}",
+                html=f"<p>{email} joined the <b>{product}</b> waitlist.</p>",
+            )
+        except Exception:
+            pass
+    return {"ok": True}
+
+
+@app.post("/api/trial/start", status_code=201)
+async def start_free_trial(body: TrialStartRequest):
+    """Create a 30-day free trial farm. No Stripe / no card required.
+
+    Idempotent per email: if that email already has a trial farm, resend the welcome
+    link instead of creating a duplicate.
+    """
+    from email_service import send_email
+    email = (body.email or "").strip().lower()
+    if "@" not in email or "." not in email.split("@")[-1]:
+        raise HTTPException(400, "Valid email required")
+    name = (body.name or "").strip() or email.split("@")[0]
+    farm_name = (body.farmName or "").strip() or f"{name}'s Farm"
+    package_id = body.packageId if body.packageId in PACKAGES else "silver_monthly"
+
+    now = datetime.now(timezone.utc)
+    trial_expires = now + timedelta(days=30)
+
+    # Idempotency: reuse existing trial farm for this email
+    existing = await farms_col.find_one({"ownerEmail": email, "subscriptionStatus": "trialing"})
+    if existing:
+        slug = existing["slug"]
+    else:
+        # New trial → allocate unique slug
+        base = _slugify(farm_name) or "my-farm"
+        slug = base
+        n = 2
+        while await farms_col.find_one({"slug": slug}):
+            slug = f"{base}-{n}"
+            n += 1
+        await farms_col.insert_one({
+            "id": str(uuid.uuid4()),
+            "slug": slug,
+            "name": farm_name,
+            "ownerEmail": email,
+            "ownerName": name,
+            "tier": package_id,
+            "subscriptionStatus": "trialing",
+            "trialStartedAt": now,
+            "trialExpiresAt": trial_expires,
+            "createdAt": now,
+            "isDefault": False,
+            "source": "trial-signup",
+        })
+        await _seed_farm(slug, farm_name)
+
+    public_url = os.environ.get("APP_PUBLIC_URL", "").rstrip("/")
+    reader_url = f"{public_url}/reader?farm={slug}" if public_url else f"/reader?farm={slug}"
+    program_url = f"{public_url}/" if public_url else "/"
+
+    # Welcome email — magic-link style (login by clicking the reader URL)
+    trial_end_fmt = trial_expires.strftime("%A %d %B %Y")
+    html = f"""
+    <div style="font-family:system-ui,-apple-system,sans-serif;max-width:580px;margin:0 auto;padding:20px;">
+      <h2 style="color:#1e2f4d;margin:0 0 10px;">G'day {name} — your 30-day free trial is live 🎉</h2>
+      <p style="font-size:15px;color:#1a1a1a;line-height:1.6;">
+        We've created your farm <b>{farm_name}</b> on Broiler Base Mate.
+        Full access to every feature — <b>no card, no charge</b> — until <b>{trial_end_fmt}</b>.
+      </p>
+      <h3 style="color:#1e2f4d;margin:24px 0 8px;font-size:16px;">Your quick-start links:</h3>
+      <p style="margin:0 0 10px;"><a href="{program_url}" style="background:#1e2f4d;color:#C9A227;text-decoration:none;padding:12px 24px;border-radius:99px;font-weight:900;font-size:14px;display:inline-block;">📊 Open Feed Program</a></p>
+      <p style="margin:0 0 20px;"><a href="{reader_url}" style="background:#C9A227;color:#1e2f4d;text-decoration:none;padding:12px 24px;border-radius:99px;font-weight:900;font-size:14px;display:inline-block;">📱 Open Mobile Reader (bookmark on your phone)</a></p>
+      <p style="font-size:13px;color:#5a6a86;line-height:1.6;">
+        <b>What's in your trial:</b> Silo Tracker · AI Docket Scanner · Feed Program · Farm Buddy AI · Weigh Birds · Mort Sheet AI · Chick Counter · End-of-Batch reporting. All 15 languages available.
+      </p>
+      <p style="font-size:12px;color:#5a6a86;border-top:1px solid #dce3ee;padding-top:14px;margin-top:24px;">
+        You'll get a friendly nudge 5 days before your trial ends — no auto-charge, no card on file. Reply to this email if you need a hand.<br>
+        — Jason (founder, and yes I'm still in the shed)
+      </p>
+    </div>
+    """
+    email_result = await send_email(
+        to=email,
+        subject=f"🎉 Your Broiler Base Mate free trial is live · 30 days · no card needed",
+        html=html,
+    )
+
+    # Notify admin
+    admin = os.environ.get("ADMIN_EMAIL")
+    if admin:
+        try:
+            await send_email(
+                to=admin,
+                subject=f"🌱 New trial: {email} · {farm_name}",
+                html=f"<p><b>{name}</b> ({email}) started a 30-day trial for <b>{farm_name}</b> (slug: <code>{slug}</code>).<br>Package intent: <code>{package_id}</code><br>Trial expires: {trial_end_fmt}</p>",
+            )
+        except Exception:
+            pass
+
+    return {
+        "ok": True,
+        "farmSlug": slug,
+        "readerUrl": reader_url,
+        "programUrl": program_url,
+        "trialExpiresAt": trial_expires.isoformat(),
+        "emailSent": bool(email_result and email_result.get("ok")),
+    }
+
+
+
 # ──────────── Referral stats ──────────────────────────────────────────────
 # Each successful paid checkout that carries metadata.ref == <farm-slug>
 # credits that farm A$10 (one-month sponsor_10 equivalent). The Reader's

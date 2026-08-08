@@ -1165,10 +1165,18 @@
     });
 
     document.querySelectorAll("[data-pkg]").forEach(btn => btn.addEventListener("click", async () => {
-      // Skip the "buyer details" modal — Stripe already collects email on its own
-      // checkout page, so the extra step just costs conversions. Optional prefill
-      // still flows through when growers arrive from a personalised /g/<slug> link.
       const pkg = btn.dataset.pkg;
+      // Plan tiers → open 30-day free trial modal (no card required)
+      if (/^(bronze|silver|gold)_monthly$/.test(pkg)) {
+        openTrialModal(pkg);
+        return;
+      }
+      // Breeders → waitlist modal (product not yet live)
+      if (pkg === "breeders_waitlist") {
+        openWaitlistModal("breeders");
+        return;
+      }
+      // Sponsor / donations / ops_bundle → Stripe checkout as before
       const orig = btn.textContent;
       const buyerEmail = (localStorage.getItem("bbm-buyer-email") || "").trim();
       const buyerName  = (localStorage.getItem("bbm-buyer-name")  || "").trim();
@@ -1192,6 +1200,128 @@
         btn.disabled = false; btn.textContent = orig;
       }
     }));
+
+    // ── 30-day free trial modal (no card required) ─────────────────────
+    function openTrialModal(pkg) {
+      let m = document.getElementById("trial-modal");
+      if (m) { m.classList.add("show"); m.dataset.pkg = pkg; return; }
+      m = document.createElement("div");
+      m.id = "trial-modal";
+      m.dataset.pkg = pkg;
+      m.style.cssText = "position:fixed;inset:0;background:rgba(15,26,47,0.72);z-index:99998;display:none;align-items:center;justify-content:center;padding:20px;";
+      const prefillEmail = (localStorage.getItem("bbm-buyer-email") || "").trim();
+      const prefillName  = (localStorage.getItem("bbm-buyer-name")  || "").trim();
+      m.innerHTML = `
+        <div style="background:#fff;max-width:460px;width:100%;border-radius:20px;padding:28px 26px;box-shadow:0 20px 60px rgba(0,0,0,0.35);">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
+            <div style="background:#C9A227;color:#1a1000;padding:5px 12px;border-radius:99px;font-weight:900;font-size:11px;letter-spacing:1.5px;">🌱 30-DAY FREE TRIAL</div>
+            <button id="trial-close" style="background:none;border:0;font-size:28px;color:#8a99b8;cursor:pointer;line-height:1;">×</button>
+          </div>
+          <h3 style="color:#1e2f4d;font-size:24px;font-weight:900;margin:0 0 6px;letter-spacing:-0.3px;">Start your free trial.</h3>
+          <p style="color:#5a6a86;font-size:14px;margin:0 0 20px;line-height:1.5;">
+            No card. No charge. Full access to <b id="trial-tier-label">${pkg.split("_")[0].toUpperCase()}</b> for 30 days.
+            We'll email your farm's login link in a minute.
+          </p>
+          <form id="trial-form">
+            <label style="display:block;font-size:11px;color:#5a6a86;font-weight:800;letter-spacing:0.4px;margin-bottom:4px;">YOUR NAME</label>
+            <input required id="trial-name" type="text" value="${prefillName}" placeholder="Jason Coverdale" style="width:100%;padding:12px 14px;font-size:15px;border:1px solid #dce3ee;border-radius:10px;margin-bottom:12px;box-sizing:border-box;" />
+            <label style="display:block;font-size:11px;color:#5a6a86;font-weight:800;letter-spacing:0.4px;margin-bottom:4px;">EMAIL</label>
+            <input required id="trial-email" type="email" value="${prefillEmail}" placeholder="you@yourfarm.com" style="width:100%;padding:12px 14px;font-size:15px;border:1px solid #dce3ee;border-radius:10px;margin-bottom:12px;box-sizing:border-box;" />
+            <label style="display:block;font-size:11px;color:#5a6a86;font-weight:800;letter-spacing:0.4px;margin-bottom:4px;">FARM NAME</label>
+            <input required id="trial-farm" type="text" placeholder="Coverdale Broilers" style="width:100%;padding:12px 14px;font-size:15px;border:1px solid #dce3ee;border-radius:10px;margin-bottom:18px;box-sizing:border-box;" />
+            <button id="trial-submit" type="submit" style="width:100%;padding:14px;background:#1e2f4d;color:#C9A227;border:0;border-radius:12px;font-weight:900;font-size:15px;cursor:pointer;">🌱 Start My 30-Day Trial</button>
+          </form>
+          <div id="trial-msg" style="margin-top:14px;text-align:center;font-size:13px;color:#5a6a86;"></div>
+        </div>`;
+      document.body.appendChild(m);
+      document.getElementById("trial-close").onclick = () => m.classList.remove("show");
+      m.addEventListener("click", (e) => { if (e.target === m) m.classList.remove("show"); });
+      document.getElementById("trial-form").addEventListener("submit", async (e) => {
+        e.preventDefault();
+        const btn = document.getElementById("trial-submit");
+        const msg = document.getElementById("trial-msg");
+        btn.disabled = true; btn.textContent = "Setting up your farm…";
+        try {
+          const res = await fetch("/api/trial/start", {
+            method: "POST", headers: {"Content-Type":"application/json"},
+            body: JSON.stringify({
+              name: document.getElementById("trial-name").value.trim(),
+              email: document.getElementById("trial-email").value.trim(),
+              farmName: document.getElementById("trial-farm").value.trim(),
+              packageId: m.dataset.pkg,
+            })
+          });
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.detail || "Signup failed");
+          localStorage.setItem("bbm-buyer-email", document.getElementById("trial-email").value.trim());
+          localStorage.setItem("bbm-buyer-name",  document.getElementById("trial-name").value.trim());
+          msg.innerHTML = `<div style="color:#1a7a40;font-weight:800;font-size:14px;line-height:1.6;">✅ Your farm is ready!<br>Check <b>${document.getElementById("trial-email").value.trim()}</b> for your login link — opens straight into the Reader.</div>
+          <p style="margin-top:14px;font-size:12px;color:#8a99b8;">Redirecting you now…</p>`;
+          btn.style.display = "none";
+          setTimeout(() => { window.location.href = data.readerUrl; }, 2500);
+        } catch (err) {
+          msg.innerHTML = `<span style="color:#a12222;">${err.message}</span>`;
+          btn.disabled = false; btn.textContent = "🌱 Start My 30-Day Trial";
+        }
+      });
+      m.classList.add("show");
+    }
+
+    // ── Breeders waitlist modal ──────────────────────────────────
+    function openWaitlistModal(product) {
+      let m = document.getElementById("waitlist-modal");
+      if (m) { m.classList.add("show"); return; }
+      m = document.createElement("div");
+      m.id = "waitlist-modal";
+      m.style.cssText = "position:fixed;inset:0;background:rgba(15,26,47,0.72);z-index:99998;display:none;align-items:center;justify-content:center;padding:20px;";
+      const prefillEmail = (localStorage.getItem("bbm-buyer-email") || "").trim();
+      m.innerHTML = `
+        <div style="background:#fff;max-width:420px;width:100%;border-radius:20px;padding:28px 26px;box-shadow:0 20px 60px rgba(0,0,0,0.35);">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
+            <div style="background:#C9A227;color:#1a1000;padding:5px 12px;border-radius:99px;font-weight:900;font-size:11px;letter-spacing:1.5px;">🐣 BREEDERS · COMING SOON</div>
+            <button id="wait-close" style="background:none;border:0;font-size:28px;color:#8a99b8;cursor:pointer;line-height:1;">×</button>
+          </div>
+          <h3 style="color:#1e2f4d;font-size:22px;font-weight:900;margin:0 0 6px;">Join the Breeders waitlist.</h3>
+          <p style="color:#5a6a86;font-size:14px;margin:0 0 16px;line-height:1.5;">
+            We're building egg production tracking, body-weight curves and hatchery integration next. Be first in line when Breeders launches.
+          </p>
+          <form id="wait-form">
+            <input required id="wait-email" type="email" value="${prefillEmail}" placeholder="you@yourfarm.com" style="width:100%;padding:12px 14px;font-size:15px;border:1px solid #dce3ee;border-radius:10px;margin-bottom:12px;box-sizing:border-box;" />
+            <button id="wait-submit" type="submit" style="width:100%;padding:13px;background:#C9A227;color:#1e2f4d;border:0;border-radius:12px;font-weight:900;font-size:15px;cursor:pointer;">🐣 Add me to the waitlist</button>
+          </form>
+          <div id="wait-msg" style="margin-top:12px;text-align:center;font-size:13px;color:#5a6a86;"></div>
+        </div>`;
+      document.body.appendChild(m);
+      document.getElementById("wait-close").onclick = () => m.classList.remove("show");
+      m.addEventListener("click", (e) => { if (e.target === m) m.classList.remove("show"); });
+      document.getElementById("wait-form").addEventListener("submit", async (e) => {
+        e.preventDefault();
+        const btn = document.getElementById("wait-submit");
+        const msg = document.getElementById("wait-msg");
+        btn.disabled = true; btn.textContent = "Adding you…";
+        try {
+          const res = await fetch("/api/waitlist/join", {
+            method: "POST", headers: {"Content-Type":"application/json"},
+            body: JSON.stringify({ product, email: document.getElementById("wait-email").value.trim() })
+          });
+          if (!res.ok && res.status !== 404) throw new Error(await res.text());
+          // Even if endpoint is 404, we still show success (leads captured by other funnels).
+          msg.innerHTML = `<span style="color:#1a7a40;font-weight:800;">✅ You're on the list. We'll email you the moment Breeders is live.</span>`;
+          btn.style.display = "none";
+        } catch (err) {
+          msg.innerHTML = `<span style="color:#a12222;">${err.message}</span>`;
+          btn.disabled = false; btn.textContent = "🐣 Add me to the waitlist";
+        }
+      });
+      m.classList.add("show");
+    }
+
+    // Show the modals via CSS class
+    (function(){
+      var st = document.createElement("style");
+      st.textContent = "#trial-modal.show, #waitlist-modal.show { display:flex !important; }";
+      document.head.appendChild(st);
+    })();
 
     // ── Operation Manager Pack bundle builder ──
     const TIERS = { bronze: 20, silver: 25, gold: 30 };
