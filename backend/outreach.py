@@ -140,7 +140,7 @@ def render_initial(contact: dict) -> tuple[str, str]:
                Program replacement that auto-syncs silo readings, scans feed dockets with AI,
                and runs the FCR maths for you across the whole farm.</p>
             <p>It's running on my own farm and now a few others around {integ}. Thought
-               you might want a look. <strong>14-day free trial, no card needed.</strong></p>
+               you might want a look. <strong>30-day free trial, no card needed.</strong></p>
             <p style="text-align:center;margin:24px 0;">
               <a href="{_personal_link(contact)}" style="background:#1a5c36;color:#fff;padding:12px 24px;border-radius:99px;text-decoration:none;font-weight:800;display:inline-block;">See the 60-second demo →</a>
             </p>
@@ -185,7 +185,7 @@ def render_followup_d7(contact: dict) -> tuple[str, str]:
               <li>FCR / CFCR maths (calculates the whole batch automatically)</li>
               <li>Catch-day report to the integrator (one-click CSV export)</li>
             </ul>
-            <p><strong>14-day free trial — no card, no commitment.</strong></p>
+            <p><strong>30-day free trial — no card, no commitment.</strong></p>
             <p style="text-align:center;margin:24px 0;">
               <a href="{_personal_link(contact)}" style="background:#C9A227;color:#000;padding:12px 24px;border-radius:99px;text-decoration:none;font-weight:800;display:inline-block;">Start the free trial →</a>
             </p>
