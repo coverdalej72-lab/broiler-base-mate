@@ -808,7 +808,6 @@
     }
 
     function initWeighTab(){
-      // Build per-shed cards from groupsCache (each group = 2 sheds)
       const wrap = document.getElementById("weigh-shed-cards");
       if (!wrap) return;
       const sheds = [];
@@ -818,46 +817,87 @@
           sheds.push(n * 2 - 1, n * 2);
         }
       }
-      // Fallback: at least 2 sheds visible even if groupsCache hasn't loaded
       if (!sheds.length) sheds.push(1, 2);
 
+      // Compact 2-column grid: one big icon per shed, tap to pick AI or Manual
+      wrap.style.cssText = "display:grid;grid-template-columns:repeat(2,1fr);gap:10px;";
       wrap.innerHTML = sheds.map(s => `
-        <div class="shed-weigh-card" data-shed="${s}" style="background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:14px;">
-          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
-            <div style="font-size:16px;font-weight:900;color:var(--ink);letter-spacing:0.3px;">🏠 Shed ${s}</div>
-            <div id="shed-${s}-status" style="font-size:11px;color:var(--muted);font-weight:700;letter-spacing:0.4px;">—</div>
-          </div>
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
-            <button class="weigh-shed-photo" data-shed="${s}" style="padding:12px 10px;background:#C9A227;color:#000;border:0;border-radius:10px;font-weight:900;font-size:13px;letter-spacing:0.3px;">📷 Snap Bird</button>
-            <div style="display:flex;gap:6px;">
-              <input type="number" step="0.001" placeholder="kg" class="weigh-shed-manual" data-shed="${s}" style="flex:1;min-width:0;padding:11px 8px;font-size:13px;font-weight:800;text-align:center;border-radius:10px;border:1px solid var(--line);background:var(--bg);color:var(--ink);" />
-              <button class="weigh-shed-save" data-shed="${s}" style="padding:11px 12px;background:#2b4266;color:#fff;border:0;border-radius:10px;font-weight:900;font-size:12px;">Log</button>
-            </div>
-          </div>
-        </div>
+        <button class="shed-weigh-card" data-shed="${s}" style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;background:var(--panel);border:1.5px solid var(--line);border-radius:14px;padding:20px 12px;color:var(--ink);cursor:pointer;transition:transform .12s,border-color .12s;">
+          <div style="font-size:32px;line-height:1;">⚖️</div>
+          <div style="font-size:15px;font-weight:900;letter-spacing:0.3px;">Shed ${s}</div>
+          <div id="shed-${s}-status" style="font-size:11px;font-weight:700;color:var(--muted);letter-spacing:0.4px;min-height:14px;">Tap to weigh</div>
+        </button>
       `).join("");
 
-      // Event delegation for all shed buttons
-      wrap.querySelectorAll(".weigh-shed-photo").forEach(btn => {
-        btn.addEventListener("click", () => {
-          const inp = document.getElementById("weigh-photo-in");
-          inp.dataset.shed = btn.dataset.shed;
-          inp.click();
-        });
+      // Tap a shed card → open action-picker modal
+      wrap.querySelectorAll(".shed-weigh-card").forEach(card => {
+        card.addEventListener("click", () => openWeighPicker(+card.dataset.shed));
       });
-      wrap.querySelectorAll(".weigh-shed-save").forEach(btn => {
-        btn.addEventListener("click", () => {
-          const shed = +btn.dataset.shed;
-          const age  = +document.getElementById("weigh-age").value;
-          const input = wrap.querySelector(`.weigh-shed-manual[data-shed="${shed}"]`);
-          const kg = parseFloat(input.value);
-          if (!kg || !age) { toast("Enter weight + age", "err"); return; }
+    }
+
+    // Bottom-sheet: pick AI camera vs manual for the tapped shed
+    function openWeighPicker(shed) {
+      const age = +document.getElementById("weigh-age").value;
+      if (!age) { toast("Enter bird age first", "err"); document.getElementById("weigh-age").focus(); return; }
+      let m = document.getElementById("weigh-picker");
+      if (!m) {
+        m = document.createElement("div");
+        m.id = "weigh-picker";
+        m.style.cssText = "position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:9998;display:none;align-items:flex-end;justify-content:center;";
+        m.innerHTML = `<div id="weigh-picker-body" style="background:var(--bg);border-top-left-radius:20px;border-top-right-radius:20px;width:100%;max-width:520px;padding:0;"></div>`;
+        document.body.appendChild(m);
+        m.addEventListener("click", (e) => { if (e.target === m) m.classList.remove("show"); });
+        const st = document.createElement("style");
+        st.textContent = "#weigh-picker.show{display:flex;} @media(min-width:640px){#weigh-picker{align-items:center;} #weigh-picker-body{border-radius:20px;}}";
+        document.head.appendChild(st);
+      }
+      document.getElementById("weigh-picker-body").innerHTML = `
+        <div style="padding:16px 18px;border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;background:#C9A227;color:#1a1000;border-top-left-radius:20px;border-top-right-radius:20px;">
+          <div><div style="font-size:11px;letter-spacing:1.5px;font-weight:800;">🏠 SHED ${shed} · DAY ${age}</div><div style="font-size:16px;font-weight:900;margin-top:2px;">Pick how to weigh</div></div>
+          <button data-close style="background:transparent;border:0;color:#1a1000;font-size:24px;cursor:pointer;">×</button>
+        </div>
+        <div style="padding:14px 16px;display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+          <button data-mode="ai" style="padding:22px 12px;background:#C9A227;color:#1a1000;border:0;border-radius:14px;font-weight:900;font-size:14px;display:flex;flex-direction:column;align-items:center;gap:6px;cursor:pointer;">
+            <div style="font-size:32px;">📷</div>
+            <div>AI CAMERA</div>
+            <div style="font-size:10px;font-weight:700;opacity:0.75;">snap bird → auto weight</div>
+          </button>
+          <button data-mode="manual" style="padding:22px 12px;background:#2b4266;color:#fff;border:0;border-radius:14px;font-weight:900;font-size:14px;display:flex;flex-direction:column;align-items:center;gap:6px;cursor:pointer;">
+            <div style="font-size:32px;">⚖️</div>
+            <div>MANUAL</div>
+            <div style="font-size:10px;font-weight:700;opacity:0.75;">type kg on scale</div>
+          </button>
+        </div>
+        <div id="weigh-picker-panel" style="padding:0 16px 20px;"></div>`;
+      m.classList.add("show");
+      m.querySelector("[data-close]").onclick = () => m.classList.remove("show");
+      m.querySelector("[data-mode=ai]").onclick = () => {
+        // Trigger camera scoped to this shed
+        const inp = document.getElementById("weigh-photo-in");
+        inp.dataset.shed = shed;
+        inp.click();
+        m.classList.remove("show");
+      };
+      m.querySelector("[data-mode=manual]").onclick = () => {
+        const panel = document.getElementById("weigh-picker-panel");
+        panel.innerHTML = `
+          <div style="background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:16px;">
+            <label style="font-size:11px;color:var(--muted);font-weight:800;letter-spacing:0.5px;">WEIGHT (KG)</label>
+            <div style="display:grid;grid-template-columns:1fr auto;gap:8px;margin-top:6px;">
+              <input id="picker-manual" type="number" step="0.001" inputmode="decimal" autofocus placeholder="e.g. 1.850" style="padding:14px;font-size:20px;font-weight:900;text-align:center;border-radius:10px;border:1px solid var(--line);background:var(--bg);color:var(--ink);" />
+              <button id="picker-save" style="padding:14px 22px;background:var(--green-700);color:#fff;border:0;border-radius:10px;font-weight:900;font-size:14px;">Log</button>
+            </div>
+          </div>`;
+        document.getElementById("picker-manual").focus();
+        document.getElementById("picker-save").onclick = () => {
+          const kg = parseFloat(document.getElementById("picker-manual").value);
+          if (!kg) { toast("Enter a weight", "err"); return; }
           logWeigh(shed, age, kg, "manual");
-          input.value = "";
-          document.getElementById(`shed-${shed}-status`).textContent = `✓ ${kg.toFixed(3)} kg`;
-          document.getElementById(`shed-${shed}-status`).style.color = "#1a7a40";
-        });
-      });
+          const st = document.getElementById(`shed-${shed}-status`);
+          if (st) { st.textContent = `✓ ${kg.toFixed(3)} kg`; st.style.color = "#1a7a40"; }
+          m.classList.remove("show");
+        };
+      };
     }
 
     document.getElementById("weigh-photo-in").addEventListener("change", async (e) => {
