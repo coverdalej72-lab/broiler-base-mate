@@ -195,6 +195,11 @@ class EobReport(BaseModel):
     batchNumber:      Optional[int] = None   # e.g. 121
     lastBatchNumber:  Optional[int] = None   # e.g. 114
     farmLogoData:     Optional[str] = None   # base64 PNG, if user uploaded one
+    # NEW Feb 2026 — processor settlement metrics (cage, efficiency, payment)
+    cageRating:       Optional[float] = None  # 39.5 / correctedAge
+    efficiencyRating: Optional[float] = None  # (1.78/cFCR)×0.7 + (39.5/correctedAge)×0.3
+    payment:          Optional[float] = None  # $/bird = ER × 0.005
+    paymentTotal:     Optional[float] = None  # payment × totalCaught
 
 
 class EobEmailRequest(BaseModel):
@@ -224,39 +229,39 @@ def _render_eob_html(r: EobReport, farm_name: str, sender: str) -> str:
     def fmt_pct(n: Optional[float]) -> str:
         return "—" if n is None or n == 0 else f"{n:.2f}%"
 
-    # Logo — use the farm's uploaded base64 if provided, else default mark
+    # Logo — use the farm's uploaded base64 if provided, else default Appcovi mark
     logo_src = (
         f"data:image/png;base64,{r.farmLogoData}"
         if r.farmLogoData else
-        "https://broilerbasemate.com.au/reader-assets/icon-192.png"
+        "https://broilerbasemate.com.au/reader-assets/company-logo.png"
     )
     batch = r.batchName or (f"Batch #{r.batchNumber}" if r.batchNumber else "Batch")
     prev_batch_note = f" · Prev Batch #{r.lastBatchNumber}" if r.lastBatchNumber else ""
     gen   = r.generatedDate or datetime.now(timezone.utc).strftime("%d %b %Y")
 
-    # ── HERO ────────────────────────────────────────────────────────────
+    # ── HERO (Appcovi navy + gold) ─────────────────────────────────────
     hero = f"""
-      <div style="background:linear-gradient(135deg,#0f3d24 0%,#1a5c36 100%);padding:32px 28px;color:#fff;border-radius:16px 16px 0 0;">
+      <div style="background:linear-gradient(135deg,#1e2f4d 0%,#0f1a2f 100%);padding:32px 28px;color:#fff;border-radius:16px 16px 0 0;border-bottom:3px solid #C9A227;">
         <table width="100%" cellpadding="0" cellspacing="0" border="0"><tr>
-          <td valign="middle" style="padding-right:14px;width:64px;">
-            <img src="{logo_src}" alt="" width="56" height="56" style="display:block;border-radius:10px;background:#fff;padding:4px;" />
+          <td valign="middle" style="padding-right:14px;width:72px;">
+            <img src="{logo_src}" alt="" width="64" height="64" style="display:block;border-radius:12px;background:#fff;padding:4px;" />
           </td>
           <td valign="middle">
-            <div style="font-size:12px;letter-spacing:2.5px;color:#C9A227;font-weight:700;margin-bottom:2px;">END OF BATCH REPORT</div>
-            <div style="font-size:24px;font-weight:800;letter-spacing:-0.4px;line-height:1.15;">{r.farmName or farm_name}</div>
-            <div style="font-size:13px;opacity:0.85;margin-top:4px;">{batch}{prev_batch_note} · Generated {gen}</div>
+            <div style="font-size:11px;letter-spacing:3px;color:#C9A227;font-weight:800;margin-bottom:2px;">END OF BATCH REPORT · APPCOVI</div>
+            <div style="font-size:24px;font-weight:900;letter-spacing:-0.4px;line-height:1.15;">{r.farmName or farm_name}</div>
+            <div style="font-size:13px;color:#bdd3ee;margin-top:4px;">{batch}{prev_batch_note} · Generated {gen}</div>
           </td>
         </tr></table>
       </div>
     """
 
-    # ── KPI tiles ───────────────────────────────────────────────────────
-    def kpi(label: str, value: str, accent: str = "#0f3d24") -> str:
+    # ── KPI tiles (Appcovi palette) ────────────────────────────────────
+    def kpi(label: str, value: str, accent: str = "#1e2f4d") -> str:
         return f"""
           <td valign="top" style="padding:6px;">
-            <div style="background:#fff;border:1px solid #e3dccb;border-radius:10px;padding:14px 12px;text-align:center;">
-              <div style="font-size:22px;font-weight:800;color:{accent};letter-spacing:-0.5px;line-height:1;">{value}</div>
-              <div style="font-size:10px;letter-spacing:1.2px;color:#5d6660;text-transform:uppercase;margin-top:6px;font-weight:700;">{label}</div>
+            <div style="background:#fff;border:1px solid #dce3ee;border-radius:10px;padding:14px 12px;text-align:center;">
+              <div style="font-size:22px;font-weight:900;color:{accent};letter-spacing:-0.5px;line-height:1;">{value}</div>
+              <div style="font-size:10px;letter-spacing:1.2px;color:#5a6a86;text-transform:uppercase;margin-top:6px;font-weight:700;">{label}</div>
             </div>
           </td>
         """
@@ -264,50 +269,82 @@ def _render_eob_html(r: EobReport, farm_name: str, sender: str) -> str:
       <table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-top:14px;">
         <tr>
           {kpi("Birds Placed", fmt_n(r.totalPlaced))}
-          {kpi("Birds Caught", fmt_n(r.totalCaught), "#1a5c36")}
-          {kpi("Morts", fmt_n(r.totalMorts), "#a83e00")}
-          {kpi("Mortality", fmt_pct(r.mortalityPct), "#a83e00")}
+          {kpi("Birds Caught", fmt_n(r.totalCaught), "#1a7a40")}
+          {kpi("Morts", fmt_n(r.totalMorts), "#c0392b")}
+          {kpi("Mortality", fmt_pct(r.mortalityPct), "#c0392b")}
         </tr>
         <tr>
-          {kpi("Ave Weight", (f"{r.aveWeight:.3f} kg" if r.aveWeight else "—"), "#0f3d24")}
-          {kpi("Total KG", (fmt_n(r.totalLiveWeightKg, ' kg') if r.totalLiveWeightKg else "—"), "#0e7c5a")}
-          {kpi("Ave Age", (f"{r.actualAge:.1f} d" if r.actualAge else "—"), "#0f3d24")}
+          {kpi("Ave Weight", (f"{r.aveWeight:.3f} kg" if r.aveWeight else "—"))}
+          {kpi("Total KG", (fmt_n(r.totalLiveWeightKg, ' kg') if r.totalLiveWeightKg else "—"), "#1a7a40")}
+          {kpi("Ave Age", (f"{r.actualAge:.1f} d" if r.actualAge else "—"))}
           {kpi("Corr. Age", (f"{r.correctedAge:.1f} d" if r.correctedAge else "—"), "#C9A227")}
         </tr>
         <tr>
-          {kpi("FCR", (f"{r.fcr:.3f}" if r.fcr else "—"), "#0f3d24")}
-          {kpi("cFCR to 2.45", (f"{r.cfcr:.3f}" if r.cfcr else "—"), "#C9A227")}
           {kpi("Total Feed", fmt_n(r.totalPurchased, " kg"), "#C9A227")}
-          {kpi("Batch", (r.batchName or "—"), "#5d6660")}
+          {kpi("Feed On Hand", (fmt_n(r.feedLeft, ' kg') if r.feedLeft else "—"), "#e67e22")}
+          {kpi("Net Consumed", (fmt_n(r.netConsumed, ' kg') if r.netConsumed else "—"), "#1e2f4d")}
+          {kpi("Batch", (r.batchName or "—"), "#5a6a86")}
         </tr>
       </table>
     """
+
+    # ── 🎯 PAYMENT-CRITICAL METRICS band (new — the numbers that pay) ──
+    def big_metric(label: str, value: str, sub: str) -> str:
+        return f"""
+          <td valign="top" style="padding:4px;width:25%;">
+            <div style="background:linear-gradient(135deg,#0a1428,#1e2f4d);border:1px solid #2b4266;border-radius:12px;padding:14px 12px;text-align:center;">
+              <div style="font-size:10px;letter-spacing:1.4px;color:#C9A227;font-weight:800;margin-bottom:6px;">{label}</div>
+              <div style="font-size:24px;font-weight:900;color:#fff;letter-spacing:-0.5px;line-height:1;">{value}</div>
+              <div style="font-size:10px;color:#8a99b8;font-weight:600;margin-top:4px;">{sub}</div>
+            </div>
+          </td>
+        """
+    payment_band = ""
+    if any([r.fcr, r.cfcr, r.efficiencyRating, r.cageRating, r.payment]):
+        pay_line = ""
+        if r.payment and r.paymentTotal:
+            pay_line = f"""
+              <div style="background:rgba(201,162,39,0.15);border-left:3px solid #C9A227;padding:12px 16px;border-radius:6px;margin-top:14px;font-size:14px;color:#1e2f4d;">
+                💰 <b>Grower payment:</b> ${r.payment:.4f}/bird × {int(r.totalCaught or 0):,} birds = <b style="color:#1a7a40;font-size:16px;">${r.paymentTotal:,.2f}</b>
+              </div>"""
+        payment_band = f"""
+          <h3 style="margin:28px 0 10px;color:#1e2f4d;font-size:14px;letter-spacing:1.5px;text-transform:uppercase;font-weight:800;border-bottom:2px solid #C9A227;padding-bottom:6px;">🎯 Payment-Critical Metrics</h3>
+          <table width="100%" cellpadding="0" cellspacing="0" border="0" style="border-collapse:separate;border-spacing:0;">
+            <tr>
+              {big_metric("FCR",         (f"{r.fcr:.3f}"  if r.fcr  else "—"),  "target 1.65")}
+              {big_metric("cFCR",        (f"{r.cfcr:.3f}" if r.cfcr else "—"),  "target 1.55")}
+              {big_metric("EFFICIENCY",  (f"{r.efficiencyRating:.3f}" if r.efficiencyRating else "—"), "target 1.00")}
+              {big_metric("CAGE",        (f"{r.cageRating:.3f}" if r.cageRating else "—"), "settlement rating")}
+            </tr>
+          </table>
+          {pay_line}
+        """
 
     # ── Feed deliveries by feed type ───────────────────────────────────
     def feed_section(ft: EobFeedType) -> str:
         if not ft.rows and not ft.total:
             return ""
-        color = ft.color or "#1a5c36"
+        color = ft.color or "#2b4266"
         rows_html = "".join(
             f"""<tr>
-              <td style="padding:7px 12px;border-bottom:1px solid #f0ece1;font-size:13px;color:#1a2320;">{row.date or "—"}</td>
-              <td style="padding:7px 12px;border-bottom:1px solid #f0ece1;font-size:13px;color:#5d6660;">{row.docket or "—"}</td>
-              <td style="padding:7px 12px;border-bottom:1px solid #f0ece1;font-size:13px;color:#1a2320;text-align:right;font-weight:600;font-variant-numeric:tabular-nums;">{int(row.kg):,} kg</td>
+              <td style="padding:7px 12px;border-bottom:1px solid #e5e9ee;font-size:13px;color:#1a2320;">{row.date or "—"}</td>
+              <td style="padding:7px 12px;border-bottom:1px solid #e5e9ee;font-size:13px;color:#5a6a86;">{row.docket or "—"}</td>
+              <td style="padding:7px 12px;border-bottom:1px solid #e5e9ee;font-size:13px;color:#1a2320;text-align:right;font-weight:600;font-variant-numeric:tabular-nums;">{int(row.kg):,} kg</td>
             </tr>"""
             for row in ft.rows if row.kg > 0
         ) or """<tr><td colspan="3" style="padding:14px;text-align:center;color:#9ca3af;font-size:12px;font-style:italic;">No deliveries</td></tr>"""
         return f"""
-          <div style="margin-top:16px;border:1px solid #e3dccb;border-radius:10px;overflow:hidden;background:#fff;">
+          <div style="margin-top:16px;border:1px solid #dce3ee;border-radius:10px;overflow:hidden;background:#fff;">
             <div style="background:{color};color:#fff;padding:9px 14px;font-weight:800;letter-spacing:0.5px;font-size:13px;display:flex;justify-content:space-between;align-items:center;">
               <span style="text-transform:uppercase;">{ft.name}</span>
               <span style="font-size:15px;background:rgba(255,255,255,0.18);padding:2px 10px;border-radius:99px;">{int(ft.total):,} kg</span>
             </div>
             <table width="100%" cellpadding="0" cellspacing="0" border="0">
               <thead>
-                <tr style="background:#faf7ef;">
-                  <th style="padding:8px 12px;text-align:left;font-size:10px;color:#5d6660;letter-spacing:1px;text-transform:uppercase;font-weight:700;border-bottom:1px solid #e3dccb;">Date</th>
-                  <th style="padding:8px 12px;text-align:left;font-size:10px;color:#5d6660;letter-spacing:1px;text-transform:uppercase;font-weight:700;border-bottom:1px solid #e3dccb;">Docket #</th>
-                  <th style="padding:8px 12px;text-align:right;font-size:10px;color:#5d6660;letter-spacing:1px;text-transform:uppercase;font-weight:700;border-bottom:1px solid #e3dccb;">Amount</th>
+                <tr style="background:#eef2f9;">
+                  <th style="padding:8px 12px;text-align:left;font-size:10px;color:#5a6a86;letter-spacing:1px;text-transform:uppercase;font-weight:700;border-bottom:1px solid #e3dccb;">Date</th>
+                  <th style="padding:8px 12px;text-align:left;font-size:10px;color:#5a6a86;letter-spacing:1px;text-transform:uppercase;font-weight:700;border-bottom:1px solid #e3dccb;">Docket #</th>
+                  <th style="padding:8px 12px;text-align:right;font-size:10px;color:#5a6a86;letter-spacing:1px;text-transform:uppercase;font-weight:700;border-bottom:1px solid #e3dccb;">Amount</th>
                 </tr>
               </thead>
               <tbody>{rows_html}</tbody>
@@ -316,7 +353,7 @@ def _render_eob_html(r: EobReport, farm_name: str, sender: str) -> str:
         """
     feed_sections = "".join(feed_section(ft) for ft in r.feedTypes)
     if not feed_sections:
-        feed_sections = """<div style="margin-top:16px;padding:18px;text-align:center;color:#9ca3af;font-size:13px;background:#faf7ef;border:1px dashed #e3dccb;border-radius:10px;">No feed deliveries recorded for this batch.</div>"""
+        feed_sections = """<div style="margin-top:16px;padding:18px;text-align:center;color:#9ca3af;font-size:13px;background:#eef2f9;border:1px dashed #e3dccb;border-radius:10px;">No feed deliveries recorded for this batch.</div>"""
 
     # ── Per-shed bird table ────────────────────────────────────────────
     if r.sheds:
@@ -326,16 +363,16 @@ def _render_eob_html(r: EobReport, farm_name: str, sender: str) -> str:
         total_mtec = sum((s.mtec or 0) for s in r.sheds) if show_mtec else 0
         shed_rows = "".join(
             f"""<tr>
-              <td style="padding:8px 12px;border-bottom:1px solid #f0ece1;font-weight:700;color:#0f3d24;">Shed {s.shed}</td>
-              <td style="padding:8px 12px;border-bottom:1px solid #f0ece1;text-align:right;font-variant-numeric:tabular-nums;">{s.placed:,}</td>
-              <td style="padding:8px 12px;border-bottom:1px solid #f0ece1;text-align:right;color:#a83e00;font-variant-numeric:tabular-nums;">{('−' + format(s.morts, ',')) if s.morts > 0 else '—'}</td>
-              <td style="padding:8px 12px;border-bottom:1px solid #f0ece1;text-align:right;font-variant-numeric:tabular-nums;">{(format(s.caught, ',') if s.caught > 0 else '—')}</td>
-              <td style="padding:8px 12px;border-bottom:1px solid #f0ece1;text-align:right;font-weight:700;font-variant-numeric:tabular-nums;color:{'#0f3d24' if s.balance >= 0 else '#a83e00'};">{s.balance:,}</td>
-              {f'<td style="padding:8px 12px;border-bottom:1px solid #f0ece1;text-align:right;font-variant-numeric:tabular-nums;color:#5d6660;">{int(s.mtec or 0):,}</td>' if show_mtec else ''}
+              <td style="padding:8px 12px;border-bottom:1px solid #e5e9ee;font-weight:700;color:#1e2f4d;">Shed {s.shed}</td>
+              <td style="padding:8px 12px;border-bottom:1px solid #e5e9ee;text-align:right;font-variant-numeric:tabular-nums;">{s.placed:,}</td>
+              <td style="padding:8px 12px;border-bottom:1px solid #e5e9ee;text-align:right;color:#c0392b;font-variant-numeric:tabular-nums;">{('−' + format(s.morts, ',')) if s.morts > 0 else '—'}</td>
+              <td style="padding:8px 12px;border-bottom:1px solid #e5e9ee;text-align:right;font-variant-numeric:tabular-nums;">{(format(s.caught, ',') if s.caught > 0 else '—')}</td>
+              <td style="padding:8px 12px;border-bottom:1px solid #e5e9ee;text-align:right;font-weight:700;font-variant-numeric:tabular-nums;color:{'#1e2f4d' if s.balance >= 0 else '#c0392b'};">{s.balance:,}</td>
+              {f'<td style="padding:8px 12px;border-bottom:1px solid #e5e9ee;text-align:right;font-variant-numeric:tabular-nums;color:#5a6a86;">{int(s.mtec or 0):,}</td>' if show_mtec else ''}
             </tr>"""
             for s in r.sheds
         )
-        totals_row = f"""<tr style="background:#0f3d24;color:#fff;">
+        totals_row = f"""<tr style="background:#1e2f4d;color:#fff;">
             <td style="padding:10px 12px;font-weight:800;letter-spacing:0.5px;text-transform:uppercase;font-size:12px;">Totals</td>
             <td style="padding:10px 12px;text-align:right;font-weight:800;font-variant-numeric:tabular-nums;">{fmt_n(r.totalPlaced)}</td>
             <td style="padding:10px 12px;text-align:right;font-weight:800;color:#ffb3a7;font-variant-numeric:tabular-nums;">{('−' + (fmt_n(r.totalMorts))) if (r.totalMorts or 0) > 0 else '—'}</td>
@@ -343,18 +380,18 @@ def _render_eob_html(r: EobReport, farm_name: str, sender: str) -> str:
             <td style="padding:10px 12px;text-align:right;font-weight:800;font-variant-numeric:tabular-nums;">{fmt_n(r.totalBalance)}</td>
             {f'<td style="padding:10px 12px;text-align:right;font-weight:800;font-variant-numeric:tabular-nums;">{int(total_mtec):,}</td>' if show_mtec else ''}
           </tr>"""
-        mtec_header = '<th style="padding:9px 12px;text-align:right;font-size:10px;color:#5d6660;letter-spacing:1px;text-transform:uppercase;font-weight:700;border-bottom:1px solid #e3dccb;">MTEC</th>' if show_mtec else ''
+        mtec_header = '<th style="padding:9px 12px;text-align:right;font-size:10px;color:#5a6a86;letter-spacing:1px;text-transform:uppercase;font-weight:700;border-bottom:1px solid #e3dccb;">MTEC</th>' if show_mtec else ''
         bird_section = f"""
-          <h3 style="margin:28px 0 10px;color:#0f3d24;font-size:14px;letter-spacing:1.5px;text-transform:uppercase;font-weight:800;border-bottom:2px solid #C9A227;padding-bottom:6px;">🐔 Bird Summary</h3>
-          <div style="background:#fff;border:1px solid #e3dccb;border-radius:10px;overflow:hidden;">
+          <h3 style="margin:28px 0 10px;color:#1e2f4d;font-size:14px;letter-spacing:1.5px;text-transform:uppercase;font-weight:800;border-bottom:2px solid #C9A227;padding-bottom:6px;">🐔 Bird Summary</h3>
+          <div style="background:#fff;border:1px solid #dce3ee;border-radius:10px;overflow:hidden;">
             <table width="100%" cellpadding="0" cellspacing="0" border="0" style="font-size:13px;">
               <thead>
-                <tr style="background:#faf7ef;">
-                  <th style="padding:9px 12px;text-align:left;font-size:10px;color:#5d6660;letter-spacing:1px;text-transform:uppercase;font-weight:700;border-bottom:1px solid #e3dccb;">Shed</th>
-                  <th style="padding:9px 12px;text-align:right;font-size:10px;color:#5d6660;letter-spacing:1px;text-transform:uppercase;font-weight:700;border-bottom:1px solid #e3dccb;">Placed</th>
-                  <th style="padding:9px 12px;text-align:right;font-size:10px;color:#5d6660;letter-spacing:1px;text-transform:uppercase;font-weight:700;border-bottom:1px solid #e3dccb;">Morts</th>
-                  <th style="padding:9px 12px;text-align:right;font-size:10px;color:#5d6660;letter-spacing:1px;text-transform:uppercase;font-weight:700;border-bottom:1px solid #e3dccb;">Caught</th>
-                  <th style="padding:9px 12px;text-align:right;font-size:10px;color:#5d6660;letter-spacing:1px;text-transform:uppercase;font-weight:700;border-bottom:1px solid #e3dccb;">Balance</th>
+                <tr style="background:#eef2f9;">
+                  <th style="padding:9px 12px;text-align:left;font-size:10px;color:#5a6a86;letter-spacing:1px;text-transform:uppercase;font-weight:700;border-bottom:1px solid #e3dccb;">Shed</th>
+                  <th style="padding:9px 12px;text-align:right;font-size:10px;color:#5a6a86;letter-spacing:1px;text-transform:uppercase;font-weight:700;border-bottom:1px solid #e3dccb;">Placed</th>
+                  <th style="padding:9px 12px;text-align:right;font-size:10px;color:#5a6a86;letter-spacing:1px;text-transform:uppercase;font-weight:700;border-bottom:1px solid #e3dccb;">Morts</th>
+                  <th style="padding:9px 12px;text-align:right;font-size:10px;color:#5a6a86;letter-spacing:1px;text-transform:uppercase;font-weight:700;border-bottom:1px solid #e3dccb;">Caught</th>
+                  <th style="padding:9px 12px;text-align:right;font-size:10px;color:#5a6a86;letter-spacing:1px;text-transform:uppercase;font-weight:700;border-bottom:1px solid #e3dccb;">Balance</th>
                   {mtec_header}
                 </tr>
               </thead>
@@ -367,31 +404,32 @@ def _render_eob_html(r: EobReport, farm_name: str, sender: str) -> str:
 
     # ── Feed summary block ─────────────────────────────────────────────
     feed_summary = f"""
-      <h3 style="margin:28px 0 10px;color:#0f3d24;font-size:14px;letter-spacing:1.5px;text-transform:uppercase;font-weight:800;border-bottom:2px solid #C9A227;padding-bottom:6px;">🌾 Feed Summary</h3>
-      <table width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#fff;border:1px solid #e3dccb;border-radius:10px;overflow:hidden;font-size:13px;">
-        <tr><td style="padding:9px 14px;border-bottom:1px solid #f0ece1;color:#5d6660;">Last Batch Left</td><td style="padding:9px 14px;border-bottom:1px solid #f0ece1;text-align:right;font-weight:700;font-variant-numeric:tabular-nums;">{fmt_n(r.lastBatchLeft, ' kg')}</td></tr>
-        <tr><td style="padding:9px 14px;border-bottom:1px solid #f0ece1;color:#5d6660;">Total Delivered</td><td style="padding:9px 14px;border-bottom:1px solid #f0ece1;text-align:right;font-weight:700;font-variant-numeric:tabular-nums;">{fmt_n(r.totalDelivered, ' kg')}</td></tr>
-        <tr><td style="padding:9px 14px;border-bottom:1px solid #f0ece1;color:#5d6660;">Total Used</td><td style="padding:9px 14px;border-bottom:1px solid #f0ece1;text-align:right;font-weight:700;font-variant-numeric:tabular-nums;">{fmt_n(r.totalUsed, ' kg')}</td></tr>
-        <tr><td style="padding:9px 14px;border-bottom:1px solid #f0ece1;color:#5d6660;">Feed Left</td><td style="padding:9px 14px;border-bottom:1px solid #f0ece1;text-align:right;font-weight:700;font-variant-numeric:tabular-nums;">{fmt_n(r.feedLeft, ' kg')}</td></tr>
-        <tr style="background:#fff8e2;"><td style="padding:11px 14px;color:#0f3d24;font-weight:800;letter-spacing:0.4px;text-transform:uppercase;font-size:12px;">Net Consumed</td><td style="padding:11px 14px;text-align:right;font-weight:900;font-variant-numeric:tabular-nums;color:#0f3d24;font-size:14px;">{fmt_n(r.netConsumed, ' kg')}</td></tr>
+      <h3 style="margin:28px 0 10px;color:#1e2f4d;font-size:14px;letter-spacing:1.5px;text-transform:uppercase;font-weight:800;border-bottom:2px solid #C9A227;padding-bottom:6px;">🌾 Feed Summary</h3>
+      <table width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#fff;border:1px solid #dce3ee;border-radius:10px;overflow:hidden;font-size:13px;">
+        <tr><td style="padding:9px 14px;border-bottom:1px solid #e5e9ee;color:#5a6a86;">Last Batch Left</td><td style="padding:9px 14px;border-bottom:1px solid #e5e9ee;text-align:right;font-weight:700;font-variant-numeric:tabular-nums;">{fmt_n(r.lastBatchLeft, ' kg')}</td></tr>
+        <tr><td style="padding:9px 14px;border-bottom:1px solid #e5e9ee;color:#5a6a86;">Total Delivered</td><td style="padding:9px 14px;border-bottom:1px solid #e5e9ee;text-align:right;font-weight:700;font-variant-numeric:tabular-nums;">{fmt_n(r.totalDelivered, ' kg')}</td></tr>
+        <tr><td style="padding:9px 14px;border-bottom:1px solid #e5e9ee;color:#5a6a86;">Total Used</td><td style="padding:9px 14px;border-bottom:1px solid #e5e9ee;text-align:right;font-weight:700;font-variant-numeric:tabular-nums;">{fmt_n(r.totalUsed, ' kg')}</td></tr>
+        <tr><td style="padding:9px 14px;border-bottom:1px solid #e5e9ee;color:#5a6a86;">Feed Left</td><td style="padding:9px 14px;border-bottom:1px solid #e5e9ee;text-align:right;font-weight:700;font-variant-numeric:tabular-nums;">{fmt_n(r.feedLeft, ' kg')}</td></tr>
+        <tr style="background:#fffbe6;"><td style="padding:11px 14px;color:#1e2f4d;font-weight:800;letter-spacing:0.4px;text-transform:uppercase;font-size:12px;">Net Consumed</td><td style="padding:11px 14px;text-align:right;font-weight:900;font-variant-numeric:tabular-nums;color:#1e2f4d;font-size:14px;">{fmt_n(r.netConsumed, ' kg')}</td></tr>
       </table>
     """
 
-    # ── Final assembly ─────────────────────────────────────────────────
+    # ── Final assembly (Appcovi navy palette) ─────────────────────────
     return f"""<!DOCTYPE html><html><head><meta charset="utf-8" />
 <title>End of Batch — {farm_name}</title></head>
-<body style="margin:0;padding:24px 12px;background:#f3f0e8;font-family:-apple-system,BlinkMacSystemFont,'SF Pro Text','Segoe UI',Roboto,sans-serif;color:#1a2320;-webkit-font-smoothing:antialiased;">
-  <div style="max-width:680px;margin:0 auto;background:#faf7ef;border-radius:16px;overflow:hidden;box-shadow:0 8px 32px -12px rgba(15,61,36,0.18);">
+<body style="margin:0;padding:24px 12px;background:#eef2f9;font-family:-apple-system,BlinkMacSystemFont,'SF Pro Text','Segoe UI',Roboto,sans-serif;color:#1e2f4d;-webkit-font-smoothing:antialiased;">
+  <div style="max-width:680px;margin:0 auto;background:#f7f9fc;border-radius:16px;overflow:hidden;box-shadow:0 8px 32px -12px rgba(15,26,47,0.28);">
     {hero}
     <div style="padding:20px 24px 28px;">
-      <h3 style="margin:0 0 4px;color:#0f3d24;font-size:14px;letter-spacing:1.5px;text-transform:uppercase;font-weight:800;border-bottom:2px solid #C9A227;padding-bottom:6px;">📊 Batch Performance</h3>
+      <h3 style="margin:0 0 4px;color:#1e2f4d;font-size:14px;letter-spacing:1.5px;text-transform:uppercase;font-weight:800;border-bottom:2px solid #C9A227;padding-bottom:6px;">📊 Batch Performance</h3>
       {kpis}
-      <h3 style="margin:28px 0 10px;color:#0f3d24;font-size:14px;letter-spacing:1.5px;text-transform:uppercase;font-weight:800;border-bottom:2px solid #C9A227;padding-bottom:6px;">🚚 Feed Deliveries</h3>
+      {payment_band}
+      <h3 style="margin:28px 0 10px;color:#1e2f4d;font-size:14px;letter-spacing:1.5px;text-transform:uppercase;font-weight:800;border-bottom:2px solid #C9A227;padding-bottom:6px;">🚚 Feed Deliveries</h3>
       {feed_sections}
       {bird_section}
       {feed_summary}
-      <div style="margin-top:32px;padding:18px;background:#fff;border-radius:10px;border:1px dashed #e3dccb;text-align:center;color:#5d6660;font-size:12px;line-height:1.6;">
-        Generated by <b style="color:#0f3d24;">Broiler Base Mate™</b> · <a href="https://broilerbasemate.com.au" style="color:#1a5c36;text-decoration:none;font-weight:700;">broilerbasemate.com.au</a><br />
+      <div style="margin-top:32px;padding:18px;background:#fff;border-radius:10px;border:1px dashed #dce3ee;text-align:center;color:#5a6a86;font-size:12px;line-height:1.6;">
+        Generated by <b style="color:#1e2f4d;">Broiler Base Mate™ · by Appcovi</b> · <a href="https://broilerbasemate.com.au" style="color:#C9A227;text-decoration:none;font-weight:700;">broilerbasemate.com.au</a><br />
         <span style="opacity:0.7;">Sent by {sender}</span>
       </div>
     </div>
@@ -432,6 +470,7 @@ async def eob_preview_sample():
         totalPlaced=532589, totalCaught=515872, totalMorts=16717, mortalityPct=3.14,
         aveWeight=3.069, fcr=1.522, cfcr=1.355, actualAge=41.4, correctedAge=33.0,
         totalLiveWeightKg=1567081, totalPurchased=2306260,
+        cageRating=1.197, efficiencyRating=1.276, payment=0.00638, paymentTotal=3268.42,
         lastBatchLeft=118000, totalDelivered=2306260, totalUsed=2306260,
         feedLeft=140000, netConsumed=2166260,
         sheds=[
@@ -526,7 +565,7 @@ async def send_eob_report(req: EobEmailRequest, request: Request):
         )
         html = (
             "<div style=\"font-family:system-ui,sans-serif;max-width:700px;margin:0 auto;\">"
-            f"<h2 style=\"color:#0f3d24;margin-bottom:4px;\">End of Batch Report</h2>"
+            f"<h2 style=\"color:#1e2f4d;margin-bottom:4px;\">End of Batch Report</h2>"
             f"<p style=\"color:#64748b;font-size:13px;margin:0 0 14px;\">{farm_label} · sent by {user.get('email')}</p>"
             "<pre style=\"background:#f7faf6;border:1px solid #d4e0d8;border-radius:8px;padding:16px;"
             "font-family:monospace;font-size:12px;line-height:1.5;white-space:pre-wrap;color:#1f2937;\">"
