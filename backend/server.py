@@ -281,16 +281,10 @@ def _render_eob_html(r: EobReport, farm_name: str, sender: str) -> str:
           {kpi("Mortality", fmt_pct(r.mortalityPct), "#c0392b")}
         </tr>
         <tr>
-          {kpi("Ave Weight", (f"{r.aveWeight:.3f} kg" if r.aveWeight else "—"))}
-          {kpi("Total KG", (fmt_n(r.totalLiveWeightKg, ' kg') if r.totalLiveWeightKg else "—"), "#1a7a40")}
-          {kpi("Ave Age", (f"{r.actualAge:.1f} d" if r.actualAge else "—"))}
-          {kpi("Corr. Age", (f"{r.correctedAge:.1f} d" if r.correctedAge else "—"), "#C9A227")}
-        </tr>
-        <tr>
-          {kpi("FCR", (f"{r.fcr:.3f}" if r.fcr else "—"))}
-          {kpi("cFCR to 2.45", (f"{r.cfcr:.3f}" if r.cfcr else "—"), "#C9A227")}
           {kpi("Total Feed", fmt_n(r.totalPurchased, " kg"), "#C9A227")}
           {kpi("Feed On Hand", (fmt_n(r.feedLeft, ' kg') if r.feedLeft else "—"), "#e67e22")}
+          {kpi("Net Consumed", (fmt_n(r.netConsumed, ' kg') if r.netConsumed else "—"), "#1e2f4d")}
+          {kpi("Batch", (r.batchName or "—"), "#5a6a86")}
         </tr>
       </table>
     """
