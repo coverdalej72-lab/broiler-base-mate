@@ -258,6 +258,9 @@
     2. **Sum future FEED ORDERED (COL_E) entries** as `incomingT`, add to the days-of-feed projection, and annotate the shed name (e.g. "Shed 1&2 (30.0t incoming)") so the LLM sees the pipeline.
     3. **Skip completed batches** — if `dayAge >= batchEndAge` OR `liveBirds <= 0`, the shed is excluded from Farm Buddy's context so stale/finished batches don't trigger false "critical" alarms.
   - **Removed from roadmap** (per user 2026-07-15): "Wingman" voice AI (permanently dropped) and all P1 marketing/email-domain tasks.
+- **2026-02-09 (EOB "Feed from Last Batch" carry-over)**:
+  - **UX fix (P1) — "there's no feed from last batch"**: When users started a new batch via `resetForNewBatch()` in `App.tsx`, both `Last Batch Left` (cell 7,18) and `Feed Left` (cell 15,18) got wiped — so the new batch always began with a blank "feed from last batch" row. Added a capture step BEFORE the wipe: read the current `Feed Left` value (prefer edits, fall back to xlsx), then AFTER clearing, seed cell `7,18` on the fresh EOB with that value. So batch 122's "Last Batch Left" now auto-populates from batch 121's "Feed Left" — no manual re-typing. Rebuilt via `BASE_PATH=/feed-program/ yarn build` and restarted frontend.
+
 
 
 
