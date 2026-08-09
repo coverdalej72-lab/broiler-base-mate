@@ -280,45 +280,18 @@ def _render_eob_html(r: EobReport, farm_name: str, sender: str) -> str:
           {kpi("Corr. Age", (f"{r.correctedAge:.1f} d" if r.correctedAge else "—"), "#C9A227")}
         </tr>
         <tr>
+          {kpi("FCR", (f"{r.fcr:.3f}" if r.fcr else "—"))}
+          {kpi("cFCR to 2.45", (f"{r.cfcr:.3f}" if r.cfcr else "—"), "#C9A227")}
           {kpi("Total Feed", fmt_n(r.totalPurchased, " kg"), "#C9A227")}
           {kpi("Feed On Hand", (fmt_n(r.feedLeft, ' kg') if r.feedLeft else "—"), "#e67e22")}
-          {kpi("Net Consumed", (fmt_n(r.netConsumed, ' kg') if r.netConsumed else "—"), "#1e2f4d")}
-          {kpi("Batch", (r.batchName or "—"), "#5a6a86")}
         </tr>
       </table>
     """
 
-    # ── 🎯 PAYMENT-CRITICAL METRICS band (new — the numbers that pay) ──
-    def big_metric(label: str, value: str, sub: str) -> str:
-        return f"""
-          <td valign="top" style="padding:4px;width:25%;">
-            <div style="background:linear-gradient(135deg,#0a1428,#1e2f4d);border:1px solid #2b4266;border-radius:12px;padding:14px 12px;text-align:center;">
-              <div style="font-size:10px;letter-spacing:1.4px;color:#C9A227;font-weight:800;margin-bottom:6px;">{label}</div>
-              <div style="font-size:24px;font-weight:900;color:#fff;letter-spacing:-0.5px;line-height:1;">{value}</div>
-              <div style="font-size:10px;color:#8a99b8;font-weight:600;margin-top:4px;">{sub}</div>
-            </div>
-          </td>
-        """
+    # ── Payment-Critical Metrics band removed (Feb 2026 — Jason: report should
+    # only show what's on the EOB tab, nothing extra). FCR / cFCR are already in
+    # the KPI grid above. ────────────────────────────────────────────────────
     payment_band = ""
-    if any([r.fcr, r.cfcr, r.efficiencyRating, r.cageRating, r.payment]):
-        pay_line = ""
-        if r.payment and r.paymentTotal:
-            pay_line = f"""
-              <div style="background:rgba(201,162,39,0.15);border-left:3px solid #C9A227;padding:12px 16px;border-radius:6px;margin-top:14px;font-size:14px;color:#1e2f4d;">
-                💰 <b>Grower payment:</b> ${r.payment:.4f}/bird × {int(r.totalCaught or 0):,} birds = <b style="color:#1a7a40;font-size:16px;">${r.paymentTotal:,.2f}</b>
-              </div>"""
-        payment_band = f"""
-          <h3 style="margin:28px 0 10px;color:#1e2f4d;font-size:14px;letter-spacing:1.5px;text-transform:uppercase;font-weight:800;border-bottom:2px solid #C9A227;padding-bottom:6px;">🎯 Payment-Critical Metrics</h3>
-          <table width="100%" cellpadding="0" cellspacing="0" border="0" style="border-collapse:separate;border-spacing:0;">
-            <tr>
-              {big_metric("FCR",         (f"{r.fcr:.3f}"  if r.fcr  else "—"),  "target 1.65")}
-              {big_metric("cFCR",        (f"{r.cfcr:.3f}" if r.cfcr else "—"),  "target 1.55")}
-              {big_metric("EFFICIENCY",  (f"{r.efficiencyRating:.3f}" if r.efficiencyRating else "—"), "target 1.00")}
-              {big_metric("CAGE",        (f"{r.cageRating:.3f}" if r.cageRating else "—"), "settlement rating")}
-            </tr>
-          </table>
-          {pay_line}
-        """
 
     # ── Feed deliveries by feed type ───────────────────────────────────
     def feed_section(ft: EobFeedType) -> str:
