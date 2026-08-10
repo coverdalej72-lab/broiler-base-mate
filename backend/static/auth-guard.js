@@ -17,6 +17,9 @@
   window.__BBM_AUTH_GUARD_STARTED__ = true;
 
   const PROTECTED_PAGE = (window.__BBM_PAGE__ || document.body && document.body.dataset && document.body.dataset.page) || "app";
+  // Preview environment: the /reader route is bootstrapped by the SPA which sets
+  // __BBM_PAGE__ = "app" — so also detect reader from the URL path so guards work.
+  const IS_READER_URL = /^\/reader(\/|$|\?)/.test(window.location.pathname);
   const FARM_SLUG = (function () {
     try { return new URLSearchParams(window.location.search).get("farm") || "default"; }
     catch { return "default"; }
@@ -163,8 +166,9 @@
     // 3) Enforce role-based access (may bounce)
     enforceAccess(info);
 
-    // 4) Render the user badge
-    renderBadge(info);
+    // 4) Render the user badge — hidden on /reader (mobile). Logout now lives
+    //    in Settings tab per Jason (Feb 2026) to keep the workspace clean.
+    if (PROTECTED_PAGE !== "reader" && !IS_READER_URL) renderBadge(info);
     document.dispatchEvent(new CustomEvent("bbm-auth-ready", { detail: info }));
   }
 

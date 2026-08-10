@@ -252,6 +252,9 @@
       border: 2px solid currentColor; border-top-color: transparent; animation: spin .8s linear infinite;
       vertical-align: middle; }
     @keyframes spin { to { transform: rotate(360deg); } }
+    /* Feb 2026: hide the floating language chip on the reader — language now
+       lives in Settings → App instead, to declutter the workspace. */
+    #appcovi-lang-chip, #appcovi-lang-menu { display: none !important; }
   </style>
 <script src="/reader-assets/i18n-snippet.js" defer></script>
 </head>
@@ -419,11 +422,11 @@
       <div style="background:#fff;border-radius:14px;max-width:380px;width:100%;padding:20px;box-shadow:0 24px 60px -16px rgba(0,0,0,0.5);">
         <div style="font-size:12px;letter-spacing:2px;color:#C9A227;font-weight:800;margin-bottom:2px;">📤 SHARE FARM HISTORY</div>
         <h3 style="margin:0 0 6px;color:#1e2f4d;font-size:18px;letter-spacing:-0.3px;">Email to head office</h3>
-        <p style="margin:0 0 14px;color:#5d6660;font-size:13px;line-height:1.45;">Sends a branded snapshot — latest silo readings + recent deliveries + farm totals.</p>
+        <p style="margin:0 0 14px;color:#5d6660;font-size:13px;line-height:1.45;">Sends a branded snapshot — <b>today's silo readings</b> + recent deliveries + farm totals.</p>
         <label style="display:block;font-size:11px;color:#5d6660;font-weight:700;letter-spacing:0.5px;margin-bottom:4px;text-transform:uppercase;">Recipients</label>
         <input type="text" id="share-history-to" data-testid="share-history-to" placeholder="head.office@processor.com, manager@…" style="width:100%;padding:10px;border:1px solid #e3dccb;border-radius:8px;font-size:14px;background:#faf7ef;box-sizing:border-box;" />
         <div style="font-size:11px;color:#9ca3af;margin-top:4px;">Separate multiple addresses with commas</div>
-        <label style="display:block;font-size:11px;color:#5d6660;font-weight:700;letter-spacing:0.5px;margin:14px 0 4px;text-transform:uppercase;">History Period</label>
+        <label style="display:block;font-size:11px;color:#5d6660;font-weight:700;letter-spacing:0.5px;margin:14px 0 4px;text-transform:uppercase;">Delivery History Period</label>
         <select id="share-history-days" data-testid="share-history-days" style="width:100%;padding:10px;border:1px solid #e3dccb;border-radius:8px;font-size:14px;background:#faf7ef;box-sizing:border-box;">
           <option value="1">Today</option>
           <option value="7" selected>Last 7 days</option>
@@ -561,6 +564,22 @@
           <button class="pill" id="ref-copy-btn" data-testid="reader-copy-ref-btn" style="flex:1;border:1px solid var(--line);min-width:120px;">🔗 Copy link</button>
         </div>
         <div class="desc" id="ref-link" style="text-align:center;padding:8px;background:rgba(0,0,0,0.03);border-radius:6px;font-family:'SF Mono',Menlo,monospace;font-size:11px;word-break:break-all;">broilerbasemate.com.au</div>
+      </div>
+
+      <div class="section-label" style="margin-top: 28px;">APP</div>
+      <div class="set-row">
+        <div>
+          <label>Language</label>
+          <div class="desc">Choose the display language for the app.</div>
+        </div>
+        <select id="set-language" data-testid="set-language" style="min-width:170px;padding:9px 10px;border:1px solid var(--line);border-radius:8px;background:#fff;color:#1e2f4d;font-weight:700;font-size:14px;cursor:pointer;"></select>
+      </div>
+      <div class="set-row">
+        <div>
+          <label>Sign out</label>
+          <div class="desc">Log out of Broiler Base Mate on this device. Your farm data stays safe in the cloud.</div>
+        </div>
+        <button class="pill" id="logout-btn" data-testid="logout-btn" style="border:1px solid #1e2f4d;color:#1e2f4d;font-weight:800;">🚪 Log out</button>
       </div>
 
       <div class="section-label" style="margin-top: 28px;">DANGER ZONE</div>
@@ -1548,6 +1567,54 @@
     }
 
     // ─── Settings ──────────────────────────────────────────────────────
+    // Language + Logout — same list as i18n-snippet.js
+    const READER_LANGS = [
+      ['en','🇦🇺 English'],['vi','🇻🇳 Tiếng Việt'],['zh-CN','🇨🇳 中文'],
+      ['pt','🇧🇷 Português'],['es','🇪🇸 Español'],['id','🇮🇩 Bahasa'],
+      ['th','🇹🇭 ภาษาไทย'],['ko','🇰🇷 한국어'],['tl','🇵🇭 Filipino'],
+      ['hi','🇮🇳 हिंदी'],['ar','🇸🇦 العربية'],['fr','🇫🇷 Français'],
+      ['de','🇩🇪 Deutsch'],['ja','🇯🇵 日本語'],['ms','🇲🇾 Melayu']
+    ];
+    function currentLang() {
+      const saved = localStorage.getItem('appcovi-lang');
+      if (saved) return saved;
+      const br = (navigator.language || 'en').split('-')[0];
+      for (const l of READER_LANGS) if (l[0].split('-')[0] === br) return l[0];
+      return 'en';
+    }
+    (function initLanguageSelect(){
+      const sel = document.getElementById('set-language');
+      if (!sel) return;
+      sel.innerHTML = READER_LANGS.map(l => `<option value="${l[0]}" translate="no">${l[1]}</option>`).join('');
+      sel.value = currentLang();
+      sel.setAttribute('translate', 'no');
+      sel.addEventListener('change', () => {
+        const code = sel.value;
+        localStorage.setItem('appcovi-lang', code);
+        // Match i18n-snippet.js cookie logic so Google Translate picks it up
+        const host = window.location.hostname;
+        const apex = host.split('.').slice(-2).join('.');
+        document.cookie = 'googtrans=;path=/;expires=Thu, 01 Jan 1970 00:00:00 GMT';
+        document.cookie = 'googtrans=;path=/;domain=.' + apex + ';expires=Thu, 01 Jan 1970 00:00:00 GMT';
+        if (code !== 'en') {
+          document.cookie = 'googtrans=/en/' + code + ';path=/';
+          document.cookie = 'googtrans=/en/' + code + ';path=/;domain=.' + apex;
+        }
+        window.location.reload();
+      });
+    })();
+    (function initLogoutBtn(){
+      const btn = document.getElementById('logout-btn');
+      if (!btn) return;
+      btn.addEventListener('click', async () => {
+        if (!confirm('Log out of Broiler Base Mate?')) return;
+        btn.disabled = true;
+        btn.innerHTML = '<span class="spinner"></span> Signing out…';
+        try { await fetch('/api/auth/logout', { method: 'POST', credentials: 'include' }); } catch(_){}
+        window.location.href = '/landing';
+      });
+    })();
+
     function renderSettings(){
       $("#set-farm-name").value = farmConfig.farmName || "";
       $("#set-total-sheds").value = farmConfig.totalSheds || 20;

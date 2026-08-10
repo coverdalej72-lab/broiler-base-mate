@@ -28,6 +28,9 @@
 
   function inject() {
     if (document.getElementById('appcovi-lang-chip')) return;
+    // On the /reader page, the language selector lives in Settings tab —
+    // skip creating the floating chip to keep the workspace clean (Feb 2026).
+    if (/^\/reader(\/|$|\?)/.test(window.location.pathname)) return;
     var host = document.createElement('div');
     host.id = 'google_translate_element';
     host.style.cssText = 'position:absolute;left:-9999px;top:0;';

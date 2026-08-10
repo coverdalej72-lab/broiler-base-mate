@@ -237,6 +237,122 @@
     *, *::before, *::after { animation-duration:0.01ms !important; transition-duration:0.01ms !important; }
     html { scroll-behavior:auto; }
   }
+
+  /* ═══════════════════════════════════════════════════════════════════
+     MOBILE LAYER — Feb 2026 (Jason: "large share of visitors on mobile")
+     Consolidated overhaul: nav, hero, sections, cards, pricing readability.
+     Applies to phones + small tablets. Keep every rule inside this block
+     so desktop layout is untouched.
+     ═══════════════════════════════════════════════════════════════════ */
+  .m-hamburger { display:none; }
+  #m-nav-panel { display:none; }
+  @media (max-width: 900px) {
+    /* Hide the desktop nav links + small floating chips that clutter mobile.
+       Hamburger button appears in the nav; Appcovi corner-chip and any
+       preview-only farm-switcher are hidden. */
+    .hero .nav .links { display:none !important; }
+    .hero .nav { padding:12px 16px !important; max-width:100% !important; gap:8px !important; }
+    .hero .nav .logo { font-size:14px !important; letter-spacing:0.3px !important; flex:1 1 auto; min-width:0; }
+    .hero .nav .logo img { width:28px !important; height:28px !important; }
+    .m-hamburger { display:inline-flex !important; align-items:center; justify-content:center;
+      width:40px; height:40px; border-radius:10px; background:rgba(255,255,255,0.10);
+      border:1px solid rgba(255,255,255,0.20); color:#fff; font-size:22px; cursor:pointer;
+      flex-shrink:0; -webkit-tap-highlight-color:transparent; }
+    .m-hamburger:active { transform:scale(0.95); background:rgba(201,162,39,0.35); }
+    /* Kill the absolute-positioned APPCOVI corner chip on mobile — too big */
+    .hero > div[style*="position:absolute"][style*="top:18px"][style*="left:24px"] {
+      display:none !important;
+    }
+    /* Suppress the injected farm-switcher pill on landing (safety belt) */
+    #bbm-farm-switcher { display:none !important; }
+
+    /* Slide-in mobile menu */
+    #m-nav-panel {
+      display:block; position:fixed; top:0; right:0; height:100vh; width:min(320px, 86vw);
+      background:linear-gradient(180deg,#0a1428 0%, #1e2f4d 100%);
+      z-index:1000; padding:22px 22px 40px; overflow-y:auto;
+      border-left:1px solid rgba(201,162,39,0.35); box-shadow:-16px 0 40px rgba(0,0,0,0.45);
+      transform:translateX(100%); transition:transform .28s cubic-bezier(.2,.8,.2,1);
+    }
+    #m-nav-panel.open { transform:translateX(0); }
+    #m-nav-panel .m-close { display:flex; margin-left:auto; width:38px; height:38px; border-radius:10px;
+      background:rgba(255,255,255,0.08); border:1px solid rgba(255,255,255,0.2); color:#fff;
+      align-items:center; justify-content:center; font-size:20px; cursor:pointer; }
+    #m-nav-panel .m-panel-title { color:#C9A227; font-size:11px; letter-spacing:2px; text-transform:uppercase;
+      font-weight:800; margin:20px 0 12px; }
+    #m-nav-panel a.m-link { display:block; color:#fff; font-size:16px; font-weight:700;
+      padding:14px 12px; border-radius:10px; text-decoration:none; margin-bottom:4px;
+      border:1px solid transparent; }
+    #m-nav-panel a.m-link:active { background:rgba(201,162,39,0.15); border-color:rgba(201,162,39,0.4); }
+    #m-nav-panel a.m-link-primary { background:var(--gold); color:#000 !important; text-align:center;
+      margin-top:16px; padding:15px 12px; }
+    #m-nav-backdrop { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.55);
+      z-index:999; backdrop-filter:blur(3px); }
+    #m-nav-backdrop.open { display:block; }
+
+    /* Hero: tighter type, less padding, no more overflow */
+    .hero { min-height:auto !important; }
+    .hero-content { padding:34px 20px 60px !important; }
+    .hero-content::before { margin:0 auto 10px; }
+    .tagline { font-size:11px !important; letter-spacing:1.5px !important; margin-bottom:12px !important; }
+    h1 { font-size:36px !important; line-height:1.08 !important; letter-spacing:-1px !important; }
+    .lede { font-size:14.5px !important; line-height:1.55 !important; margin:14px auto 22px !important; }
+    .hero-btns { gap:10px !important; }
+    .hero-btns .btn { padding:13px 20px !important; font-size:14px !important; width:100%; justify-content:center; }
+    .proof-bar { padding:14px 16px !important; gap:12px !important; }
+    .proof-bar .stat { font-size:12px !important; }
+    .proof-bar .stat .num { font-size:16px !important; }
+
+    /* Sections — cut vertical padding almost in half on mobile */
+    section { padding:36px 18px !important; }
+    section h2, h2 { font-size:26px !important; letter-spacing:-0.5px !important; line-height:1.18 !important; }
+    section .sub, .sub { font-size:14px !important; margin-top:10px !important; }
+
+    /* Pricing cards — force strong contrast + full-width stack */
+    .plans-grid { grid-template-columns:1fr !important; gap:16px !important; margin-top:28px !important; }
+    .plan { padding:24px 22px !important; transform:none !important; }
+    .plan.featured { transform:none !important; }
+    .plan .tier { color:#1e2f4d !important; font-size:12px !important; letter-spacing:1.8px !important; }
+    .plan .price { font-size:38px !important; color:#0f1a2f !important; }
+    .plan .price span { color:#5a6a86 !important; }
+    .plan .trial { color:#0f6f2a !important; font-size:13px !important; }
+    .plan li { color:#0f1a2f !important; font-size:14px !important; padding:8px 0 !important; }
+    .plan .start-btn { font-size:15px !important; padding:15px !important; opacity:1 !important; }
+
+    /* Feature strip: 2 columns on mobile so the icons don't get lonely */
+    .features-grid { grid-template-columns:repeat(2,1fr) !important; gap:12px !important; }
+    .feature { padding:16px 8px !important; }
+    .feature .badge-ico { width:44px !important; height:44px !important; font-size:20px !important; }
+    .feature .label { font-size:11.5px !important; }
+
+    /* Steps / Sponsor / Build cards: single column, tighter */
+    .steps, .sponsor-grid, .build-grid { grid-template-columns:1fr !important; gap:14px !important; margin-top:26px !important; }
+    .step, .sponsor-card, .build-card { padding:22px !important; }
+    .step h3 { font-size:17px !important; }
+    .sponsor-card .amt, .build-card .amt { font-size:30px !important; }
+    .build-card p { min-height:auto !important; }
+
+    /* Sticky bottom CTA — bigger tap zone + safe-area padding for iOS */
+    #sticky-cta { padding:14px 16px calc(14px + env(safe-area-inset-bottom)) !important; }
+    #sticky-cta a.btn, #sticky-cta button.btn { padding:14px 20px !important; font-size:14px !important; width:100%; justify-content:center; }
+
+    /* Language chip — nudge above sticky CTA so it isn't clipped */
+    #appcovi-lang-chip { bottom:calc(72px + env(safe-area-inset-bottom)) !important; }
+
+    /* Ensure any embedded desktop mockup imagery scales inside its box */
+    img, video, iframe { max-width:100% !important; height:auto !important; }
+  }
+
+  @media (max-width: 420px) {
+    /* Phones under iPhone-SE-width — push the diet further */
+    .features-grid { grid-template-columns:1fr 1fr !important; }
+    h1 { font-size:32px !important; }
+    .hero-content { padding:28px 18px 52px !important; }
+    section { padding:30px 14px !important; }
+    .plan { padding:22px 18px !important; }
+    .plan .price { font-size:34px !important; }
+  }
+
 </style>
 <script src="/reader-assets/i18n-snippet.js" defer></script>
 </head>
@@ -259,7 +375,21 @@
         <a href="#build">Back the Build</a>
         <a href="#" id="login-link" style="color:var(--gold)">Login</a>
       </div>
+      <button class="m-hamburger" id="m-hamburger" data-testid="m-hamburger" aria-label="Open menu">☰</button>
     </nav>
+    <!-- Mobile slide-in menu (only visible under 900px via CSS) -->
+    <div id="m-nav-backdrop" data-testid="m-nav-backdrop"></div>
+    <aside id="m-nav-panel" data-testid="m-nav-panel" aria-label="Mobile menu">
+      <button class="m-close" id="m-close" data-testid="m-close" aria-label="Close menu">✕</button>
+      <div class="m-panel-title">Broiler Base Mate</div>
+      <a class="m-link" href="#plans" data-mnav>Plans &amp; Pricing</a>
+      <a class="m-link" href="#ops" data-mnav>Ops Pack</a>
+      <a class="m-link" href="#partners" data-mnav>Partners</a>
+      <a class="m-link" href="#sponsor" data-mnav>Sponsor</a>
+      <a class="m-link" href="#charity" data-mnav>Charity</a>
+      <a class="m-link" href="#build" data-mnav>Back the Build</a>
+      <a class="m-link m-link-primary" href="#" id="m-login-link" data-mnav>Login</a>
+    </aside>
     <div class="hero-content">
       <div class="tagline" id="hero-tagline">🇦🇺 Built by a Broiler Grower, for Broiler Growers</div>
       <h1 id="hero-h1">End the paperwork.<br><span class="accent">Grow better birds.</span></h1>
@@ -1961,6 +2091,44 @@
     } else {
       reveals.forEach(el => el.classList.add("visible"));
     }
+
+    // ── Mobile menu: hamburger + slide-in panel ──────────────────────
+    const mBurger   = document.getElementById("m-hamburger");
+    const mPanel    = document.getElementById("m-nav-panel");
+    const mBackdrop = document.getElementById("m-nav-backdrop");
+    const mClose    = document.getElementById("m-close");
+    const mLoginBtn = document.getElementById("m-login-link");
+    const openMenu  = () => {
+      if (!mPanel) return;
+      mPanel.classList.add("open");
+      mBackdrop.classList.add("open");
+      document.body.style.overflow = "hidden";
+    };
+    const closeMenu = () => {
+      if (!mPanel) return;
+      mPanel.classList.remove("open");
+      mBackdrop.classList.remove("open");
+      document.body.style.overflow = "";
+    };
+    if (mBurger) mBurger.addEventListener("click", openMenu);
+    if (mClose)  mClose.addEventListener("click", closeMenu);
+    if (mBackdrop) mBackdrop.addEventListener("click", closeMenu);
+    // Close menu when any in-panel link is tapped (anchor navigation)
+    document.querySelectorAll("#m-nav-panel [data-mnav]").forEach(a => {
+      a.addEventListener("click", () => setTimeout(closeMenu, 60));
+    });
+    // Route the mobile "Login" tap through the existing login-link handler
+    if (mLoginBtn) {
+      mLoginBtn.addEventListener("click", (ev) => {
+        ev.preventDefault();
+        const orig = document.getElementById("login-link");
+        if (orig) orig.click();
+      });
+    }
+    // Close on Esc
+    document.addEventListener("keydown", (e) => {
+      if (e.key === "Escape") closeMenu();
+    });
   })();
 </script>
 </body>
