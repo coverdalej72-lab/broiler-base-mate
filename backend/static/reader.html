@@ -829,14 +829,10 @@
     function initWeighTab(){
       const wrap = document.getElementById("weigh-shed-cards");
       if (!wrap) return;
-      const sheds = [];
-      if (groupsCache && groupsCache.length) {
-        for (const g of groupsCache) {
-          const n = g.n || 1;
-          sheds.push(n * 2 - 1, n * 2);
-        }
-      }
-      if (!sheds.length) sheds.push(1, 2);
+      // Mirror the Photos tab: one card per shed, driven by farmConfig.totalSheds
+      // so a 12-shed farm gets 12 cards. Feb 2026 (Jason).
+      const totalShedsNum = (farmConfig && farmConfig.totalSheds) || (groupsCache.length * 2) || 20;
+      const sheds = Array.from({length: totalShedsNum}, (_, i) => i + 1);
 
       // Compact 2-column grid: one big icon per shed, tap to pick AI or Manual
       wrap.style.cssText = "display:grid;grid-template-columns:repeat(2,1fr);gap:10px;";
