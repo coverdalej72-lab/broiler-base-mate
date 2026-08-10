@@ -1456,12 +1456,14 @@
       if (!m) {
         m = document.createElement("div");
         m.id = "manual-weigh-modal";
-        m.style.cssText = "position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:9998;display:none;align-items:flex-end;justify-content:center;";
+        // Note: no inline display rule — the CSS below (with !important) drives show/hide
+        // so `.show { display:flex }` isn't beaten by inline specificity (Feb 2026 bug fix).
+        m.style.cssText = "position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:9998;align-items:flex-end;justify-content:center;";
         m.innerHTML = `<div id="mw-body" style="background:var(--bg);border-top-left-radius:20px;border-top-right-radius:20px;width:100%;max-width:520px;"></div>`;
         document.body.appendChild(m);
         m.addEventListener("click", (e) => { if (e.target === m) m.classList.remove("show"); });
         const st = document.createElement("style");
-        st.textContent = "#manual-weigh-modal.show{display:flex;} @media(min-width:640px){#manual-weigh-modal{align-items:center;} #mw-body{border-radius:20px;}}";
+        st.textContent = "#manual-weigh-modal{display:none !important;} #manual-weigh-modal.show{display:flex !important;} @media(min-width:640px){#manual-weigh-modal.show{align-items:center !important;} #mw-body{border-radius:20px;}}";
         document.head.appendChild(st);
       }
       document.getElementById("mw-body").innerHTML = `

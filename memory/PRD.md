@@ -280,6 +280,8 @@
   - **Still needs user action (DNS)**: `https://www.broilerbasemate.com.au/` returns nothing. Emergent Support / DNS provider must configure a `www` CNAME → apex OR a 301 redirect from `www` → apex. This is the "Homepage not being crawled" root cause and can't be fixed in code.
 
 
+- **2026-02-10 (Bug fix — Manual weigh modal never opened)**: `openManualWeigh()` set `display:none` in inline `cssText`, which beat the `.show { display:flex }` class rule due to CSS specificity — so tapping "Manual" on any shed appeared to do nothing. Fixed by moving the display rules into a stylesheet with `!important` (`#manual-weigh-modal{display:none !important;} #manual-weigh-modal.show{display:flex !important;}`) and removing the inline `display:none`. Verified end-to-end: modal opens → type 1.85 → Log → "✓ 1.850 kg" shows on shed header + Feed Program updated.
+
 
 
 
