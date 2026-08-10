@@ -3482,8 +3482,12 @@ async def api_page(page_name: str):
         html = f.read()
     # Rewrite asset URLs so they go through /api/* (which nginx proxies to FastAPI)
     html = html.replace("/reader-assets/", "/api/static-asset/")
+    # SEO: allow crawlers + browsers to cache marketing pages for 5 minutes.
+    # Ops/reader/admin stay uncached (auth-guarded, user-specific).
+    is_public = page_name in ("landing", "landing/success", "onboarding-guide")
+    cache_hdr = "public, max-age=300, s-maxage=600" if is_public else "no-store"
     return Response(content=html, media_type="text/html; charset=utf-8",
-                    headers={"Cache-Control": "no-store"})
+                    headers={"Cache-Control": cache_hdr})
 
 
 @app.get("/onboarding-guide")
