@@ -397,9 +397,8 @@
     <div class="tab active" data-tab="today"><span class="ico">📋</span>Today</div>
     <div class="tab" data-tab="history"><span class="ico">🕐</span>History</div>
     <div class="tab" data-tab="deliveries"><span class="ico">🚚</span>Deliveries</div>
-    <div class="tab" data-tab="weigh"><span class="ico">⚖️</span>Weigh</div>
     <div class="tab" data-tab="chicks"><span class="ico">🐣</span>Chicks</div>
-    <div class="tab" data-tab="photos"><span class="ico">📷</span>Photos</div>
+    <div class="tab" data-tab="photos"><span class="ico">⚖️</span>Weigh</div>
     <div class="tab" data-tab="settings"><span class="ico">⚙️</span>Settings</div>
   </nav>
 
@@ -462,13 +461,13 @@
       <div class="delivery-card" id="delivery-card"></div>
     </div>
 
-    <!-- WEIGH BIRDS (per-shed cards: AI camera + manual combined) -->
-    <div class="scroll-area" id="tab-weigh" style="display:none">
+    <!-- WEIGH & PHOTOS (per-shed cards: AI camera + manual + photo audit) -->
+    <div class="scroll-area" id="tab-photos" style="display:none">
       <div style="padding:14px 16px;background:linear-gradient(180deg,#fff8e0,#fff);border-bottom:1px solid #f0e0a0;">
         <div style="font-size:11px;letter-spacing:1.5px;color:#7a5000;font-weight:800;margin-bottom:4px;">⚖️ WEIGH BIRDS · PER SHED</div>
-        <div style="font-size:12px;color:#5a5a5a;line-height:1.5;">Set the bird age once — then snap or type in a weight for each shed. Everything auto-syncs to the Feed Program.</div>
+        <div style="font-size:12px;color:#5a5a5a;line-height:1.5;">Set the bird age once — tap a shed to AI-weigh, type a manual weight, or snap a photo for the audit trail.</div>
       </div>
-      <div style="padding:14px 16px;">
+      <div style="padding:14px 16px 4px;">
         <!-- Shared age input -->
         <div style="background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:12px 14px;display:flex;align-items:center;gap:12px;margin-bottom:14px;">
           <label style="font-size:11px;color:var(--muted);font-weight:800;letter-spacing:0.5px;flex:1;">🗓️ BIRD AGE (DAYS)</label>
@@ -476,13 +475,18 @@
         </div>
         <!-- Hidden camera input (reused for every shed via data attribute) -->
         <input id="weigh-photo-in" type="file" accept="image/*" capture="environment" style="display:none;" />
-        <!-- Per-shed cards render here -->
-        <div id="weigh-shed-cards" style="display:grid;grid-template-columns:1fr;gap:12px;"></div>
-        <!-- Global preview modal-style panel for AI result -->
-        <div id="weigh-preview" style="margin-top:14px;display:none;"></div>
-        <!-- Session log -->
-        <div id="weigh-session-log" style="margin-top:20px;"></div>
+        <!-- AI result preview -->
+        <div id="weigh-preview" style="margin-bottom:14px;display:none;"></div>
       </div>
+      <div class="photo-section" id="mort-section">
+        <div class="ph-head danger" data-collapse="mort"><div class="ttl">📄 Mort Sheet</div><span>▲</span></div>
+        <div class="ph-body">
+          <button class="photo-btn mort" data-cat="mort_sheet">📄 Add Mort Sheet Photo</button>
+          <div id="mort-photos"></div>
+        </div>
+      </div>
+      <div id="bird-weight-sections"></div>
+      <div id="weigh-session-log" style="padding:0 16px 20px;"></div>
     </div>
 
     <!-- DAY-OLD CHICK COUNTER (AI) -->
@@ -502,18 +506,6 @@
         <div id="chicks-preview" style="margin-top:14px;display:none;"></div>
         <div id="chicks-session-log" style="margin-top:20px;"></div>
       </div>
-    </div>
-
-    <!-- PHOTOS -->
-    <div class="scroll-area" id="tab-photos" style="display:none">
-      <div class="photo-section" id="mort-section">
-        <div class="ph-head danger" data-collapse="mort"><div class="ttl">📄 Mort Sheet</div><span>▲</span></div>
-        <div class="ph-body">
-          <button class="photo-btn mort" data-cat="mort_sheet">📄 Add Mort Sheet Photo</button>
-          <div id="mort-photos"></div>
-        </div>
-      </div>
-      <div id="bird-weight-sections"></div>
     </div>
 
     <!-- SETTINGS -->
@@ -805,10 +797,9 @@
     function setActiveTab(name){
       activeTab=name;
       $$(".tab").forEach(t=>t.classList.toggle("active", t.dataset.tab===name));
-      ["today","history","deliveries","weigh","chicks","photos","settings"].forEach(n=>document.getElementById("tab-"+n).style.display=(n===name)?"":"none");
+      ["today","history","deliveries","chicks","photos","settings"].forEach(n=>document.getElementById("tab-"+n).style.display=(n===name)?"":"none");
       if (name==="history") loadHistory();
       if (name==="deliveries") loadDeliveries();
-      if (name==="weigh") initWeighTab();
       if (name==="chicks") initChicksTab();
       if (name==="photos") loadPhotos();
       if (name==="settings") renderSettings();
@@ -826,31 +817,9 @@
       });
     }
 
-    function initWeighTab(){
-      const wrap = document.getElementById("weigh-shed-cards");
-      if (!wrap) return;
-      // Mirror the Photos tab: one card per shed, driven by farmConfig.totalSheds
-      // so a 12-shed farm gets 12 cards. Feb 2026 (Jason).
-      const totalShedsNum = (farmConfig && farmConfig.totalSheds) || (groupsCache.length * 2) || 20;
-      const sheds = Array.from({length: totalShedsNum}, (_, i) => i + 1);
+    function initWeighTab(){ /* deprecated — merged into Weigh + Photos tab (Feb 2026) */ }
 
-      // Compact 2-column grid: one big icon per shed, tap to pick AI or Manual
-      wrap.style.cssText = "display:grid;grid-template-columns:repeat(2,1fr);gap:10px;";
-      wrap.innerHTML = sheds.map(s => `
-        <button class="shed-weigh-card" data-shed="${s}" style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;background:var(--panel);border:1.5px solid var(--line);border-radius:14px;padding:20px 12px;color:var(--ink);cursor:pointer;transition:transform .12s,border-color .12s;">
-          <div style="font-size:32px;line-height:1;">⚖️</div>
-          <div style="font-size:15px;font-weight:900;letter-spacing:0.3px;">Shed ${s}</div>
-          <div id="shed-${s}-status" style="font-size:11px;font-weight:700;color:var(--muted);letter-spacing:0.4px;min-height:14px;">Tap to weigh</div>
-        </button>
-      `).join("");
-
-      // Tap a shed card → open action-picker modal
-      wrap.querySelectorAll(".shed-weigh-card").forEach(card => {
-        card.addEventListener("click", () => openWeighPicker(+card.dataset.shed));
-      });
-    }
-
-    // Bottom-sheet: pick AI camera vs manual for the tapped shed
+    // Legacy bottom-sheet — no longer wired to any button but kept for reference.
     function openWeighPicker(shed) {
       const age = +document.getElementById("weigh-age").value;
       if (!age) { toast("Enter bird age first", "err"); document.getElementById("weigh-age").focus(); return; }
@@ -1433,9 +1402,9 @@
       $("#aiscan-modal").classList.remove("show"); toast("✓ Saved from AI scan","ok"); loadDeliveries();
     });
 
-    // ─── Photos ────────────────────────────────────────────────────────
+    // ─── Weigh + Photos (merged tab) ──────────────────────────────────
     async function loadPhotos(){
-      const totalShedsNum = farmConfig.totalSheds || 20;
+      const totalShedsNum = (farmConfig && farmConfig.totalSheds) || (groupsCache.length * 2) || 20;
       const r=await fetch("/api/photos"); photosCache=await r.json();
       $("#mort-photos").innerHTML = renderPhotoGrid(photosCache.filter(p=>p.category==="mort_sheet"));
       const wrap=$("#bird-weight-sections");
@@ -1443,13 +1412,84 @@
       wrap.innerHTML = sheds.map(n=>{
         const ph=photosCache.filter(p=>p.category==="bird_weight" && p.shedNumber===n);
         return `<div class="photo-section" data-shed="${n}">
-          <div class="ph-head" data-collapse="shed-${n}"><div class="ttl">Shed ${n}</div><span>▲</span></div>
+          <div class="ph-head" data-collapse="shed-${n}">
+            <div class="ttl">Shed ${n}</div>
+            <span id="shed-${n}-status" style="font-size:11px;color:var(--muted);font-weight:800;letter-spacing:0.3px;margin-right:10px;"></span>
+            <span>▲</span>
+          </div>
           <div class="ph-body">
-            <button class="photo-btn weight" data-cat="bird_weight" data-shed="${n}">⚖ Bird Weight</button>
+            <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:10px;">
+              <button data-weigh-ai="${n}" data-testid="weigh-ai-${n}" style="padding:14px 8px;background:#C9A227;color:#1a1000;border:0;border-radius:12px;font-weight:900;font-size:13px;display:flex;flex-direction:column;align-items:center;gap:4px;cursor:pointer;">
+                <span style="font-size:22px;">📷</span>
+                <span>AI Weigh</span>
+              </button>
+              <button data-weigh-manual="${n}" data-testid="weigh-manual-${n}" style="padding:14px 8px;background:#2b4266;color:#fff;border:0;border-radius:12px;font-weight:900;font-size:13px;display:flex;flex-direction:column;align-items:center;gap:4px;cursor:pointer;">
+                <span style="font-size:22px;">⚖️</span>
+                <span>Manual</span>
+              </button>
+              <button class="photo-btn weight" data-cat="bird_weight" data-shed="${n}" style="padding:14px 8px;font-size:13px;display:flex;flex-direction:column;align-items:center;gap:4px;">
+                <span style="font-size:22px;">🖼️</span>
+                <span>Photo</span>
+              </button>
+            </div>
             ${ph.length ? renderPhotoGrid(ph) : '<div class="photo-empty">No photos yet for Shed '+n+'</div>'}
           </div></div>`;
       }).join("");
       bindPhotoBtns();
+      // Wire up the per-shed AI/Manual weigh buttons
+      $$("[data-weigh-ai]").forEach(b => b.addEventListener("click", () => startAiWeigh(+b.dataset.weighAi)));
+      $$("[data-weigh-manual]").forEach(b => b.addEventListener("click", () => openManualWeigh(+b.dataset.weighManual)));
+    }
+
+    function startAiWeigh(shed) {
+      const age = +document.getElementById("weigh-age").value;
+      if (!age) { toast("Enter bird age first", "err"); document.getElementById("weigh-age").focus(); return; }
+      const inp = document.getElementById("weigh-photo-in");
+      inp.dataset.shed = shed;
+      inp.click();
+    }
+
+    function openManualWeigh(shed) {
+      const age = +document.getElementById("weigh-age").value;
+      if (!age) { toast("Enter bird age first", "err"); document.getElementById("weigh-age").focus(); return; }
+      let m = document.getElementById("manual-weigh-modal");
+      if (!m) {
+        m = document.createElement("div");
+        m.id = "manual-weigh-modal";
+        m.style.cssText = "position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:9998;display:none;align-items:flex-end;justify-content:center;";
+        m.innerHTML = `<div id="mw-body" style="background:var(--bg);border-top-left-radius:20px;border-top-right-radius:20px;width:100%;max-width:520px;"></div>`;
+        document.body.appendChild(m);
+        m.addEventListener("click", (e) => { if (e.target === m) m.classList.remove("show"); });
+        const st = document.createElement("style");
+        st.textContent = "#manual-weigh-modal.show{display:flex;} @media(min-width:640px){#manual-weigh-modal{align-items:center;} #mw-body{border-radius:20px;}}";
+        document.head.appendChild(st);
+      }
+      document.getElementById("mw-body").innerHTML = `
+        <div style="padding:16px 18px;background:#2b4266;color:#fff;border-top-left-radius:20px;border-top-right-radius:20px;display:flex;align-items:center;justify-content:space-between;">
+          <div>
+            <div style="font-size:11px;letter-spacing:1.5px;font-weight:800;opacity:0.8;">⚖️ MANUAL WEIGH</div>
+            <div style="font-size:16px;font-weight:900;margin-top:2px;">Shed ${shed} · Day ${age}</div>
+          </div>
+          <button data-mw-close style="background:transparent;border:0;color:#fff;font-size:24px;cursor:pointer;">×</button>
+        </div>
+        <div style="padding:20px 16px;">
+          <label style="font-size:11px;color:var(--muted);font-weight:800;letter-spacing:0.5px;">WEIGHT (KG)</label>
+          <div style="display:grid;grid-template-columns:1fr auto;gap:8px;margin-top:6px;">
+            <input id="mw-input" type="number" step="0.001" inputmode="decimal" placeholder="e.g. 1.850" style="padding:14px;font-size:22px;font-weight:900;text-align:center;border-radius:10px;border:1px solid var(--line);background:var(--panel);color:var(--ink);" />
+            <button id="mw-save" data-testid="mw-save" style="padding:14px 22px;background:var(--green-700);color:#fff;border:0;border-radius:10px;font-weight:900;font-size:14px;">Log</button>
+          </div>
+        </div>`;
+      m.classList.add("show");
+      setTimeout(() => document.getElementById("mw-input").focus(), 100);
+      m.querySelector("[data-mw-close]").onclick = () => m.classList.remove("show");
+      document.getElementById("mw-save").onclick = () => {
+        const kg = parseFloat(document.getElementById("mw-input").value);
+        if (!kg) { toast("Enter a weight", "err"); return; }
+        logWeigh(shed, age, kg, "manual");
+        const st = document.getElementById(`shed-${shed}-status`);
+        if (st) { st.textContent = `✓ ${kg.toFixed(3)} kg`; st.style.color = "#1a7a40"; }
+        m.classList.remove("show");
+      };
     }
     function renderPhotoGrid(items){
       if (!items.length) return '<div class="photo-empty">No photos yet</div>';

@@ -268,6 +268,8 @@
 
 - **2026-02-10 (Sticky WhatsApp CTA — mobile)**: Added floating `#wa-fab` pill on landing.html — WhatsApp brand green (#25D366), 30px SVG icon + "Chat" label, sits at `right:16px` and `bottom:calc(84px + env(safe-area-inset-bottom))` so it hovers above the "Start free trial" sticky bar without covering it. Opens `wa.me/61428337887` with pre-filled message "Hi Jason, saw Broiler Base Mate — got a couple of questions." Subtle 2.4s pulse ring for attention (disabled on reduced-motion). Hidden on desktop via `@media (max-width: 768px)`.
 - **2026-02-10 (Weigh Birds — per-shed cards)**: `initWeighTab()` in reader.html was hardcoded to 2 sheds per group (`sheds.push(n*2-1, n*2)`) — so a 12-shed farm on non-paired groups saw the wrong shed list. Refactored to mirror the Photos tab: driven by `farmConfig.totalSheds`, generating one weigh card per shed (Shed 1..N). Jason (12 sheds set in Settings) now sees exactly 12 cards.
+- **2026-02-10 (Merge Weigh + Photos into one tab)**: Removed the standalone Weigh tab from the reader nav; renamed Photos → Weigh. Each shed section in the merged tab now shows 3 buttons — **AI Weigh** (camera, gold), **Manual** (weight entry, navy), **Photo** (audit-trail, green thumbnail) — plus the existing photo grid. Bird Age input sits at the top of the tab and is shared across all sheds. Preserved `logWeigh()`, `weigh-photo-in`, `weigh-preview`, and `weigh-session-log` for the AI-camera flow (feeds `feedmate-flock-weighins` localStorage → Feed Program). Deprecated `initWeighTab()` (now a no-op). Fixed a null-reference in `setActiveTab()` that referenced the removed `#tab-weigh`.
+
 
 
 
