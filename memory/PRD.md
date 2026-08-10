@@ -266,6 +266,8 @@
   - **P1 — Fixed farm-switcher polluting public pages**: `mountFarmSwitcher` in the feed-program SPA `index.html` (both source + built) now short-circuits on `/landing`, `/success`, `/checkout`, `/pricing` — the "🚜 Farm: My Farm (default) · Ops →" pill no longer floats over marketing hero copy.
   - **P0 — Mobile landing.html overhaul**: Added a full mobile layer (@media ≤900px + ≤420px) with: proper hamburger + slide-in menu (right-drawer, safe-area padding, Esc-to-close), hidden desktop nav links + APPCOVI corner chip on small screens, tightened section padding (from 56px → 36px → 30px), hero headline down to 36/32px with line-height 1.08, buttons stretch full width, pricing cards forced to single-column with strong ink-colour text (fixes previously-washed-out $25 tier), 2-column feature strip, single-column steps/sponsor/build cards, sticky-CTA safe-area padding for iOS, language-chip nudged above CTA. Desktop unchanged (verified: hamburger hidden, nav links visible).
 
+- **2026-02-10 (Sticky WhatsApp CTA — mobile)**: Added floating `#wa-fab` pill on landing.html — WhatsApp brand green (#25D366), 30px SVG icon + "Chat" label, sits at `right:16px` and `bottom:calc(84px + env(safe-area-inset-bottom))` so it hovers above the "Start free trial" sticky bar without covering it. Opens `wa.me/61428337887` with pre-filled message "Hi Jason, saw Broiler Base Mate — got a couple of questions." Subtle 2.4s pulse ring for attention (disabled on reduced-motion). Hidden on desktop via `@media (max-width: 768px)`.
+
 
 
 

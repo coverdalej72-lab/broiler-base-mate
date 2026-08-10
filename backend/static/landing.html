@@ -1173,10 +1173,63 @@
       <a href="#plans" style="text-decoration:none;background:#C9A227;color:#000;padding:12px 20px;border-radius:99px;font-weight:900;font-size:14px;letter-spacing:0.3px;white-space:nowrap;">Start free trial →</a>
     </div>
   </div>
+  <!-- ── FLOATING WHATSAPP CHAT PILL (mobile only) ── -->
+  <a id="wa-fab"
+     data-testid="wa-fab"
+     href="https://wa.me/61428337887?text=Hi%20Jason%2C%20saw%20Broiler%20Base%20Mate%20%E2%80%94%20got%20a%20couple%20of%20questions."
+     target="_blank"
+     rel="noopener"
+     aria-label="Chat on WhatsApp"
+     translate="no">
+    <svg viewBox="0 0 32 32" width="30" height="30" fill="#fff" aria-hidden="true">
+      <path d="M19.11 17.28c-.28-.14-1.66-.82-1.92-.91-.26-.1-.44-.14-.63.14-.19.28-.72.91-.88 1.1-.16.19-.32.21-.6.07-.28-.14-1.18-.43-2.25-1.39-.83-.74-1.4-1.66-1.56-1.94-.16-.28-.02-.43.12-.57.13-.13.28-.32.42-.49.14-.16.19-.28.28-.46.09-.19.05-.35-.02-.49-.07-.14-.62-1.5-.85-2.05-.22-.53-.45-.46-.62-.47l-.53-.01c-.19 0-.49.07-.75.35-.26.28-.98.96-.98 2.34s1 2.72 1.14 2.9c.14.19 1.97 3 4.77 4.21.67.29 1.19.46 1.6.59.67.21 1.28.18 1.77.11.54-.08 1.66-.68 1.9-1.34.24-.66.24-1.22.16-1.34-.07-.12-.26-.19-.54-.33zM16.03 5.34c-5.9 0-10.7 4.8-10.7 10.7 0 1.88.49 3.72 1.42 5.34L5.28 26.66l5.45-1.44c1.56.85 3.31 1.3 5.12 1.3 5.9 0 10.7-4.8 10.7-10.7s-4.62-10.48-10.52-10.48zm0 19.53c-1.62 0-3.2-.44-4.58-1.26l-.33-.19-3.4.9.91-3.31-.22-.34c-.9-1.44-1.38-3.1-1.38-4.83 0-4.98 4.05-9.03 9.03-9.03s9.03 4.05 9.03 9.03-4.05 9.03-9.03 9.03z"/>
+    </svg>
+    <span class="wa-fab-label">Chat</span>
+    <span class="wa-fab-pulse" aria-hidden="true"></span>
+  </a>
   <style>
     @media (max-width: 768px) {
       #sticky-cta { display: block !important; }
       body { padding-bottom: 84px; }
+    }
+    /* ── Floating WhatsApp button — mobile only ── */
+    #wa-fab {
+      position:fixed;
+      right:16px;
+      /* Sit above the sticky CTA + iOS safe-area */
+      bottom:calc(84px + env(safe-area-inset-bottom));
+      z-index:95;
+      display:none;                 /* Hidden on desktop */
+      align-items:center;
+      gap:8px;
+      background:#25D366;           /* WhatsApp brand */
+      color:#fff;
+      padding:11px 16px 11px 12px;
+      border-radius:99px;
+      font:800 14px -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+      text-decoration:none;
+      box-shadow:0 8px 22px rgba(37,211,102,.45), 0 2px 6px rgba(0,0,0,.2);
+      -webkit-tap-highlight-color:transparent;
+      transition:transform .15s ease, box-shadow .2s ease;
+    }
+    #wa-fab:active { transform:scale(.94); box-shadow:0 6px 14px rgba(37,211,102,.5); }
+    #wa-fab svg { flex-shrink:0; filter:drop-shadow(0 1px 1px rgba(0,0,0,.15)); }
+    #wa-fab .wa-fab-label { letter-spacing:.2px; }
+    #wa-fab .wa-fab-pulse {
+      position:absolute; inset:-3px; border-radius:99px;
+      border:2px solid rgba(37,211,102,.55); pointer-events:none;
+      animation:waPulse 2.4s ease-out infinite;
+    }
+    @keyframes waPulse {
+      0%   { transform:scale(1);   opacity:.65; }
+      70%  { transform:scale(1.25); opacity:0; }
+      100% { transform:scale(1.25); opacity:0; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      #wa-fab .wa-fab-pulse { animation:none; display:none; }
+    }
+    @media (max-width: 768px) {
+      #wa-fab { display:inline-flex; }
     }
     /* ── Demo walkthrough animations ── */
     @keyframes typein { from { width: 0; } to { width: 100%; } }
