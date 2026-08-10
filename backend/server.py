@@ -1808,6 +1808,75 @@ If the photo does NOT clearly show a live broiler chicken, return:
         return {"ok": False, "estimatedWeightKg": None, "confidenceLevel": "low", "notes": f"AI error: {str(e)[:120]}"}
 
 
+@api.post("/read-scale")
+async def read_scale(payload: dict):
+    """Read the weight shown on a farm scale (digital LCD or analogue needle).
+
+    Body: { imageBase64: str, mimeType?: str, shedNum?: int, language?: str }
+    Returns: { ok, weightKg, rawReading, unit, isAnalogue, confidenceLevel, notes }
+    """
+    image_b64 = (payload or {}).get("imageBase64")
+    if not image_b64:
+        raise HTTPException(400, "imageBase64 required")
+    if "," in image_b64 and image_b64.startswith("data:"):
+        image_b64 = image_b64.split(",", 1)[1]
+    api_key = os.environ.get("EMERGENT_LLM_KEY")
+    if not api_key:
+        raise HTTPException(503, "LLM key not configured")
+    try:
+        from emergentintegrations.llm.chat import LlmChat, UserMessage, ImageContent
+    except Exception as e:
+        raise HTTPException(503, f"LLM lib missing: {e}")
+
+    system_msg = """You are reading a farm-scale weight display in a broiler shed. Return ONLY a JSON object, no markdown, no code fences.
+
+The scale may be:
+  • Digital LCD — a numeric display like "1.850", "1850", "2.415".
+  • Analogue needle dial — a physical pointer on a printed scale of numbers.
+
+The reading may be in kilograms (e.g. 1.850) OR grams (e.g. 1850). Detect which by looking for "kg" or "g" text near the number, OR by the magnitude (a broiler weighs 0.05–5 kg; if the number is 50–5000 with no decimal, it's almost certainly grams).
+
+Always normalise the final answer to kilograms.
+
+JSON schema:
+{
+  "rawReading": <string — exactly what you see, e.g. "1.850" or "1850">,
+  "unit": "kg" | "g",
+  "isAnalogue": <bool>,
+  "weightKg": <float, 3 decimals — the reading converted to kg>,
+  "confidenceLevel": "high" | "medium" | "low",
+  "notes": "One short sentence: what you saw + any concerns (glare, blur, needle-between-marks, etc.)"
+}
+
+If the photo is not clearly a scale reading OR the number is unreadable, return:
+{ "rawReading": null, "unit": null, "isAnalogue": false, "weightKg": null, "confidenceLevel": "low", "notes": "Scale reading not detected" }
+""" + _lang_directive(payload)
+
+    chat = LlmChat(
+        api_key=api_key,
+        session_id=f"read-scale-{uuid.uuid4().hex[:8]}",
+        system_message=system_msg,
+    ).with_model("gemini", "gemini-2.5-flash")
+    try:
+        msg = UserMessage(
+            text="Read the weight on this scale and return JSON only.",
+            file_contents=[ImageContent(image_base64=image_b64)],
+        )
+        raw = await chat.send_message(msg)
+        text = str(raw).strip()
+        if text.startswith("```"):
+            text = text.strip("`").split("\n", 1)[-1] if "\n" in text else text
+            if text.endswith("```"): text = text[:-3]
+        import json as _json
+        start = text.find("{"); end = text.rfind("}")
+        if start == -1 or end == -1:
+            return {"ok": False, "weightKg": None, "confidenceLevel": "low", "notes": "AI did not return JSON"}
+        data = _json.loads(text[start:end+1])
+        return {"ok": True, **data}
+    except Exception as e:
+        return {"ok": False, "weightKg": None, "confidenceLevel": "low", "notes": f"AI error: {str(e)[:120]}"}
+
+
 @api.post("/count-chicks")
 async def count_chicks(payload: dict):
     """Count day-old chicks visible in a crate photo using Gemini vision.
