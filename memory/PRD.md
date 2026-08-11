@@ -281,6 +281,8 @@
 
 
 - **2026-02-10 (Bug fix — Manual weigh modal never opened)**: `openManualWeigh()` set `display:none` in inline `cssText`, which beat the `.show { display:flex }` class rule due to CSS specificity — so tapping "Manual" on any shed appeared to do nothing. Fixed by moving the display rules into a stylesheet with `!important` (`#manual-weigh-modal{display:none !important;} #manual-weigh-modal.show{display:flex !important;}`) and removing the inline `display:none`. Verified end-to-end: modal opens → type 1.85 → Log → "✓ 1.850 kg" shows on shed header + Feed Program updated.
+- **2026-02-10 (EOB tab rebrand to match email)**: Ported the emailed EOB layout INTO the Feed Program's on-screen EOB tab. Added a new "Batch Report Preview" hero panel at the top (Appcovi navy gradient, gold `END OF BATCH REPORT` eyebrow, farm name + batch + generated-date sub) with an 8-tile KPI grid (Birds Placed / Caught / Morts / Mortality / Total Feed / Feed On Hand / Net Consumed / Batch). Swapped Bird Summary green (`#1a5c36`) → navy (`#1e2f4d`) across headers, totals row, balance colors, and Net Consumed banner (now navy gradient with gold top-border). Section labels now use gold-underlined navy chips instead of muted gray. Added a "BUILT BY APPCOVI" footer card at the bottom of the tab — identical style to the emailed report footer. Rebuilt with `BASE_PATH=/feed-program/ yarn build`; verified `END OF BATCH REPORT / Batch Performance / BUILT BY / POULTRY MANAGEMENT` all present in `dist/public/assets/index-*.js`.
+
 
 
 
