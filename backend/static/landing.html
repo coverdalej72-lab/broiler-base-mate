@@ -608,143 +608,119 @@
           </div>
         </div>
 
-        <!-- Card 3b — SEE IT IN ACTION (visual mockups) -->
-        <div style="background:linear-gradient(135deg,#0f1a2f 0%,#0a1428 100%);border:1px solid #2b4266;border-radius:20px;padding:34px 22px;box-shadow:0 8px 40px rgba(0,0,0,0.2);text-align:center;">
+        <!-- Card 3b — SEE IT IN ACTION (real iPhone screenshots · swipeable carousel) -->
+        <div style="background:linear-gradient(135deg,#0f1a2f 0%,#0a1428 100%);border:1px solid #2b4266;border-radius:20px;padding:34px 22px 22px;box-shadow:0 8px 40px rgba(0,0,0,0.2);text-align:center;">
           <div style="display:inline-block;background:#C9A227;color:#1a1000;font-weight:900;font-size:11px;padding:4px 10px;border-radius:99px;letter-spacing:1.5px;margin-bottom:16px;">📸 SEE IT IN ACTION</div>
           <h3 style="color:#fff;font-size:26px;font-weight:900;margin:0 0 8px;letter-spacing:-0.3px;">Real screens from the app.</h3>
-          <p style="color:#bdd3e0;font-size:14.5px;max-width:640px;margin:0 auto 32px;line-height:1.55;">Every mock below is straight from the live product — no polished marketing renders.</p>
-          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:22px;">
+          <p style="color:#bdd3e0;font-size:14.5px;max-width:640px;margin:0 auto 24px;line-height:1.55;">Actual iPhone screenshots — not renders. Swipe / drag to explore.</p>
 
-            <!-- 1) AI Docket Scan Result -->
-            <div>
-              <div style="background:#141e33;border:1.5px solid #2b4266;border-radius:22px;padding:14px 12px 18px;box-shadow:0 12px 30px rgba(0,0,0,0.35);position:relative;overflow:hidden;">
-                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
-                  <div style="color:#8fa5c4;font-size:9px;letter-spacing:0.5px;font-weight:700;">📄 DOCKET · INGHAM'S</div>
-                  <div style="background:#2dbd5e;color:#001;font-size:8px;font-weight:900;padding:2px 6px;border-radius:99px;letter-spacing:0.6px;">✓ PARSED</div>
+          <!-- Swipeable carousel -->
+          <div id="ss-carousel" style="position:relative;">
+            <div id="ss-track" style="display:flex;gap:20px;overflow-x:auto;scroll-snap-type:x mandatory;padding:16px 4px 22px;scrollbar-width:none;-ms-overflow-style:none;">
+              <style>#ss-track::-webkit-scrollbar{display:none;}</style>
+
+              <!-- Slide template: iPhone bezel wrapper -->
+              <div class="ss-slide" data-idx="0" style="scroll-snap-align:center;flex:0 0 auto;text-align:center;">
+                <div style="width:245px;margin:0 auto;background:#1a1f2e;border-radius:36px;padding:8px;border:2px solid #2b4266;box-shadow:0 20px 60px rgba(0,0,0,0.5),inset 0 0 0 1px rgba(255,255,255,0.05);position:relative;">
+                  <div style="position:absolute;top:14px;left:50%;transform:translateX(-50%);width:80px;height:22px;background:#0a0e18;border-radius:99px;z-index:2;"></div>
+                  <img src="/api/static-asset/screenshots/reader-today.jpg" alt="Today tab — live silo grid + Farm Buddy AI alerts" style="width:100%;height:auto;display:block;border-radius:28px;" loading="lazy" />
                 </div>
-                <div style="background:linear-gradient(180deg,#3a2f1c 0%,#2a2314 100%);border:1px solid #4a3a20;border-radius:8px;padding:10px 8px;color:#f4d798;font-family:'SF Mono',Menlo,monospace;font-size:9px;line-height:1.6;margin-bottom:10px;">
-                  <div style="text-align:center;font-weight:800;margin-bottom:4px;">INGHAM ENTERPRISES</div>
-                  <div>DOCKET#: 4471822</div>
-                  <div>SUPPLIER: MARIBRNONG</div>
-                  <div>FEED: FINISHER · 20 MM</div>
-                  <div>NET: 23,140 KG</div>
-                  <div>DATE: 09/02/26</div>
-                </div>
-                <div style="text-align:left;background:rgba(201,162,39,0.14);border:1px solid rgba(201,162,39,0.4);border-radius:8px;padding:8px 10px;">
-                  <div style="color:#C9A227;font-size:9px;letter-spacing:1px;font-weight:800;margin-bottom:4px;">🧠 AI EXTRACTED</div>
-                  <div style="color:#fff;font-size:11px;font-weight:800;line-height:1.4;">23,140 kg Finisher<br/><span style="color:#8fa5c4;font-weight:600;">→ Shed 3 Silo A</span></div>
-                </div>
+                <div style="color:#C9A227;font-size:12px;font-weight:800;margin-top:16px;letter-spacing:0.4px;">TODAY · SILO GRID</div>
+                <div style="color:#8fa5c4;font-size:11px;margin-top:2px;max-width:245px;margin-inline:auto;">Live silo readings across every shed + Farm Buddy AI alerts.</div>
               </div>
-              <div style="color:#C9A227;font-size:12px;font-weight:800;margin-top:12px;letter-spacing:0.4px;">AI DOCKET SCAN</div>
-              <div style="color:#8fa5c4;font-size:11px;margin-top:2px;">Snap the carbon-paper docket → tonnes into the right silo.</div>
+
+              <div class="ss-slide" data-idx="1" style="scroll-snap-align:center;flex:0 0 auto;text-align:center;">
+                <div style="width:245px;margin:0 auto;background:#1a1f2e;border-radius:36px;padding:8px;border:2px solid #2b4266;box-shadow:0 20px 60px rgba(0,0,0,0.5),inset 0 0 0 1px rgba(255,255,255,0.05);position:relative;">
+                  <div style="position:absolute;top:14px;left:50%;transform:translateX(-50%);width:80px;height:22px;background:#0a0e18;border-radius:99px;z-index:2;"></div>
+                  <img src="/api/static-asset/screenshots/reader-weigh.jpg" alt="Weigh tab — per-shed AI Weigh · Manual · Snap Scale buttons" style="width:100%;height:auto;display:block;border-radius:28px;" loading="lazy" />
+                </div>
+                <div style="color:#C9A227;font-size:12px;font-weight:800;margin-top:16px;letter-spacing:0.4px;">WEIGH · PER SHED</div>
+                <div style="color:#8fa5c4;font-size:11px;margin-top:2px;max-width:245px;margin-inline:auto;">AI Weigh, Manual and Snap-Scale for every shed.</div>
+              </div>
+
+              <div class="ss-slide" data-idx="2" style="scroll-snap-align:center;flex:0 0 auto;text-align:center;">
+                <div style="width:245px;margin:0 auto;background:#1a1f2e;border-radius:36px;padding:8px;border:2px solid #2b4266;box-shadow:0 20px 60px rgba(0,0,0,0.5),inset 0 0 0 1px rgba(255,255,255,0.05);position:relative;">
+                  <div style="position:absolute;top:14px;left:50%;transform:translateX(-50%);width:80px;height:22px;background:#0a0e18;border-radius:99px;z-index:2;"></div>
+                  <img src="/api/static-asset/screenshots/reader-deliveries.jpg" alt="Deliveries history — AI-parsed dockets by feed type" style="width:100%;height:auto;display:block;border-radius:28px;" loading="lazy" />
+                </div>
+                <div style="color:#C9A227;font-size:12px;font-weight:800;margin-top:16px;letter-spacing:0.4px;">AI DOCKET HISTORY</div>
+                <div style="color:#8fa5c4;font-size:11px;margin-top:2px;max-width:245px;margin-inline:auto;">Every delivery parsed by AI, grouped by feed type + docket.</div>
+              </div>
+
+              <div class="ss-slide" data-idx="3" style="scroll-snap-align:center;flex:0 0 auto;text-align:center;">
+                <div style="width:245px;margin:0 auto;background:#1a1f2e;border-radius:36px;padding:8px;border:2px solid #2b4266;box-shadow:0 20px 60px rgba(0,0,0,0.5),inset 0 0 0 1px rgba(255,255,255,0.05);position:relative;">
+                  <div style="position:absolute;top:14px;left:50%;transform:translateX(-50%);width:80px;height:22px;background:#0a0e18;border-radius:99px;z-index:2;"></div>
+                  <img src="/api/static-asset/screenshots/eob-email.jpg" alt="End of Batch email — branded navy/gold report with KPI grid" style="width:100%;height:auto;display:block;border-radius:28px;" loading="lazy" />
+                </div>
+                <div style="color:#C9A227;font-size:12px;font-weight:800;margin-top:16px;letter-spacing:0.4px;">EOB REPORT · EMAIL + PDF</div>
+                <div style="color:#8fa5c4;font-size:11px;margin-top:2px;max-width:245px;margin-inline:auto;">Auto-emailed after every batch — branded HTML + PDF attached.</div>
+              </div>
             </div>
 
-            <!-- 2) Photos Being Taken (bird weight capture) -->
-            <div>
-              <div style="background:#141e33;border:1.5px solid #2b4266;border-radius:22px;padding:14px 12px 18px;box-shadow:0 12px 30px rgba(0,0,0,0.35);position:relative;overflow:hidden;">
-                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
-                  <div style="color:#8fa5c4;font-size:9px;letter-spacing:0.5px;font-weight:700;">📸 SHED 3 · DAY 21</div>
-                  <div style="background:#e63973;color:#fff;font-size:8px;font-weight:900;padding:2px 6px;border-radius:99px;letter-spacing:0.6px;">● REC</div>
-                </div>
-                <div style="background:linear-gradient(135deg,#1a2438 0%,#0a0f1c 100%);border:1px solid #2b4266;border-radius:10px;height:130px;display:flex;align-items:center;justify-content:center;position:relative;margin-bottom:10px;overflow:hidden;">
-                  <div style="position:absolute;inset:0;background:radial-gradient(circle at 50% 55%, rgba(201,162,39,0.18) 0%, transparent 60%);"></div>
-                  <div style="font-size:52px;line-height:1;filter:drop-shadow(0 4px 12px rgba(201,162,39,0.4));">🐔</div>
-                  <div style="position:absolute;top:50%;left:50%;width:70px;height:70px;transform:translate(-50%,-50%);border:2px solid #C9A227;border-radius:50%;opacity:0.6;"></div>
-                  <div style="position:absolute;top:50%;left:50%;width:2px;height:14px;background:#C9A227;transform:translate(-50%,-50%);"></div>
-                  <div style="position:absolute;top:50%;left:50%;height:2px;width:14px;background:#C9A227;transform:translate(-50%,-50%);"></div>
-                </div>
-                <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:5px;">
-                  <div style="background:#C9A227;color:#1a1000;padding:6px 4px;border-radius:8px;font-size:9px;font-weight:900;">📷 AI</div>
-                  <div style="background:#2b4266;color:#fff;padding:6px 4px;border-radius:8px;font-size:9px;font-weight:900;">⚖ MANUAL</div>
-                  <div style="background:#1a7a40;color:#fff;padding:6px 4px;border-radius:8px;font-size:9px;font-weight:900;">📸 SCALE</div>
-                </div>
-              </div>
-              <div style="color:#C9A227;font-size:12px;font-weight:800;margin-top:12px;letter-spacing:0.4px;">PHOTOS PER SHED</div>
-              <div style="color:#8fa5c4;font-size:11px;margin-top:2px;">Snap the bird or the scale — AI reads the weight instantly.</div>
-            </div>
+            <!-- Arrow buttons (desktop) -->
+            <button id="ss-prev" aria-label="Previous slide" style="position:absolute;top:40%;left:-6px;transform:translateY(-50%);background:rgba(15,26,47,0.9);border:1.5px solid #C9A227;color:#C9A227;width:38px;height:38px;border-radius:50%;font-size:16px;font-weight:900;cursor:pointer;display:none;">←</button>
+            <button id="ss-next" aria-label="Next slide" style="position:absolute;top:40%;right:-6px;transform:translateY(-50%);background:rgba(15,26,47,0.9);border:1.5px solid #C9A227;color:#C9A227;width:38px;height:38px;border-radius:50%;font-size:16px;font-weight:900;cursor:pointer;display:none;">→</button>
 
-            <!-- 3) QR Code — Add to Home Screen -->
-            <div>
-              <div style="background:#141e33;border:1.5px solid #2b4266;border-radius:22px;padding:14px 12px 18px;box-shadow:0 12px 30px rgba(0,0,0,0.35);">
-                <div style="color:#8fa5c4;font-size:9px;letter-spacing:0.5px;font-weight:700;margin-bottom:10px;">📲 INVITE THE FIELD TEAM</div>
-                <div style="background:#fff;border-radius:12px;padding:14px;display:flex;align-items:center;justify-content:center;margin-bottom:10px;">
-                  <svg viewBox="0 0 25 25" width="120" height="120" xmlns="http://www.w3.org/2000/svg" style="image-rendering:pixelated;shape-rendering:crispEdges;">
-                    <rect width="25" height="25" fill="#fff"/>
-                    <g fill="#1e2f4d">
-                      <rect x="1" y="1" width="7" height="7"/><rect x="2" y="2" width="5" height="5" fill="#fff"/><rect x="3" y="3" width="3" height="3"/>
-                      <rect x="17" y="1" width="7" height="7"/><rect x="18" y="2" width="5" height="5" fill="#fff"/><rect x="19" y="3" width="3" height="3"/>
-                      <rect x="1" y="17" width="7" height="7"/><rect x="2" y="18" width="5" height="5" fill="#fff"/><rect x="3" y="19" width="3" height="3"/>
-                      <rect x="9" y="1" width="2" height="2"/><rect x="12" y="1" width="1" height="1"/><rect x="14" y="1" width="2" height="1"/>
-                      <rect x="10" y="3" width="1" height="1"/><rect x="12" y="3" width="2" height="1"/><rect x="15" y="3" width="1" height="1"/>
-                      <rect x="9" y="5" width="1" height="1"/><rect x="11" y="5" width="1" height="2"/><rect x="13" y="5" width="1" height="1"/><rect x="15" y="5" width="1" height="2"/>
-                      <rect x="1" y="9" width="1" height="2"/><rect x="3" y="9" width="2" height="1"/><rect x="6" y="9" width="1" height="1"/><rect x="8" y="9" width="1" height="1"/><rect x="10" y="9" width="2" height="1"/><rect x="13" y="9" width="1" height="1"/><rect x="15" y="9" width="1" height="1"/><rect x="17" y="9" width="1" height="1"/><rect x="20" y="9" width="1" height="1"/><rect x="22" y="9" width="1" height="1"/>
-                      <rect x="2" y="11" width="1" height="1"/><rect x="4" y="11" width="1" height="2"/><rect x="7" y="11" width="1" height="1"/><rect x="9" y="11" width="1" height="1"/><rect x="11" y="11" width="2" height="1"/><rect x="14" y="11" width="1" height="1"/><rect x="17" y="11" width="1" height="1"/><rect x="19" y="11" width="1" height="1"/><rect x="21" y="11" width="1" height="1"/>
-                      <rect x="1" y="13" width="1" height="1"/><rect x="3" y="13" width="1" height="1"/><rect x="5" y="13" width="2" height="1"/><rect x="8" y="13" width="1" height="1"/><rect x="10" y="13" width="1" height="1"/><rect x="12" y="13" width="1" height="1"/><rect x="15" y="13" width="1" height="2"/><rect x="18" y="13" width="1" height="1"/><rect x="20" y="13" width="2" height="1"/>
-                      <rect x="2" y="15" width="1" height="1"/><rect x="4" y="15" width="1" height="1"/><rect x="7" y="15" width="1" height="1"/><rect x="9" y="15" width="1" height="1"/><rect x="11" y="15" width="1" height="1"/><rect x="13" y="15" width="1" height="1"/><rect x="17" y="15" width="1" height="1"/><rect x="19" y="15" width="1" height="1"/><rect x="21" y="15" width="1" height="1"/>
-                      <rect x="9" y="17" width="1" height="1"/><rect x="11" y="17" width="2" height="1"/><rect x="14" y="17" width="1" height="1"/><rect x="16" y="17" width="1" height="1"/>
-                      <rect x="9" y="19" width="2" height="1"/><rect x="12" y="19" width="1" height="1"/><rect x="14" y="19" width="1" height="1"/><rect x="16" y="19" width="1" height="1"/><rect x="18" y="19" width="1" height="1"/>
-                      <rect x="10" y="21" width="1" height="1"/><rect x="12" y="21" width="2" height="1"/><rect x="15" y="21" width="1" height="1"/><rect x="17" y="21" width="1" height="1"/><rect x="19" y="21" width="1" height="1"/><rect x="21" y="21" width="2" height="1"/>
-                      <rect x="9" y="23" width="1" height="1"/><rect x="11" y="23" width="1" height="1"/><rect x="13" y="23" width="1" height="1"/><rect x="16" y="23" width="1" height="1"/><rect x="18" y="23" width="2" height="1"/><rect x="21" y="23" width="1" height="1"/>
-                    </g>
-                    <rect x="10" y="10" width="5" height="5" fill="#C9A227"/>
-                    <rect x="11" y="11" width="3" height="3" fill="#1e2f4d"/>
-                  </svg>
-                </div>
-                <div style="text-align:center;color:#fff;font-size:11px;font-weight:800;letter-spacing:0.3px;">Scan → Add to Home Screen</div>
-                <div style="text-align:center;color:#8fa5c4;font-size:9.5px;margin-top:3px;">Works offline in every shed</div>
-              </div>
-              <div style="color:#C9A227;font-size:12px;font-weight:800;margin-top:12px;letter-spacing:0.4px;">QR ONBOARDING</div>
-              <div style="color:#8fa5c4;font-size:11px;margin-top:2px;">Field team scans one code — the app installs on every phone.</div>
+            <!-- Dots -->
+            <div id="ss-dots" style="display:flex;gap:8px;justify-content:center;margin-top:6px;">
+              <button data-dot="0" aria-label="Slide 1" style="width:10px;height:10px;border-radius:99px;border:0;background:#C9A227;cursor:pointer;padding:0;"></button>
+              <button data-dot="1" aria-label="Slide 2" style="width:10px;height:10px;border-radius:99px;border:0;background:rgba(201,162,39,0.28);cursor:pointer;padding:0;"></button>
+              <button data-dot="2" aria-label="Slide 3" style="width:10px;height:10px;border-radius:99px;border:0;background:rgba(201,162,39,0.28);cursor:pointer;padding:0;"></button>
+              <button data-dot="3" aria-label="Slide 4" style="width:10px;height:10px;border-radius:99px;border:0;background:rgba(201,162,39,0.28);cursor:pointer;padding:0;"></button>
             </div>
-
-            <!-- 4) EOB Email Preview -->
-            <div>
-              <div style="background:#fff;border-radius:14px;box-shadow:0 12px 30px rgba(0,0,0,0.4);overflow:hidden;text-align:left;">
-                <div style="background:#f6f8fc;padding:8px 12px;border-bottom:1px solid #e5e9ee;display:flex;align-items:center;gap:6px;">
-                  <div style="width:8px;height:8px;border-radius:50%;background:#ff5f56;"></div>
-                  <div style="width:8px;height:8px;border-radius:50%;background:#ffbd2e;"></div>
-                  <div style="width:8px;height:8px;border-radius:50%;background:#27c93f;"></div>
-                  <div style="flex:1;text-align:center;color:#5a6a86;font-size:9px;font-weight:700;">📧 End of Batch — double b · Batch 122</div>
-                </div>
-                <div style="background:linear-gradient(135deg,#1e2f4d 0%,#0f1a2f 100%);padding:10px 14px;color:#fff;border-bottom:2px solid #C9A227;">
-                  <div style="font-size:8px;letter-spacing:1.5px;color:#C9A227;font-weight:800;">END OF BATCH REPORT</div>
-                  <div style="font-size:14px;font-weight:900;">Double B Farm</div>
-                  <div style="font-size:9px;color:#bdd3ee;margin-top:2px;">Batch 122 · Feb 2026</div>
-                </div>
-                <div style="padding:10px 12px;background:#f7f9fc;">
-                  <div style="font-size:8px;letter-spacing:1px;color:#1e2f4d;font-weight:800;text-transform:uppercase;border-bottom:2px solid #C9A227;padding-bottom:3px;margin-bottom:6px;">📊 Batch Performance</div>
-                  <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:5px;">
-                    <div style="background:#fff;border:1px solid #dce3ee;border-radius:5px;padding:5px 4px;text-align:center;">
-                      <div style="font-size:11px;font-weight:900;color:#1e2f4d;">492,395</div>
-                      <div style="font-size:7px;letter-spacing:0.5px;color:#5a6a86;font-weight:700;">BIRDS PLACED</div>
-                    </div>
-                    <div style="background:#fff;border:1px solid #dce3ee;border-radius:5px;padding:5px 4px;text-align:center;">
-                      <div style="font-size:11px;font-weight:900;color:#C9A227;">1,358.7t</div>
-                      <div style="font-size:7px;letter-spacing:0.5px;color:#5a6a86;font-weight:700;">TOTAL FEED</div>
-                    </div>
-                    <div style="background:#fff;border:1px solid #dce3ee;border-radius:5px;padding:5px 4px;text-align:center;">
-                      <div style="font-size:11px;font-weight:900;color:#1a7a40;">1.49</div>
-                      <div style="font-size:7px;letter-spacing:0.5px;color:#5a6a86;font-weight:700;">FCR</div>
-                    </div>
-                    <div style="background:#fff;border:1px solid #dce3ee;border-radius:5px;padding:5px 4px;text-align:center;">
-                      <div style="font-size:11px;font-weight:900;color:#1e2f4d;">140,000</div>
-                      <div style="font-size:7px;letter-spacing:0.5px;color:#5a6a86;font-weight:700;">FEED LEFT</div>
-                    </div>
-                  </div>
-                </div>
-                <div style="background:linear-gradient(135deg,#1e2f4d 0%,#0f1a2f 100%);padding:8px 12px;color:#fff;display:flex;align-items:center;gap:8px;">
-                  <div style="width:22px;height:22px;background:#fff;border-radius:5px;display:flex;align-items:center;justify-content:center;font-size:12px;">🛡</div>
-                  <div>
-                    <div style="font-size:6px;letter-spacing:1.5px;color:#8a99b8;font-weight:800;">BUILT BY</div>
-                    <div style="font-size:10px;font-weight:900;letter-spacing:0.3px;">APPCOVI</div>
-                  </div>
-                </div>
-              </div>
-              <div style="color:#C9A227;font-size:12px;font-weight:800;margin-top:12px;letter-spacing:0.4px;">EOB EMAIL &amp; PDF</div>
-              <div style="color:#8fa5c4;font-size:11px;margin-top:2px;">Auto-emailed after every batch — branded HTML + PDF attached.</div>
-            </div>
-
           </div>
+
+          <style>
+            @media (min-width: 900px) {
+              #ss-prev, #ss-next { display: flex !important; align-items:center; justify-content:center; }
+            }
+            .ss-slide img { transition: transform .4s ease, box-shadow .4s ease; }
+          </style>
+
+          <script>
+            (function(){
+              const track = document.getElementById("ss-track");
+              const dots  = [...document.querySelectorAll("#ss-dots button")];
+              const prevBtn = document.getElementById("ss-prev");
+              const nextBtn = document.getElementById("ss-next");
+              if (!track) return;
+              let autoTimer = null;
+              const total = 4;
+              function slideWidth(){
+                const s = track.querySelector(".ss-slide");
+                return s ? s.getBoundingClientRect().width + 20 : 265;
+              }
+              function currentIdx(){
+                return Math.round(track.scrollLeft / slideWidth());
+              }
+              function goTo(i, smooth=true){
+                const clamped = Math.max(0, Math.min(total-1, i));
+                track.scrollTo({ left: clamped * slideWidth(), behavior: smooth ? "smooth" : "auto" });
+              }
+              function updateDots(){
+                const i = currentIdx();
+                dots.forEach((d, k) => d.style.background = (k === i) ? "#C9A227" : "rgba(201,162,39,0.28)");
+              }
+              track.addEventListener("scroll", () => { updateDots(); });
+              dots.forEach(d => d.addEventListener("click", () => goTo(+d.dataset.dot)));
+              if (prevBtn) prevBtn.addEventListener("click", () => goTo(currentIdx() - 1));
+              if (nextBtn) nextBtn.addEventListener("click", () => goTo(currentIdx() + 1));
+              function startAuto(){
+                stopAuto();
+                autoTimer = setInterval(() => {
+                  const next = (currentIdx() + 1) % total;
+                  goTo(next);
+                }, 4500);
+              }
+              function stopAuto(){ if (autoTimer) { clearInterval(autoTimer); autoTimer = null; } }
+              // Pause on interaction
+              ["mouseenter","touchstart","pointerdown"].forEach(ev => track.addEventListener(ev, stopAuto, { passive: true }));
+              // Only auto-advance if user hasn't scrolled the carousel yet
+              if (window.matchMedia("(prefers-reduced-motion: no-preference)").matches) startAuto();
+              // Also stop auto once the user manually clicks a dot / arrow
+              [...dots, prevBtn, nextBtn].filter(Boolean).forEach(b => b.addEventListener("click", stopAuto));
+            })();
+          </script>
         </div>
 
         <!-- Card 4 — Flock Forecast + End of Batch -->
