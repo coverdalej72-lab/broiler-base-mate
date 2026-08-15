@@ -766,15 +766,6 @@
                 <div style="color:#C9A227;font-size:12px;font-weight:800;margin-top:16px;letter-spacing:0.4px;">READING HISTORY</div>
                 <div style="color:#8fa5c4;font-size:11px;margin-top:2px;max-width:245px;margin-inline:auto;">Every silo reading logged by day — one tap sends today's snapshot to head office.</div>
               </div>
-
-              <div class="ss-slide" data-idx="3" style="scroll-snap-align:center;flex:0 0 auto;text-align:center;">
-                <div style="width:245px;margin:0 auto;background:#1a1f2e;border-radius:36px;padding:8px;border:2px solid #2b4266;box-shadow:0 20px 60px rgba(0,0,0,0.5),inset 0 0 0 1px rgba(255,255,255,0.05);position:relative;">
-                  <div style="position:absolute;top:14px;left:50%;transform:translateX(-50%);width:80px;height:22px;background:#0a0e18;border-radius:99px;z-index:2;"></div>
-                  <img src="/api/static-asset/screenshots/eob-email.jpg" alt="End of Batch email — branded navy/gold report with KPI grid" style="width:100%;height:auto;display:block;border-radius:28px;" loading="lazy" />
-                </div>
-                <div style="color:#C9A227;font-size:12px;font-weight:800;margin-top:16px;letter-spacing:0.4px;">EOB REPORT · EMAIL + PDF</div>
-                <div style="color:#8fa5c4;font-size:11px;margin-top:2px;max-width:245px;margin-inline:auto;">Auto-emailed after every batch — branded HTML + PDF attached.</div>
-              </div>
             </div>
 
             <!-- Arrow buttons (desktop) -->
@@ -786,7 +777,6 @@
               <button data-dot="0" aria-label="Slide 1" style="width:10px;height:10px;border-radius:99px;border:0;background:#C9A227;cursor:pointer;padding:0;"></button>
               <button data-dot="1" aria-label="Slide 2" style="width:10px;height:10px;border-radius:99px;border:0;background:rgba(201,162,39,0.28);cursor:pointer;padding:0;"></button>
               <button data-dot="2" aria-label="Slide 3" style="width:10px;height:10px;border-radius:99px;border:0;background:rgba(201,162,39,0.28);cursor:pointer;padding:0;"></button>
-              <button data-dot="3" aria-label="Slide 4" style="width:10px;height:10px;border-radius:99px;border:0;background:rgba(201,162,39,0.28);cursor:pointer;padding:0;"></button>
             </div>
           </div>
 
@@ -805,7 +795,7 @@
               const nextBtn = document.getElementById("ss-next");
               if (!track) return;
               let autoTimer = null;
-              const total = 4;
+              const total = 3;
               function slideWidth(){
                 const s = track.querySelector(".ss-slide");
                 return s ? s.getBoundingClientRect().width + 20 : 265;
