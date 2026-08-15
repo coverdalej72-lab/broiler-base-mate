@@ -527,7 +527,6 @@ async def send_eob_report(req: EobEmailRequest, request: Request):
     pdf_attachment: Optional[dict] = None
     if req.report:
         html = _render_eob_html(req.report, req.farmName or "Broiler Base Mate", user.get("email") or "")
-        # Attach a PDF copy for head-office archiving. Uses headless Chrome
         # to render the SAME HTML → PDF, so the email and PDF are visually
         # identical. Silent no-op if Chrome isn't available (email still sends).
         try:
@@ -542,25 +541,46 @@ async def send_eob_report(req: EobEmailRequest, request: Request):
         except Exception as e:
             _log.warning("EOB PDF generation failed (email will still send without attachment): %s", e)
     else:
-        # Legacy fallback — plain text dump (for backwards compat)
+        # Fallback — when the client couldn't build a structured report payload
+        # (rare, but happens if a cell read throws mid-build). Render the plain
+        # text body INSIDE the branded Appcovi navy/gold shell so the grower
+        # still receives a professional-looking email, not a plaintext dump.
+        _log.warning("EOB fallback path: no structured report sent by client (recipients=%s, farm=%s)", req.to, req.farmName)
         safe_body = (
             req.body
             .replace("&", "&amp;")
             .replace("<", "&lt;")
             .replace(">", "&gt;")
         )
+        _now = datetime.now(timezone.utc).strftime("%d %b %Y")
         html = (
-            "<div style=\"font-family:system-ui,sans-serif;max-width:700px;margin:0 auto;\">"
-            f"<h2 style=\"color:#1e2f4d;margin-bottom:4px;\">End of Batch Report</h2>"
-            f"<p style=\"color:#64748b;font-size:13px;margin:0 0 14px;\">{farm_label} · sent by {user.get('email')}</p>"
-            "<pre style=\"background:#f7faf6;border:1px solid #d4e0d8;border-radius:8px;padding:16px;"
-            "font-family:monospace;font-size:12px;line-height:1.5;white-space:pre-wrap;color:#1f2937;\">"
+            "<!DOCTYPE html><html><head><meta charset=\"utf-8\" />"
+            "<title>End of Batch Report</title></head>"
+            "<body style=\"margin:0;padding:24px 12px;background:#eef2f9;"
+            "font-family:-apple-system,BlinkMacSystemFont,'SF Pro Text','Segoe UI',Roboto,sans-serif;"
+            "color:#1e2f4d;-webkit-font-smoothing:antialiased;\">"
+            "<div style=\"max-width:680px;margin:0 auto;background:#f7f9fc;border-radius:16px;overflow:hidden;box-shadow:0 8px 32px -12px rgba(15,26,47,0.28);\">"
+            # Branded hero (matches _render_eob_html)
+            "<div style=\"background:linear-gradient(135deg,#1e2f4d 0%,#0f1a2f 100%);padding:32px 28px;color:#fff;border-bottom:3px solid #C9A227;\">"
+            "<div style=\"font-size:11px;letter-spacing:3px;color:#C9A227;font-weight:800;margin-bottom:2px;\">END OF BATCH REPORT</div>"
+            f"<div style=\"font-size:24px;font-weight:900;letter-spacing:-0.4px;line-height:1.15;\">{farm_label}</div>"
+            f"<div style=\"font-size:13px;color:#bdd3ee;margin-top:4px;\">Generated {_now}</div>"
+            "</div>"
+            # Body
+            "<div style=\"padding:24px;\">"
+            "<div style=\"font-size:11px;letter-spacing:1.5px;color:#1e2f4d;font-weight:800;text-transform:uppercase;border-bottom:2px solid #C9A227;padding-bottom:6px;margin-bottom:14px;\">Batch Summary</div>"
+            "<pre style=\"background:#fff;border:1px solid #dce3ee;border-radius:10px;padding:16px;"
+            "font-family:'SF Mono','Menlo',Consolas,monospace;font-size:12px;line-height:1.55;white-space:pre-wrap;color:#1e2f4d;margin:0;\">"
             f"{safe_body}"
             "</pre>"
-            "<p style=\"color:#9ca3af;font-size:11px;margin-top:18px;\">"
-            "Sent by Broiler Base Mate — broilerbasemate.com.au"
-            "</p>"
+            f"<p style=\"color:#5a6a86;font-size:12px;margin:18px 0 0;\">Sent by <strong style=\"color:#1e2f4d;\">{user.get('email')}</strong> via Broiler Base Mate.</p>"
             "</div>"
+            # Footer
+            "<div style=\"background:#f0f3f9;padding:16px 24px;border-top:1px solid #dce3ee;text-align:center;\">"
+            "<div style=\"font-size:10px;letter-spacing:2px;color:#5a6a86;font-weight:800;text-transform:uppercase;\">Powered by Appcovi</div>"
+            "<div style=\"font-size:11px;color:#5a6a86;margin-top:4px;\">broilerbasemate.com.au</div>"
+            "</div>"
+            "</div></body></html>"
         )
 
     sent_to: list[str] = []
