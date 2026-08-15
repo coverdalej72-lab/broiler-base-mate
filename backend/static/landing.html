@@ -55,6 +55,26 @@
   .btn-gold:hover { background:#dab43b; transform:translateY(-1px); }
   .btn-ghost { background:rgba(255,255,255,.08); color:#fff; border:1px solid rgba(255,255,255,.25); }
   .btn-ghost:hover { background:rgba(255,255,255,.18); }
+  /* Corner ribbon sticker — diagonal "Start Your Free Trial" banner */
+  #trial-ribbon { position:absolute; top:0; right:0; width:200px; height:200px; overflow:hidden;
+    z-index:6; pointer-events:none; text-decoration:none; }
+  #trial-ribbon .trial-ribbon-inner {
+    pointer-events:auto; cursor:pointer;
+    position:absolute; display:block;
+    width:285px; padding:10px 0;
+    left:-42px; top:80px;
+    transform:rotate(45deg); transform-origin:center;
+    background:#ffffff; color:#0a1428;
+    border-top:2px solid #0a1428; border-bottom:2px solid #0a1428;
+    box-shadow:0 6px 18px rgba(0,0,0,.45);
+    text-align:center;
+    font-weight:900; letter-spacing:1.4px; line-height:1.15;
+    transition:background .18s ease, box-shadow .18s ease;
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+  }
+  #trial-ribbon:hover .trial-ribbon-inner { background:#fff7e0; box-shadow:0 8px 22px rgba(0,0,0,.55); }
+  #trial-ribbon .trial-ribbon-line1 { display:block; font-size:10px; color:#0a1428; opacity:.7; letter-spacing:2px; }
+  #trial-ribbon .trial-ribbon-line2 { display:block; font-size:15px; color:#0a1428; letter-spacing:1.4px; margin-top:2px; }
   /* Features strip */
   .features-strip { background:linear-gradient(180deg,#fff 0%, #fbfaf4 100%); padding:60px 24px;
     border-bottom:1px solid var(--line); }
@@ -263,6 +283,11 @@
     .hero > div[style*="position:absolute"][style*="top:18px"][style*="left:24px"] {
       display:none !important;
     }
+    /* Shrink the trial ribbon sticker on mobile */
+    #trial-ribbon { width:150px !important; height:150px !important; }
+    #trial-ribbon .trial-ribbon-inner { width:212px !important; padding:7px 0 !important; left:-31px !important; top:60px !important; }
+    #trial-ribbon .trial-ribbon-line1 { font-size:8px !important; letter-spacing:1.6px !important; }
+    #trial-ribbon .trial-ribbon-line2 { font-size:12px !important; letter-spacing:1px !important; }
     /* Suppress the injected farm-switcher pill on landing (safety belt) */
     #bbm-farm-switcher { display:none !important; }
 
@@ -358,12 +383,20 @@
 </head>
 <body>
   <!-- Launch banner removed — standard pricing, no discount -->
+  <a id="top" aria-hidden="true"></a>
   <!-- HERO -->
   <div class="hero">
     <div style="position:absolute;top:18px;left:24px;z-index:5;display:flex;align-items:center;gap:10px;background:rgba(0,0,0,0.4);padding:8px 14px 8px 8px;border-radius:99px;border:1px solid rgba(201,162,39,0.3);backdrop-filter:blur(6px);">
       <img src="/reader-assets/company-logo.png" alt="Company logo" style="height:36px;width:36px;object-fit:contain;border-radius:8px;background:#0a1428;" />
       <span style="font-size:11px;letter-spacing:2px;color:#C9A227;font-weight:800;text-transform:uppercase;" id="hero-company-name">APPCOVI</span>
     </div>
+    <!-- Corner ribbon sticker: white with navy border, tap scrolls to top -->
+    <a href="#top" id="trial-ribbon" data-testid="trial-ribbon" aria-label="Start your free trial">
+      <span class="trial-ribbon-inner">
+        <span class="trial-ribbon-line1">START YOUR</span>
+        <span class="trial-ribbon-line2">FREE TRIAL</span>
+      </span>
+    </a>
     <nav class="nav" style="padding-left:240px;">
       <div class="logo"><img src="/reader-assets/logo.svg" alt="Broiler Base Mate logo" /> BROILER BASE MATE</div>
       <div class="links">
