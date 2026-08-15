@@ -17,6 +17,93 @@
 <meta name="twitter:title" content="Broiler Base Mate — Every shed. Every batch." />
 <meta name="twitter:description" content="Live silo tracking, AI docket scanning, FCR &amp; cFCR results for Australian broiler farms." />
 <link rel="icon" href="/reader-assets/favicon.png" />
+
+<!-- AI assistants & search engines: canonical machine-readable summary at /llms.txt and /llms-full.txt -->
+<link rel="alternate" type="text/plain" href="https://broilerbasemate.com.au/llms.txt" title="LLM-friendly summary" />
+
+<!-- JSON-LD Structured Data — SoftwareApplication + Organization + FAQ + Breadcrumbs -->
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "SoftwareApplication",
+      "@id": "https://broilerbasemate.com.au/#software",
+      "name": "Broiler Base Mate",
+      "alternateName": ["BBM", "Appcovi Broiler Base Mate"],
+      "operatingSystem": "Web, iOS, Android",
+      "applicationCategory": "BusinessApplication",
+      "applicationSubCategory": "Farm Management Software",
+      "description": "Australian farm-management SaaS for commercial broiler-chicken growers. Live silo tracking, AI docket scanning, real-time FCR / cFCR, End-of-Batch reports and multi-farm Ops Manager view. Built by a 3rd-generation Aussie broiler grower.",
+      "url": "https://broilerbasemate.com.au/",
+      "image": "https://broilerbasemate.com.au/reader-assets/appcovi-hero.png",
+      "author": { "@id": "https://broilerbasemate.com.au/#organization" },
+      "publisher": { "@id": "https://broilerbasemate.com.au/#organization" },
+      "offers": [
+        { "@type": "Offer", "name": "Bronze", "price": "20", "priceCurrency": "AUD", "availability": "https://schema.org/InStock", "url": "https://broilerbasemate.com.au/#plans" },
+        { "@type": "Offer", "name": "Silver", "price": "25", "priceCurrency": "AUD", "availability": "https://schema.org/InStock", "url": "https://broilerbasemate.com.au/#plans" },
+        { "@type": "Offer", "name": "Gold",   "price": "30", "priceCurrency": "AUD", "availability": "https://schema.org/InStock", "url": "https://broilerbasemate.com.au/#plans" }
+      ],
+      "featureList": [
+        "Live silo weight tracking per shed",
+        "AI docket scanning (Ingham's, Baiada, BPL Adelaide)",
+        "AI Weigh Birds, Count Chicks, Mort Sheets, Scale Reading",
+        "AI Farm Buddy advisor",
+        "Real-time FCR / cFCR / cage rating / payment $",
+        "End-of-Batch PDF report email",
+        "Ops Manager multi-farm dashboard",
+        "PWA install on iOS and Android",
+        "Offline-queued sync"
+      ],
+      "inLanguage": "en-AU",
+      "audience": {
+        "@type": "Audience",
+        "audienceType": "Australian broiler poultry growers, contract growers, Ops Managers"
+      }
+    },
+    {
+      "@type": "Organization",
+      "@id": "https://broilerbasemate.com.au/#organization",
+      "name": "Appcovi",
+      "alternateName": "Broiler Base Mate",
+      "url": "https://broilerbasemate.com.au/",
+      "logo": "https://broilerbasemate.com.au/reader-assets/company-logo.png",
+      "founder": {
+        "@type": "Person",
+        "name": "Jason Coverdale",
+        "jobTitle": "Founder",
+        "description": "Third-generation Australian broiler grower on a Baiada contract."
+      },
+      "foundingDate": "2025",
+      "areaServed": { "@type": "Country", "name": "Australia" },
+      "email": "appcovi2026@gmail.com",
+      "contactPoint": {
+        "@type": "ContactPoint",
+        "contactType": "customer support",
+        "email": "appcovi2026@gmail.com",
+        "areaServed": "AU",
+        "availableLanguage": ["English"]
+      }
+    },
+    {
+      "@type": "FAQPage",
+      "@id": "https://broilerbasemate.com.au/#faq",
+      "mainEntity": [
+        { "@type": "Question", "name": "What processors does Broiler Base Mate support?",
+          "acceptedAnswer": { "@type": "Answer", "text": "Ingham's, Baiada, BPL Adelaide and all Australian independent processors. The AI docket scanner auto-detects the mill from the docket header." } },
+        { "@type": "Question", "name": "Does the AI read handwritten mort sheets and delivery dockets?",
+          "acceptedAnswer": { "@type": "Answer", "text": "Yes. Gemini 2.5 Flash Vision reads handwritten mort sheets, feed-mill dockets and digital scale displays from photos." } },
+        { "@type": "Question", "name": "Does it work offline in the shed?",
+          "acceptedAnswer": { "@type": "Answer", "text": "Yes. The Reader PWA queues silo readings and dockets locally and syncs the moment reception returns." } },
+        { "@type": "Question", "name": "How much does Broiler Base Mate cost?",
+          "acceptedAnswer": { "@type": "Answer", "text": "Bronze A$20, Silver A$25 and Gold A$30 per farm per month AUD. All plans include a 30-day free trial with no credit card required." } },
+        { "@type": "Question", "name": "Who built Broiler Base Mate?",
+          "acceptedAnswer": { "@type": "Answer", "text": "Jason Coverdale, a third-generation Australian broiler grower on a Baiada contract, founded Appcovi and built Broiler Base Mate to fix the paperwork burden on his own farm." } }
+      ]
+    }
+  ]
+}
+</script>
 <style>
   :root { --green-900:#1e2f4d; --green-700:#2b4266; --green-500:#3d5f9c; --gold:#C9A227;
     --gold-light:#f5e8b8; --ink:#0f1a2f; --muted:#5a6a86; --paper:#f7f9fc; --line:#dce3ee;
