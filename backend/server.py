@@ -3493,7 +3493,11 @@ async def api_page(page_name: str):
         "admin/health": "admin-health.html",
         "onboarding-guide": "onboarding-guide.html",
         "tools/fcr-calculator": "tools-fcr-calculator.html",
+        "tools/grower-payment-calculator": "tools-grower-payment-calculator.html",
+        "tools/silo-capacity-calculator": "tools-silo-capacity-calculator.html",
         "ross-308-growth-chart": "ross-308-growth-chart.html",
+        "cobb-500-growth-chart": "cobb-500-growth-chart.html",
+        "vs/poultrylog": "vs-poultrylog.html",
     }
     if page_name not in allowed:
         raise HTTPException(404, "Page not found")
@@ -3506,7 +3510,7 @@ async def api_page(page_name: str):
     html = html.replace("/reader-assets/", "/api/static-asset/")
     # SEO: allow crawlers + browsers to cache marketing pages for 5 minutes.
     # Ops/reader/admin stay uncached (auth-guarded, user-specific).
-    is_public = page_name in ("landing", "landing/success", "onboarding-guide", "tools/fcr-calculator", "ross-308-growth-chart")
+    is_public = page_name in ("landing", "landing/success", "onboarding-guide", "tools/fcr-calculator", "tools/grower-payment-calculator", "tools/silo-capacity-calculator", "ross-308-growth-chart", "cobb-500-growth-chart", "vs/poultrylog")
     cache_hdr = "public, max-age=300, s-maxage=600" if is_public else "no-store"
     return Response(content=html, media_type="text/html; charset=utf-8",
                     headers={"Cache-Control": cache_hdr})

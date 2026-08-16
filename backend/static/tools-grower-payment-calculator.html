@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="en-AU">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Grower Payment Calculator — Broiler Contract Settlement Estimator (Ingham's, Baiada, BPL) | Broiler Base Mate</title>
+<meta name="description" content="Free grower payment calculator for Australian broiler contracts. Estimates settlement $ per bird and total batch payment using the standard Aussie formula (efficiency rating × payment factor). Works for Ingham's, Baiada and BPL Adelaide growers." />
+<meta name="keywords" content="grower payment calculator, broiler contract calculator, chicken grower payment calculator, Baiada payment schedule, Ingham's grower payment, BPL Adelaide grower payment, poultry contract settlement, cage rating calculator, efficiency rating broiler, broiler payment per bird, poultry grower income calculator" />
+<meta name="robots" content="index, follow, max-image-preview:large" />
+<link rel="canonical" href="https://broilerbasemate.com.au/tools/grower-payment-calculator" />
+<meta property="og:type" content="website" />
+<meta property="og:title" content="Free Grower Payment Calculator · Broiler Base Mate" />
+<meta property="og:description" content="Estimate broiler contract settlement using cFCR, cage rating and efficiency rating. Free, no signup." />
+<meta property="og:url" content="https://broilerbasemate.com.au/tools/grower-payment-calculator" />
+<meta property="og:site_name" content="Broiler Base Mate" />
+<meta property="og:locale" content="en_AU" />
+<link rel="icon" href="/reader-assets/favicon.png" />
+<meta name="theme-color" content="#0f1a2f" />
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "WebPage",
+      "@id": "https://broilerbasemate.com.au/tools/grower-payment-calculator#page",
+      "url": "https://broilerbasemate.com.au/tools/grower-payment-calculator",
+      "name": "Grower Payment Calculator",
+      "description": "Interactive Australian broiler contract settlement calculator using cFCR, cage rating and efficiency rating.",
+      "isPartOf": { "@type": "WebSite", "@id": "https://broilerbasemate.com.au/#website" },
+      "inLanguage": "en-AU",
+      "about": { "@id": "https://broilerbasemate.com.au/#software" }
+    },
+    {
+      "@type": "HowTo",
+      "name": "How to calculate a broiler grower contract payment",
+      "step": [
+        { "@type": "HowToStep", "position": 1, "name": "Get corrected FCR (cFCR)", "text": "cFCR = FCR − (average bird weight in kg − 2.45) × 0.27. Use our FCR calculator if you don't have it." },
+        { "@type": "HowToStep", "position": 2, "name": "Calculate cage rating", "text": "Cage rating = 39.5 ÷ corrected batch age in days." },
+        { "@type": "HowToStep", "position": 3, "name": "Calculate efficiency rating", "text": "Efficiency rating = ((1.78 ÷ cFCR) × 0.7) + (cage rating × 0.3)." },
+        { "@type": "HowToStep", "position": 4, "name": "Multiply by payment factor and bird count", "text": "Payment per bird = efficiency rating × contract payment factor (typically A$0.0050 on Baiada, A$0.0048–0.0052 on Ingham's). Total payment = payment per bird × birds caught." }
+      ]
+    },
+    {
+      "@type": "FAQPage",
+      "mainEntity": [
+        { "@type": "Question", "name": "How is a broiler grower paid in Australia?",
+          "acceptedAnswer": { "@type": "Answer", "text": "On a per-bird basis. Payment = efficiency rating × contract payment factor × birds caught. Efficiency rating rewards better corrected FCR (cFCR) and younger corrected batch age. Typical payment factor is A$0.0048–0.0052 depending on contract." } },
+        { "@type": "Question", "name": "What is the payment factor on a Baiada contract?",
+          "acceptedAnswer": { "@type": "Answer", "text": "The default payment factor used on most Baiada broiler contracts is A$0.0050. This may be adjusted for seasonal bonuses, welfare programs or breed premiums — always check your latest contract letter." } },
+        { "@type": "Question", "name": "Can I improve my payment mid-batch?",
+          "acceptedAnswer": { "@type": "Answer", "text": "Yes. The two biggest levers are FCR (feed efficiency) and mortality-corrected batch age. Broiler Base Mate's Farm Buddy AI recommends daily feed drops to reduce wastage and flags mortality spikes early — both directly improve efficiency rating." } }
+      ]
+    }
+  ]
+}
+</script>
+
+<style>
+  :root { --navy:#0f1a2f; --navy-2:#1e2f4d; --gold:#C9A227; --gold-hi:#e6d68e; --paper:#f7f9fc; --line:#dce3ee; --text:#1e2f4d; --muted:#5a6a86; }
+  * { box-sizing: border-box; }
+  body { margin:0; font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",Roboto,sans-serif; color:var(--text); background:var(--paper); -webkit-font-smoothing:antialiased; }
+  a { color:#0e6bc0; }
+  header.hero { background:linear-gradient(135deg,var(--navy-2),var(--navy)); color:#fff; padding:60px 20px 44px; border-bottom:3px solid var(--gold); }
+  .wrap { max-width:940px; margin:0 auto; padding:0 20px; }
+  .brand-row { display:flex; align-items:center; gap:10px; margin-bottom:22px; }
+  .brand-row img { width:36px; height:36px; border-radius:8px; }
+  .brand-row a { color:var(--gold); text-decoration:none; font-weight:800; letter-spacing:2px; font-size:11px; text-transform:uppercase; }
+  .kicker { color:var(--gold); font-size:11px; letter-spacing:3px; font-weight:800; text-transform:uppercase; margin-bottom:8px; }
+  h1 { font-size:34px; font-weight:900; margin:0 0 10px; letter-spacing:-0.6px; line-height:1.15; }
+  header.hero p { color:#bdd3ee; font-size:16px; margin:0; max-width:680px; line-height:1.55; }
+  main { padding:40px 0 60px; }
+  section { background:#fff; border:1px solid var(--line); border-radius:14px; padding:24px; margin-bottom:22px; box-shadow:0 4px 14px -8px rgba(15,26,47,0.15); }
+  h2 { color:var(--navy); font-size:22px; font-weight:900; margin:0 0 14px; padding-bottom:8px; border-bottom:2px solid var(--gold); letter-spacing:-0.3px; }
+  h3 { color:var(--navy); font-size:16px; font-weight:800; margin:20px 0 8px; }
+  .grid { display:grid; grid-template-columns:1fr 1fr; gap:16px; }
+  @media (max-width:640px) { .grid { grid-template-columns:1fr; } h1 { font-size:26px; } }
+  label { display:block; font-size:12px; font-weight:800; color:var(--muted); letter-spacing:0.5px; text-transform:uppercase; margin-bottom:4px; }
+  input[type=number] { width:100%; padding:12px 14px; border:1.5px solid var(--line); border-radius:10px; font-size:18px; font-weight:700; color:var(--navy); background:#f8fafd; }
+  input[type=number]:focus { outline:0; border-color:var(--gold); background:#fff; }
+  .results { background:linear-gradient(135deg,#0f1a2f,#1e2f4d); color:#fff; border-radius:14px; padding:22px; margin-top:20px; }
+  .results h3 { color:var(--gold); margin:0 0 12px; font-size:12px; letter-spacing:2px; text-transform:uppercase; }
+  .kpi-row { display:grid; grid-template-columns:repeat(3,1fr); gap:14px; }
+  @media (max-width:640px) { .kpi-row { grid-template-columns:1fr; } }
+  .kpi { background:rgba(255,255,255,0.06); border:1px solid rgba(201,162,39,0.28); border-radius:10px; padding:14px; }
+  .kpi .label { color:#bdd3ee; font-size:11px; letter-spacing:1.5px; text-transform:uppercase; font-weight:700; }
+  .kpi .value { color:#fff; font-size:26px; font-weight:900; margin-top:4px; letter-spacing:-0.6px; }
+  .kpi.total .value { color:var(--gold); font-size:32px; }
+  table { width:100%; border-collapse:collapse; margin:12px 0 0; font-size:14px; }
+  th, td { padding:9px 12px; border-bottom:1px solid var(--line); text-align:left; }
+  th { background:#f0f3f9; color:var(--navy); font-weight:800; font-size:12px; letter-spacing:0.5px; text-transform:uppercase; }
+  .cta-band { background:linear-gradient(135deg,#0f1a2f,#1e2f4d); color:#fff; border-radius:14px; padding:28px 24px; margin-top:26px; text-align:center; border:2px solid var(--gold); }
+  .cta-band h3 { color:var(--gold); margin:0 0 8px; font-size:12px; letter-spacing:2px; text-transform:uppercase; }
+  .cta-band p { color:#e2ecf9; margin:0 0 18px; font-size:15px; line-height:1.5; }
+  .cta-band .btn { display:inline-block; background:var(--gold); color:var(--navy); text-decoration:none; font-weight:900; padding:13px 26px; border-radius:99px; font-size:14px; letter-spacing:0.4px; box-shadow:0 6px 18px rgba(201,162,39,0.35); }
+  footer { text-align:center; padding:24px 0 40px; color:var(--muted); font-size:12px; }
+  footer a { color:var(--navy); }
+  .note { background:#fff7e0; border-left:3px solid var(--gold); padding:12px 14px; border-radius:8px; color:var(--navy); font-size:13px; margin:14px 0; }
+</style>
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap">
+    <div class="brand-row">
+      <img src="/reader-assets/company-logo.png" alt="Appcovi logo" />
+      <a href="/">Appcovi · Broiler Base Mate</a>
+    </div>
+    <div class="kicker">Free tool · No signup</div>
+    <h1>Grower Payment Calculator</h1>
+    <p>Estimate your broiler contract settlement — payment per bird and total batch $ — using the standard Australian formula: efficiency rating × payment factor × birds caught. Tuned for <strong>Ingham's, Baiada and BPL Adelaide</strong> contracts.</p>
+  </div>
+</header>
+
+<main class="wrap">
+
+  <section>
+    <h2>Enter your batch numbers</h2>
+    <div class="grid">
+      <div><label for="cfcr">Corrected FCR (cFCR)</label><input id="cfcr" type="number" inputmode="decimal" value="1.62" min="1" step="0.01" /></div>
+      <div><label for="age">Corrected batch age (days)</label><input id="age" type="number" inputmode="decimal" value="42" min="20" step="0.1" /></div>
+      <div><label for="birds">Birds caught</label><input id="birds" type="number" inputmode="numeric" value="45000" min="1" step="1" /></div>
+      <div><label for="factor">Payment factor (A$ per efficiency point)</label><input id="factor" type="number" inputmode="decimal" value="0.005" min="0" step="0.0001" /></div>
+    </div>
+    <div class="results">
+      <h3>Estimated settlement</h3>
+      <div class="kpi-row">
+        <div class="kpi"><div class="label">Cage rating</div><div class="value" id="cage-out">—</div></div>
+        <div class="kpi"><div class="label">Efficiency rating</div><div class="value" id="eff-out">—</div></div>
+        <div class="kpi"><div class="label">Payment per bird</div><div class="value" id="pb-out">—</div></div>
+      </div>
+      <div style="margin-top:14px;padding:14px;background:rgba(201,162,39,0.14);border:1px solid rgba(201,162,39,0.5);border-radius:10px;text-align:center;">
+        <div style="color:#e6d68e;font-size:11px;letter-spacing:2px;font-weight:800;text-transform:uppercase;">Total batch payment (estimate)</div>
+        <div id="total-out" style="color:var(--gold);font-size:38px;font-weight:900;letter-spacing:-1px;margin-top:4px;">—</div>
+      </div>
+    </div>
+    <div class="note">⚠️ Estimates only. Actual settlement depends on your integrator's contract letter, seasonal bonuses, welfare deductions and catch rejections. Always cross-check against your official settlement statement.</div>
+  </section>
+
+  <section>
+    <h2>The formula</h2>
+    <p><strong>Cage rating = 39.5 ÷ corrected age (days)</strong></p>
+    <p><strong>Efficiency rating = ((1.78 ÷ cFCR) × 0.7) + (cage rating × 0.3)</strong></p>
+    <p><strong>Payment per bird = efficiency rating × payment factor</strong></p>
+    <p><strong>Total batch $ = payment per bird × birds caught</strong></p>
+    <h3>Typical payment factors</h3>
+    <table>
+      <thead><tr><th>Integrator</th><th>Payment factor (A$)</th><th>Notes</th></tr></thead>
+      <tbody>
+        <tr><td><strong>Baiada</strong></td><td>0.0050</td><td>Standard broiler contract</td></tr>
+        <tr><td><strong>Ingham's</strong></td><td>0.0048 – 0.0052</td><td>Varies by region &amp; welfare tier</td></tr>
+        <tr><td><strong>BPL Adelaide</strong></td><td>0.0049</td><td>SA independent contract</td></tr>
+        <tr><td><strong>Independents</strong></td><td>0.0045 – 0.0055</td><td>Highly variable, negotiate</td></tr>
+      </tbody>
+    </table>
+    <div class="note">These are indicative figures. Get the exact number from your current contract letter.</div>
+  </section>
+
+  <section>
+    <h2>How to improve your grower payment</h2>
+    <h3>1 · Cut FCR by cutting feed wastage</h3>
+    <p>Every 0.05 improvement in cFCR is worth roughly <strong>A$0.001–0.002 per bird</strong> — for a 45,000 bird batch that's $45–$90. Broiler Base Mate's Farm Buddy AI recommends drop timing per shed to keep silos accurate and avoid over-fill.</p>
+    <h3>2 · Lower your corrected batch age</h3>
+    <p>Catching a day earlier at the same weight bumps your cage rating. This is why hot-weeks or cold-weeks matter — track shed temperature and daily gain to spot lagging sheds early.</p>
+    <h3>3 · Keep morts down</h3>
+    <p>Morts don't just reduce birds caught — they also compound because feed already eaten by dead birds inflates FCR. Broiler Base Mate's mort-sheet AI catches this within hours instead of at settlement.</p>
+  </section>
+
+  <div class="cta-band">
+    <h3>See your live payment estimate every day</h3>
+    <p>Broiler Base Mate calculates your projected settlement in real time — every silo reading and mort log updates the number. Built by a 3rd-generation Aussie broiler grower on a Baiada contract.</p>
+    <a class="btn" href="/#plans">Start Free 30-Day Trial →</a>
+  </div>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    <p>© 2026 Appcovi · Broiler Base Mate ·
+      <a href="/">Home</a> · <a href="/tools/fcr-calculator">FCR Calculator</a> · <a href="/tools/silo-capacity-calculator">Silo Capacity</a> · <a href="/ross-308-growth-chart">Ross 308</a> · <a href="/cobb-500-growth-chart">Cobb 500</a>
+    </p>
+  </div>
+</footer>
+
+<script>
+  const $ = id => document.getElementById(id);
+  function fmt(n,d=3){ return isFinite(n) && n>0 ? n.toFixed(d) : "—"; }
+  function money(n){ return isFinite(n) && n>=0 ? "A$" + n.toLocaleString("en-AU",{maximumFractionDigits:0}) : "—"; }
+  function calc(){
+    const cfcr = parseFloat($("cfcr").value)||0;
+    const age = parseFloat($("age").value)||0;
+    const birds = parseFloat($("birds").value)||0;
+    const factor = parseFloat($("factor").value)||0;
+    const cage = age>0 ? 39.5/age : 0;
+    const eff = cfcr>0 ? ((1.78/cfcr)*0.7) + (cage*0.3) : 0;
+    const pb = eff * factor;
+    const tot = pb * birds;
+    $("cage-out").textContent = fmt(cage);
+    $("eff-out").textContent = fmt(eff);
+    $("pb-out").textContent = pb>0 ? "A$" + pb.toFixed(4) : "—";
+    $("total-out").textContent = money(tot);
+  }
+  ["cfcr","age","birds","factor"].forEach(id => $(id).addEventListener("input", calc));
+  calc();
+</script>
+
+</body>
+</html>

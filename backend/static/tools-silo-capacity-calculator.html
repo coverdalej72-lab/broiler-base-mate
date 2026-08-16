@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="en-AU">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Silo Capacity Calculator — Feed Weight, Cone &amp; Cylinder Estimator | Broiler Base Mate</title>
+<meta name="description" content="Free silo capacity calculator for Australian broiler growers. Calculates feed weight (kg / tonnes) inside a cylinder-plus-cone silo using diameter, cylinder height, cone angle and feed bulk density. Works for pellet, crumble and mash." />
+<meta name="keywords" content="silo capacity calculator, silo weight formula, feed silo tonnes calculator, poultry silo capacity, cylinder cone silo volume, feed bulk density calculator, chicken silo tonnes, days of feed left calculator, silo dip stick calculator" />
+<meta name="robots" content="index, follow, max-image-preview:large" />
+<link rel="canonical" href="https://broilerbasemate.com.au/tools/silo-capacity-calculator" />
+<meta property="og:type" content="website" />
+<meta property="og:title" content="Free Silo Capacity Calculator · Broiler Base Mate" />
+<meta property="og:description" content="Calculate feed weight in a cylinder-plus-cone silo using diameter, height and bulk density. Free, no signup." />
+<meta property="og:url" content="https://broilerbasemate.com.au/tools/silo-capacity-calculator" />
+<meta property="og:site_name" content="Broiler Base Mate" />
+<meta property="og:locale" content="en_AU" />
+<link rel="icon" href="/reader-assets/favicon.png" />
+<meta name="theme-color" content="#0f1a2f" />
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "WebPage",
+      "@id": "https://broilerbasemate.com.au/tools/silo-capacity-calculator#page",
+      "url": "https://broilerbasemate.com.au/tools/silo-capacity-calculator",
+      "name": "Silo Capacity Calculator",
+      "description": "Interactive silo capacity calculator for feed weight in a cylinder-plus-cone poultry silo.",
+      "isPartOf": { "@type": "WebSite", "@id": "https://broilerbasemate.com.au/#website" },
+      "inLanguage": "en-AU",
+      "about": { "@id": "https://broilerbasemate.com.au/#software" }
+    },
+    {
+      "@type": "FAQPage",
+      "mainEntity": [
+        { "@type": "Question", "name": "How do you calculate feed weight in a silo?",
+          "acceptedAnswer": { "@type": "Answer", "text": "Volume = cylinder volume + cone volume. Cylinder = π × radius² × cylinder height. Cone = (1/3) × π × radius² × cone height. Total feed weight (kg) = total volume (m³) × bulk density (kg/m³). Broiler pellet is typically 650 kg/m³, crumble 620 kg/m³, mash 580 kg/m³." } },
+        { "@type": "Question", "name": "What is the bulk density of broiler pellet?",
+          "acceptedAnswer": { "@type": "Answer", "text": "Broiler pellet from Australian feed mills typically has a bulk density of 640–680 kg per cubic metre. Crumble sits around 600–640 kg/m³ and mash around 550–620 kg/m³. Confirm with your mill for the exact figure per feed type." } },
+        { "@type": "Question", "name": "How many days of feed do I have left?",
+          "acceptedAnswer": { "@type": "Answer", "text": "Days of feed left = feed weight in silo (kg) ÷ daily consumption (kg/day). Broiler Base Mate calculates this live per silo — never run out again." } }
+      ]
+    }
+  ]
+}
+</script>
+
+<style>
+  :root { --navy:#0f1a2f; --navy-2:#1e2f4d; --gold:#C9A227; --gold-hi:#e6d68e; --paper:#f7f9fc; --line:#dce3ee; --text:#1e2f4d; --muted:#5a6a86; }
+  * { box-sizing:border-box; }
+  body { margin:0; font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",Roboto,sans-serif; color:var(--text); background:var(--paper); -webkit-font-smoothing:antialiased; }
+  a { color:#0e6bc0; }
+  header.hero { background:linear-gradient(135deg,var(--navy-2),var(--navy)); color:#fff; padding:60px 20px 44px; border-bottom:3px solid var(--gold); }
+  .wrap { max-width:940px; margin:0 auto; padding:0 20px; }
+  .brand-row { display:flex; align-items:center; gap:10px; margin-bottom:22px; }
+  .brand-row img { width:36px; height:36px; border-radius:8px; }
+  .brand-row a { color:var(--gold); text-decoration:none; font-weight:800; letter-spacing:2px; font-size:11px; text-transform:uppercase; }
+  .kicker { color:var(--gold); font-size:11px; letter-spacing:3px; font-weight:800; text-transform:uppercase; margin-bottom:8px; }
+  h1 { font-size:34px; font-weight:900; margin:0 0 10px; letter-spacing:-0.6px; line-height:1.15; }
+  header.hero p { color:#bdd3ee; font-size:16px; margin:0; max-width:680px; line-height:1.55; }
+  main { padding:40px 0 60px; }
+  section { background:#fff; border:1px solid var(--line); border-radius:14px; padding:24px; margin-bottom:22px; box-shadow:0 4px 14px -8px rgba(15,26,47,0.15); }
+  h2 { color:var(--navy); font-size:22px; font-weight:900; margin:0 0 14px; padding-bottom:8px; border-bottom:2px solid var(--gold); letter-spacing:-0.3px; }
+  h3 { color:var(--navy); font-size:16px; font-weight:800; margin:20px 0 8px; }
+  .grid { display:grid; grid-template-columns:1fr 1fr; gap:16px; }
+  @media (max-width:640px) { .grid { grid-template-columns:1fr; } h1 { font-size:26px; } }
+  label { display:block; font-size:12px; font-weight:800; color:var(--muted); letter-spacing:0.5px; text-transform:uppercase; margin-bottom:4px; }
+  input[type=number], select { width:100%; padding:12px 14px; border:1.5px solid var(--line); border-radius:10px; font-size:18px; font-weight:700; color:var(--navy); background:#f8fafd; }
+  input[type=number]:focus, select:focus { outline:0; border-color:var(--gold); background:#fff; }
+  .results { background:linear-gradient(135deg,#0f1a2f,#1e2f4d); color:#fff; border-radius:14px; padding:22px; margin-top:20px; }
+  .results h3 { color:var(--gold); margin:0 0 12px; font-size:12px; letter-spacing:2px; text-transform:uppercase; }
+  .kpi-row { display:grid; grid-template-columns:repeat(3,1fr); gap:14px; }
+  @media (max-width:640px) { .kpi-row { grid-template-columns:1fr; } }
+  .kpi { background:rgba(255,255,255,0.06); border:1px solid rgba(201,162,39,0.28); border-radius:10px; padding:14px; }
+  .kpi .label { color:#bdd3ee; font-size:11px; letter-spacing:1.5px; text-transform:uppercase; font-weight:700; }
+  .kpi .value { color:#fff; font-size:26px; font-weight:900; margin-top:4px; letter-spacing:-0.6px; }
+  .kpi .sub { color:var(--gold-hi); font-size:11px; margin-top:2px; }
+  table { width:100%; border-collapse:collapse; margin:12px 0 0; font-size:14px; }
+  th, td { padding:9px 12px; border-bottom:1px solid var(--line); text-align:left; }
+  th { background:#f0f3f9; color:var(--navy); font-weight:800; font-size:12px; letter-spacing:0.5px; text-transform:uppercase; }
+  .cta-band { background:linear-gradient(135deg,#0f1a2f,#1e2f4d); color:#fff; border-radius:14px; padding:28px 24px; margin-top:26px; text-align:center; border:2px solid var(--gold); }
+  .cta-band h3 { color:var(--gold); margin:0 0 8px; font-size:12px; letter-spacing:2px; text-transform:uppercase; }
+  .cta-band p { color:#e2ecf9; margin:0 0 18px; font-size:15px; line-height:1.5; }
+  .cta-band .btn { display:inline-block; background:var(--gold); color:var(--navy); text-decoration:none; font-weight:900; padding:13px 26px; border-radius:99px; font-size:14px; letter-spacing:0.4px; box-shadow:0 6px 18px rgba(201,162,39,0.35); }
+  footer { text-align:center; padding:24px 0 40px; color:var(--muted); font-size:12px; }
+  footer a { color:var(--navy); }
+  .note { background:#fff7e0; border-left:3px solid var(--gold); padding:12px 14px; border-radius:8px; color:var(--navy); font-size:13px; margin:14px 0; }
+</style>
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap">
+    <div class="brand-row"><img src="/reader-assets/company-logo.png" alt="Appcovi logo" /><a href="/">Appcovi · Broiler Base Mate</a></div>
+    <div class="kicker">Free tool · No signup</div>
+    <h1>Silo Capacity Calculator</h1>
+    <p>Calculate the <strong>feed weight (kg &amp; tonnes)</strong> a cylinder-plus-cone silo can hold, plus <strong>days of feed left</strong> based on daily consumption. Presets included for broiler pellet, crumble and mash.</p>
+  </div>
+</header>
+
+<main class="wrap">
+
+  <section>
+    <h2>Silo dimensions &amp; feed type</h2>
+    <div class="grid">
+      <div><label for="d">Diameter (m)</label><input id="d" type="number" inputmode="decimal" value="2.7" min="0.1" step="0.01" /></div>
+      <div><label for="hc">Cylinder height (m)</label><input id="hc" type="number" inputmode="decimal" value="4.5" min="0" step="0.01" /></div>
+      <div><label for="hn">Cone height (m)</label><input id="hn" type="number" inputmode="decimal" value="1.2" min="0" step="0.01" /></div>
+      <div><label for="feed">Feed type (bulk density)</label>
+        <select id="feed">
+          <option value="660">Broiler pellet (660 kg/m³)</option>
+          <option value="620">Broiler crumble (620 kg/m³)</option>
+          <option value="580">Broiler mash (580 kg/m³)</option>
+          <option value="700">Turkey pellet (700 kg/m³)</option>
+          <option value="0">Custom…</option>
+        </select>
+      </div>
+      <div id="custom-wrap" style="display:none;"><label for="rho">Custom bulk density (kg/m³)</label><input id="rho" type="number" inputmode="decimal" value="640" min="100" step="1" /></div>
+      <div><label for="daily">Daily consumption (kg/day) — optional</label><input id="daily" type="number" inputmode="decimal" value="1800" min="0" step="1" /></div>
+    </div>
+    <div class="results">
+      <h3>Full silo capacity</h3>
+      <div class="kpi-row">
+        <div class="kpi"><div class="label">Volume</div><div class="value" id="vol-out">—</div><div class="sub">m³</div></div>
+        <div class="kpi"><div class="label">Feed weight</div><div class="value" id="kg-out">—</div><div class="sub" id="t-out"></div></div>
+        <div class="kpi"><div class="label">Days of feed</div><div class="value" id="days-out">—</div><div class="sub">at your daily rate</div></div>
+      </div>
+    </div>
+    <div class="note">Assumes a standard cylinder + cone (bottom-tapered) silo — the common Aussie broiler shed silo. Custom bulk density available for premium diets.</div>
+  </section>
+
+  <section>
+    <h2>The formula</h2>
+    <p><strong>Cylinder volume (m³) = π × (diameter / 2)² × cylinder height</strong></p>
+    <p><strong>Cone volume (m³) = (1/3) × π × (diameter / 2)² × cone height</strong></p>
+    <p><strong>Feed weight (kg) = (cylinder + cone volume) × bulk density (kg/m³)</strong></p>
+    <p><strong>Days of feed left = feed weight (kg) ÷ daily consumption (kg/day)</strong></p>
+
+    <h3>Reference bulk densities (Australian feed mills)</h3>
+    <table>
+      <thead><tr><th>Feed type</th><th>Bulk density (kg/m³)</th><th>Range</th></tr></thead>
+      <tbody>
+        <tr><td>Broiler pellet</td><td>660</td><td>640–680</td></tr>
+        <tr><td>Broiler crumble</td><td>620</td><td>600–640</td></tr>
+        <tr><td>Broiler mash</td><td>580</td><td>550–620</td></tr>
+        <tr><td>Turkey pellet</td><td>700</td><td>680–720</td></tr>
+        <tr><td>Layer pellet</td><td>640</td><td>620–660</td></tr>
+      </tbody>
+    </table>
+    <div class="note">Confirm with your mill — bulk density varies with pellet quality, moisture and grain profile.</div>
+  </section>
+
+  <div class="cta-band">
+    <h3>Live silo tracking — never run out mid-batch</h3>
+    <p>Broiler Base Mate reads each silo daily (grower or auto-scale), overlays your consumption curve, and alerts you when a shed is under 3 days of feed. AI docket-scan tops up the balance the moment a truck rolls in.</p>
+    <a class="btn" href="/#plans">Start Free 30-Day Trial →</a>
+  </div>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    <p>© 2026 Appcovi · Broiler Base Mate ·
+      <a href="/">Home</a> · <a href="/tools/fcr-calculator">FCR Calculator</a> · <a href="/tools/grower-payment-calculator">Grower Payment</a> · <a href="/ross-308-growth-chart">Ross 308</a> · <a href="/cobb-500-growth-chart">Cobb 500</a>
+    </p>
+  </div>
+</footer>
+
+<script>
+  const $ = id => document.getElementById(id);
+  const feedSel = $("feed"), customWrap = $("custom-wrap");
+  function activeDensity(){
+    const v = parseFloat(feedSel.value);
+    if (v > 0) return v;
+    return parseFloat($("rho").value) || 0;
+  }
+  feedSel.addEventListener("change", () => {
+    customWrap.style.display = feedSel.value === "0" ? "" : "none";
+    calc();
+  });
+  function calc(){
+    const d  = parseFloat($("d").value)  || 0;
+    const hc = parseFloat($("hc").value) || 0;
+    const hn = parseFloat($("hn").value) || 0;
+    const r  = d/2;
+    const cyl  = Math.PI * r*r * hc;
+    const cone = (1/3) * Math.PI * r*r * hn;
+    const vol  = cyl + cone;
+    const rho  = activeDensity();
+    const kg   = vol * rho;
+    const daily= parseFloat($("daily").value) || 0;
+    const days = daily > 0 ? kg / daily : 0;
+    $("vol-out").textContent  = vol > 0 ? vol.toFixed(2) : "—";
+    $("kg-out").textContent   = kg  > 0 ? kg.toLocaleString("en-AU",{maximumFractionDigits:0}) + " kg" : "—";
+    $("t-out").textContent    = kg  > 0 ? "= " + (kg/1000).toFixed(2) + " t" : "";
+    $("days-out").textContent = days> 0 ? days.toFixed(1) : "—";
+  }
+  ["d","hc","hn","rho","daily"].forEach(id => $(id).addEventListener("input", calc));
+  calc();
+</script>
+
+</body>
+</html>

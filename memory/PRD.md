@@ -1,314 +1,78 @@
-# Broiler Base Mate™ — Off-Replit Migration + Auto-Sync + AI Docket Scanner + History
+# Broiler Base Mate — Product Requirements Document
+Last updated: Feb 15, 2026
 
-## Original Problem Statement
-> https://silo-sync-excel.replit.app/feed-program/ I need off replit
-> "do what best as i need to auto sync to the program"
-> "do them all"
-> "[uploaded BPL Adelaide + Ingham's dockets] this should fill the end of batch and should be in history on the app"
->
-> GitHub: https://github.com/coverdalej72-lab/Silo-Sync-Excel
+## Original problem statement (verbatim from founder)
 
-## Architecture
-- **Source monorepo**: `/app/silo/` (pnpm workspace cloned from GitHub).
-- **Frontend** (`/app/frontend` → port 3000): wrapper script that auto-installs pnpm if missing, then runs the feed-program Vite dev server with `BASE_PATH=/`.
-- **Backend** (`/app/backend` → port 8001): FastAPI + MongoDB + Gemini 2.5 Flash via emergentintegrations.
-- **Field Reader** at `/reader`: 4-tab mobile UI served by FastAPI.
-- **Vite proxy**: `/api`, `/reader`, `/reader-assets` → port 8001.
+Jason Coverdale (Appcovi, 3rd-gen Aussie broiler grower on a Baiada contract) needed to replace paper diaries and integrator Excel workbooks with a real-time, phone-first farm-management app. Requirements:
+- Real-time sync between mobile field reader (silo tracking, AI docket scanning) and a heavy desktop "Feed Program" dashboard that mirrors processor Excel layout
+- Multi-farm architecture for Ops Managers
+- Stripe auto-onboarding
+- Google Auth
+- AI Farm Buddy for drop-timing advice
+- PWA "Add to Home Screen"
+- Automated End-of-Batch (EOB) reporting matching processor Excel sheets
 
-## Field Reader — 4 Tabs
-### 📋 Readings (auto-sync)
-- Pending sheds at the top, partial in the middle, DONE at the bottom.
-- Per-silo "Last: 22.3t (Wed, 3 Jun) [Use ↑]" — one-tap previous-reading recall.
-- Posts to `/api/readings/batch` → Feed Program polls `/api/readings/today` every 2 min.
+## Live product
 
-### 📷 Scan (AI auto-detect)
-- Single "Tap to photograph" button — no vendor toggle.
-- Auto-detects supplier from docket header (Ingham's / Baiada / BPL Adelaide / etc).
-- **Gemini 2.5 Flash** extracts: supplier, feedType, productCode, amount (auto-converts Kg→tonnes), deliveryDate (DD/MM/YY → YYYY-MM-DD), orderNumber/ticketNo, customerName, siteCode, deliveryInstructions, truckRego, outloadingBin.
-- One-tap **"Save to History & End-of-Batch"** — creates a delivery with a base64 thumbnail.
+- **URL**: https://broilerbasemate.com.au
+- **Stack**: FastAPI + React SPA (Vite) + MongoDB Atlas + vanilla HTML static pages
+- **Integrations**: Stripe (live), Resend (transactional email), Emergent LLM Key → Gemini 2.5 Flash Vision (AI features), Emergent Google Auth
+- **Plans**: A$20 (Bronze) / A$25 (Silver) / A$30 (Gold) per farm per month AUD, 30-day free trial no card
 
-### 🚚 Add (manual)
-- Form with shed group, silo, feed type, amount, docket #, truck rego, notes.
+## Core features shipped
 
-### 📜 History
-- Chronological list of every delivery (manual + scanned).
-- Each item shows: supplier pill, feed type (original product name) + code, date, docket #, truck rego, customer, delivery instructions, outloading bin, amount.
-- Thumbnail click → lightbox.
-- Delete also removes from End-of-Batch.
+### Field / mobile
+- Reader PWA — silo readings, AI docket scan, AI Weigh Birds, AI Count Chicks, AI Mort Sheets, AI Snap Scale
+- Offline-queued sync
+- Bilingual UI via Google Translate
 
-## End-of-Batch Auto-Fill
-- On Feed Program load, EndOfBatchContent polls `/api/deliveries`.
-- Backend **normalises feed type** (e.g. "Broiler Grower" → "Grower", "Gourmet Broiler Grower" → "Grower") so the deliveries land in the correct column (Starter/Grower/Finisher/Withdrawal) — `feedTypeOriginal` is preserved separately for display.
-- Each delivery becomes a row: DATE (DD/MM/YYYY) · DOCKET # (from notes/`docketNumber`) · KG (auto t→kg conversion).
-- Idempotent via `eob-synced-delivery-ids` localStorage set.
+### Desktop / Feed Program
+- Multi-batch spreadsheet replacement mirroring processor Excel layout
+- Live FCR / cFCR / cage rating / efficiency rating
+- Branded End-of-Batch PDF email (matches processor sheet)
+- Feed-left auto-carry between batches
+- Flock Forecast
 
-## Verified Real Dockets ✅
-- **BPL Adelaide** Ticket 55104, S110 Broiler Grower, 43,740 Kg → 43.74t, 02/04/2026, Double B Farm, Truck XS07IQ.
-- **Ingham's** Order 125865, F116 Gourmet Broiler Grower, 28.16t, 18/05/2026, GP Farms, Truck SB84EF, Instructions "5 B 10, 6 B 5, 7 B 13", Bin BN8103.
-- End-of-Batch shows DELIVERED 71,900 kg = 28.16t + 43.74t, both rows in Grower section with correct dates + docket #s.
+### Ops Manager
+- Multi-farm dashboard
+- In-app grower ↔ ops chat
+- Docket alerts
+- Remote settings push
 
-## Backend API
-`/api/shed-groups`, `/api/silos*`, `/api/readings/today`, `/api/readings/previous?siloId=`, `/api/readings/batch`, `/api/readings`, `/api/deliveries` (with rich docket fields + imageThumb + feedTypeOriginal), `/api/scan-docket/auto` (recommended), `/api/scan-docket/ingham`, `/api/scan-docket/baiada`, `/api/bootstrap`, `/api/batch/version`, `/api/batch/reset`, `/api/onedrive/status`.
+### Marketing / SEO
+- Landing page (navy/gold Appcovi branding, mobile-optimised, hamburger nav, sticky WhatsApp CTA, "Start Your Free Trial" diagonal ribbon)
+- Real-app iPhone screenshot carousel (Today / Weigh / History)
+- Landing footer discovery pills linking to 6 free tools + comparison page
+- llms.txt + llms-full.txt for AI assistants
+- sitemap.xml with 11 URLs
+- Enhanced JSON-LD (SoftwareApplication, Organization, WebSite, FAQPage, BreadcrumbList, HowTo, Article) on SPA host and landing.html
+- Rich meta description + keywords covering breed-specific (Ross 308 / Cobb 500), settlement, mortality, alternative-to searches
 
-## Integrations
-- **Emergent Universal LLM Key** → Gemini 2.5 Flash for OCR + structured extraction.
-- **Stripe** — 14 pricing/sponsorship tiers wired via `/api/checkout` (currently `sk_test_` keys; awaiting user live keys + Price IDs).
+### Free SEO tool pages (all navy/gold branded, live calcs, JSON-LD)
+- /tools/fcr-calculator — FCR + cFCR + efficiency rating
+- /tools/grower-payment-calculator — settlement estimator
+- /tools/silo-capacity-calculator — cylinder+cone silo weight + days-of-feed
+- /ross-308-growth-chart — day 1-42 Aviagen chart
+- /cobb-500-growth-chart — day 1-42 Cobb-Vantress chart
+- /vs/poultrylog — competitor comparison
 
-## Landing Page (`/landing`)
-- Hero with AI aerial broiler farm image, charities strip, Ops Manager bundle builder, stats counter, **testimonials (3)**, **FAQ (8 accordions)**, **Book-a-Demo form → POST `/api/demo-request`**, trust badges, Back-the-Build sponsorships, How-It-Works modal walk-through, **mobile sticky CTA bar** (≤768px).
-- Demo requests stored in MongoDB `demo_requests` collection; readable via GET `/api/demo-request`.
+## Backlog / future
 
-## Changelog
-- **2026-02-16 (Appcovi rebrand rollout)**:
-  - Received new Appcovi brand assets from Jason (shield + rooster/leaf logo, navy/forest/gold palette).
-  - Saved originals to `/app/backend/static/brand/` (circle logo, hero, business card).
-  - Replaced all app icons with the Appcovi shield: `favicon.png`, `icon-32/64/192/512.png`, `apple-touch-icon.png`, `company-logo.png`, `logo.png` in `/app/backend/static/`.
-  - Redesigned `landing.html` footer: replaced compact "Crafted By" ribbon with full Appcovi business card block containing logo, "Poultry Management Software" tagline, Jason Coverdale · Founder & Lead Developer, phone (0428 337 887), email (appcovi2026@gmail.com), address (432 Wheat Road, Beaufort SA 5550), website link and ABN.
-  - Fixed "Jock Coverdale" typo → "Jason Coverdale" in the Founding Grower band on landing page (line 960).
-  - Product name kept as "Broiler Base Mate" (SEO + domain equity) — Appcovi positioned as parent brand.
-  - Awaiting redeploy to push assets to broilerbasemate.com.au.
-- **2026-02-16 (Whole-Farm Flock Forecast)**:
-  - New `/app/silo/artifacts/feed-program/src/lib/breedStandards.ts` — daily-resolution Ross 308 FF + Cobb 500 performance objectives (0–56 days) with `stdAt()` linear interpolation helper.
-  - Added "🌾 Whole-Farm Forecast" section at the top of the Flock Forecast page in `App.tsx`. Aggregates weigh-ins + catch averages across all sheds (weighted by birds), picks dominant breed standard, projects forward to user-selected pickup age (35 / 42 / 49 d).
-  - 8 rollup KPI cards: birds live, current age, projected pickup weight, total live weight, projected FCR, mortality %, feed-to-pickup, days-to-pickup.
-  - Two Recharts graphs: Whole-Farm Growth Curve (actual + breed std + forecast tail) and FCR Trajectory (breed std + current actual reference line).
-  - Plain-english insight strip explains tracking status (above/below/on standard) with predicted pickup weight and remaining feed.
-- **2026-06-12 (fork-resume)**: Fixed broken FAQ section (raw JS template-literal was leaking into HTML), wired Book-a-Demo form to `/api/demo-request` with toast feedback, added mobile-only sticky "Start free trial" CTA bar.
-- **2026-06-12 (multi-farm + ops + email)**:
-  - Added `farmId` scoping to readings/deliveries/photos/shed_groups/silos/farm_config — backward-compatible (untagged data treated as `farmId="default"`).
-  - New `farms` collection + `/api/farms` CRUD endpoints + `/api/farms/{slug}/invite`.
-  - New `/ops-dashboard` page (multi-farm overview, create farm, send invite).
-  - Reader (`/reader?farm=<slug>`) monkey-patches `fetch()` to auto-append `?farm=` to all `/api/*` calls.
-  - Resend email integration (`/app/backend/email_service.py`) with graceful-degrade when `RESEND_API_KEY` is missing.
-  - Demo-request form now emails admin (`appcovi2026@gmail.com`) when key is set; logs+skips when not.
-  - Vite proxy updated to forward `/ops-dashboard` to FastAPI.
-- **2026-06-13 (Stripe auto-onboarding + Feed Program farm switcher)**:
-  - Landing page now opens a "Almost there" modal collecting buyer name + email before any plan/ops checkout.
-  - Ops bundle checkout sends the full configured farms list + per-tier pricing (Σ tier_prices, not hardcoded).
-  - On Stripe `paid` event (status poll or webhook), `_provision_purchase` auto-creates farms, seeds each with 10 shed-groups × 3 silos, and emails the buyer their reader URLs + ops-dashboard link. Idempotent — second call returns None.
-  - Admin (`appcovi2026@gmail.com`) gets a sale-notification email on every paid checkout (when Resend key set).
-  - Success page (`/landing/success`) renders the buyer's auto-provisioned farm cards with reader links and adapts primary CTA: single farm → reader, multi-farm → ops-dashboard.
-  - Feed Program (React desktop) now mounts a floating farm-switcher header widget with a dropdown of all farms + "Ops →" shortcut; auto-hides when only the default farm exists. Same fetch monkey-patch trick auto-scopes every `/api/*` call by the selected farm (stored in localStorage).
-- **2026-02-19 (Ops Dashboard Chat)**:
-  - Floating chat FAB widget added to `/ops-dashboard` with unread-count badge polled every 30s via `/api/chat-unread`.
-  - Two-tab chat panel: **Group** (broadcast across all farms) + **Per-farm** (dropdown selector → scoped to a single farm slug).
-  - Messages persisted in MongoDB `chat_messages` collection; endpoints `GET/POST /api/chat/{scope}`, `GET /api/chat-unread` (all auth-gated via Emergent Google session).
-  - Auto-poll every 10s while panel is open; mine vs. theirs styled bubbles; Ops role tag; light/dark theme aware.
-- **2026-06-20 (Free dev provisioning + fast static frontend + Production Hardening pass)**:
-  - Seeded 3 extra demo farms (`north-creek`, `southridge`, `eaglehawk`) for owner `appcovi2026@gmail.com` so he can fully test multi-farm flow without paying — `POST /api/farms` requires no Stripe.
-  - `/app/frontend/start.js` now serves the prebuilt Vite bundle (`/app/silo/artifacts/feed-program/dist/public/`) by default; `DEV_MODE=1` env flag opts back into Vite dev. First-load time on a fresh browser dropped from ~60s → ~2s.
-  - **New module `/app/backend/hardening.py`** wires:
-    - Global `Exception` handler → returns clean JSON 500 + logs to `error_log` collection + emails admin (1h cooldown per signature).
-    - `POST /api/error-report` for frontend JS errors (sendBeacon-friendly, throttled).
-    - Nightly backup task: gzipped JSON dump of every collection at 02:00 UTC → `/app/backups/backup_YYYYMMDD_HHMMSS.json.gz`, 7-day retention, emails admin on success.
-    - In-memory rate limiter middleware: per-IP token bucket on hot endpoints — `/api/error-report` (60/min), `/api/auth/exchange-session` (10/min), `/api/demo-request` (5/10min), `/api/partner-request` (5/10min), `/api/outreach/send` (30/min), `/api/scan-docket/auto` (30/min — LLM cost guard).
-    - Admin-only `GET /api/admin/error-log`, `GET /api/admin/last-backup`, `POST /api/admin/backup-now`, `GET /api/admin/health` (single-call business pulse: error counts, last backup, farms, readings/chat 24h, paid orders, outreach pipeline).
-  - **New page `/admin` (and `/admin/health`)** — branded health dashboard pulling `/api/admin/health` & `/api/admin/error-log`. Shows error counts, last backup age, farm count, today's readings/chat volume, gross revenue, outreach pipeline. One-click "Backup now" button.
-  - **Stripe webhook + status-poll** `_provision_purchase` calls now catch all exceptions, log via `log_error`, and still return 200 to Stripe so retries don't pile up — owner gets alerted instead of losing the sale silently.
-  - **Auth-guard.js** extended with: (a) `window.onerror`/`unhandledrejection` → POSTs JS errors to `/api/error-report` (de-duped, max 50 per page); (b) global `fetch()` wrapper that detects mid-session 401 on `/api/*` calls, shows a toast, and re-routes to the OAuth login (debounced 5s).
-  - **Offline-safe mobile reader** (`/reader`): every failed POST/PUT/PATCH/DELETE to `/api/*` now persists to `localStorage` queue and replays automatically on `online` event / every 30s. Floating banner shows "📡 Offline — N queued" or "🔄 Syncing N…". Drain bypass via `x-bbm-skip-queue: 1` header avoids recursion.
-  - `.gitignore` updated to exclude `backups/` from git.
-- **2026-06-20 (Service Worker kill switch + Owner Magic Link)**:
-  - **Cause of "worked yesterday, broken today" production bug**: VitePWA shipped a Workbox service worker that aggressively cached the React bundle + API responses. On any deploy, browsers stubbornly served the cached old bundle → app appeared broken. Fix:
-    1. `vite.config.ts` — removed `VitePWA` plugin entirely. No more SW generation on future builds.
-    2. `src/App.tsx` — stubbed `useRegisterSW` / `PwaUpdateBanner` to no-op so existing UI refs still work.
-    3. `silo/artifacts/feed-program/dist/public/sw.js` — replaced workbox SW with a self-destruct script that unregisters itself and dumps every CacheStorage on `activate`. Any browser still polling the old SW URL gets nuked on the next update check.
-    4. `feed-program/index.html` — added a page-load kill switch that calls `navigator.serviceWorker.getRegistrations().then(r => r.unregister())` + `caches.keys().then(k => caches.delete(k))` for any browser that bypasses the SW update check (e.g., first-visit-after-deploy).
-    5. `server.py` — added FastAPI `GET /sw.js` route as fallback (same self-destruct payload) in case static server misses.
-  - **`/api/auth/owner-magic?key=...&to=/...` endpoint** — one-click owner login that skips Google OAuth entirely. Requires env vars `OWNER_EMAIL` and `OWNER_MAGIC_KEY` (32-byte URL-safe token). Sets a 30-day session cookie + redirects to the requested page. Owner can bookmark a single URL and log in from any device/browser without OAuth.
-  - **Session TTL bumped 7d → 30d** (`auth.py: SESSION_TTL_DAYS = 30`).
-  - Production rollout requires: (a) Deploy, (b) set `OWNER_EMAIL` + `OWNER_MAGIC_KEY` env vars in production via Emergent platform.
-- **2026-06-23 (Results tab math alignment with `result 121 (1).xlsx`)**:
-  - **cFCR slope fixed `0.40` → `0.27`** in `App.tsx` (`loadBatchResultsXlsx`, both farm-summary and per-shed fallbacks). User's spreadsheet uses formula `cFCR = FCR − (AveWt − 2.45) × 0.27`. Verified: spreadsheet cached cFCR = 1.297; new code computes 1.297; old code with 0.40 would have computed 1.234.
-  - **cFCR source cell corrected** — was reading `AN4` (= 1.78/cFCR efficiency ratio, value ~1.37) and displaying it as cFCR. Now reads `AL10` (the actual cFCR formula `=AL8-((AH8-2.45)*0.27)`).
-  - **Added `aveWeight` fallback** `= totalWeight / totalOut` for cases where `AH8` formula cell reads as 0 in SheetJS.
-  - **"Cage Age … days" tile relabeled to "Cage Rating"** — `AN5` (`=39.5/AH11`) is a unitless efficiency ratio, not a day count. Now displays as `1.309` (decimal) instead of `1.31 days`.
-- **2026-06-23 (SEO Quick Wins)**:
-  - Created `/sitemap.xml` (5 URLs on broilerbasemate.com.au) at `silo/artifacts/feed-program/public/sitemap.xml`.
-  - Fixed `/robots.txt` — sitemap reference now correctly points to broilerbasemate.com.au (was farmbuddy.com.au).
-  - Rewrote `/llms.txt` in proper markdown spec format (was being intercepted by SPA fallback → returning HTML).
-  - Added homepage meta description, OG tags, Twitter cards to `landing.html` using correct domain.
-  - Added `alt="Broiler Base Mate logo"` to landing header logo.
-  - Replaced all `farmbuddy.com.au` references with `broilerbasemate.com.au` in feed-program `index.html` (canonical, OG, JSON-LD).
-  - **DNS fix (user-side)**: user updated `www.broilerbasemate.com.au` CNAME from self-referential loop → apex domain.
-- **2026-06-23 (Landing page content expansion + Results page tiles)**:
-  - Added **"Why Australian broiler growers switched"** section to `landing.html` with 6 feature paragraphs (the exact maths, AI docket scanning, offline reader, Farm Buddy, end-of-batch, multi-farm Ops).
-  - Added **8-question FAQ** with collapsible `<details>` cards (tech-savvy, processor contracts, offline, security, pricing, PWA install, Excel migration, who built it).
-  - Added bottom CTA card. Text-to-HTML ratio raised from 0.09 → **0.38** (parsed from raw HTML, well above 10% threshold).
-  - Added **Efficiency Rating (`AN6`)** and **Payment / bird (`AN8`)** tiles to Feed-Program Results page. New fields on `BatchSummary` interface with fallback math: `ER = (1.78/cFCR)×0.7 + (39.5/correctedAge)×0.3`, `Payment = ER × 0.005`. Live in screenshot at 1.162 / $0.0058.
-- **2026-06-23 (Feed-Program state persists to MongoDB — placement-date data-loss bug fix)**:
-  - **Root cause**: every spreadsheet edit (placement dates, bird counts, mortality, feed orders, silo readings, etc) was stored only in browser `localStorage`. When the computer shut down or the user opened a different browser, the cache was cleared and the app fell back to whatever defaults were baked in when the spreadsheet was first imported — so dates reverted to month-old values.
-  - **Backend**: added `GET /api/feed-program/state` and `PUT /api/feed-program/state` on collection `feed_program_state`, keyed by `farmId`, storing the serialized `edits` blob + `sheetNames` + `updatedAt` ISO timestamp.
-  - **Frontend (`App.tsx`)**:
-    - Autosave (debounced 2 s) now writes to **both** localStorage and the backend.
-    - Stamps `EDITS_SAVED_AT_KEY` localStorage timestamp on every save.
-    - On load, hydration `useEffect` fetches backend state once and merges in if `backend.updatedAt > localStorage.savedAt` — i.e. backend wins on a fresh browser / cleared cache, local wins if the user has edited since the last successful backend round-trip (offline-safe).
-  - **Verified live**: ~55 KB of edits (9 sheets) saved to MongoDB on first page-load smoke test.
-- **2026-06-23 (Live sync — Ops Dashboard auto-refresh + Feed Program poll speed-up)**:
-  - **Feed Program** silo-reading auto-sync interval reduced from **3 minutes → 30 seconds** (still skips when tab hidden).
-  - **Ops Dashboard** previously never auto-refreshed silo readings. Now polls `loadAll()` every 30 s when tab is visible, fires immediately on visibility-change (tab-back), pauses when hidden.
-  - Live indicator pill `[data-testid="live-status"]` in header: pulsing green dot + ticking "Live · 9s ago" label, switches to grey "Paused (tab hidden)" in background.
-  - End-to-end latency field-manager Save → Ops Dashboard visible: **~30 s worst case**, ~2 s best case.
-- **2026-06-23 (Reader: persistent sync indicator + proactive Farm Buddy feed alerts)**:
-  - **Backend**: new `GET /api/farm-buddy/alerts?farm={slug}` endpoint. Lightweight (no LLM) — aggregates the most recent silo readings per shed group and flags any group whose total stored feed is `< 5 t` (`critical`) or `< 10 t` (`watch`). Returns `{riskLevel, alerts: [{shedGroupId, shedGroupName, totalT, level, message}], checkedAt}`.
-  - **Reader UI** (`reader.html`):
-    - **Persistent sync-status pill** in the header — pulsing dot + label that flips between `☁️ Synced to Feed Program` (green) / `🔄 Syncing N items…` (amber) / `📡 Offline` (red). Sub-text shows `last reading: 4m ago` so the field manager always sees how fresh the cloud copy is. Hooks `window.fetch` to detect successful `/api/readings/batch` POSTs and update the timestamp on the fly. Polls `/api/readings/today` every 30 s as a health probe.
-    - **Farm Buddy alerts banner** between header and tabs. Hidden by default. Shows up the moment a shed group drops below 10 t with a clear `🚨 ORDER FEED NOW — Sheds 1 & 2 only has 3.0 t left` message. Auto-refreshes every 60 s and also fires immediately after any successful reading save (so the message updates the instant the manager finishes their walk-around).
-  - **Verified**: inserted a `3.0 t` reading via curl → the orange Farm Buddy banner appeared with the correct message; cleaned up the test data afterward.
-- **2026-06-24 (Summary tab: breed picker per shed)**:
-  - Added a **Ross 308 / Cobb 500** dropdown next to each shed's bird-count field on the Summary page (12 dropdowns: 2 per shed group × 6 groups).
-  - Backed by the same `FLOCK_BREEDS_KEY` localStorage entry the Flock Forecast tab uses, so the choice flows through to projected weight, target FCR comparisons and `getRoss308Standard()` / `BREED_STANDARDS.cobb500` curves automatically.
-  - New helper component `BreedPickerRow` reused for both sheds in each card. `data-testid="breed-picker-<label>"` on each dropdown for QA.
-- **2026-06-24 (EOB feed-delivery doubling bug fix)**:
-  - **Root cause**: `EndOfBatchContent.syncDeliveries()` deduplicated only by the `eob-synced-delivery-ids` list in localStorage. If localStorage was cleared (cache wipe, switching browsers, restored backup, fresh device), every delivery looked "unsynced" and got re-appended to the next free row in the EOB sheet — doubling everything.
-  - **Fix**: added a **content-fingerprint** dedupe layer. Before writing a delivery, build `${dateCol}|${dateStr}|${docket}|${kgRounded}` for every existing row in the sheet, then skip any incoming delivery whose fingerprint already matches. The localStorage `syncedIds` is still the fast first-pass; the fingerprint check is the safety net that survives any cache reset.
-  - **One-time cleanup sweep** on mount (`cleanupDuplicateDeliveries`, gated by `eob-dedupe-cleanup-v1` localStorage flag) — scans every delivery row, clears any row whose `date + docket + kg` already exists in the same feed-type column. Skips rows without a docket number so legit same-day deliveries are never touched. Runs exactly once per browser, posts a banner with the number cleared.
-  - Existing customers will see their doubled rows tidy up automatically the next time they open the EOB tab; new sync writes will never double again.
-- **2026-06-24 (Weight-sheet upload: morts + caught now flow to shed cards & EOB)**:
-  - **Root cause**: `loadBatchResultsXlsx()` already parsed `morts` and `catches` per shed, but only `catches` were pushed to the EOB sheet via `onEobCatch`. The `morts` value was dropped on the floor, and neither value appeared on the Summary tab's per-shed cards. So growers uploading a weight sheet saw the global Bird-Summary row update on EOB but the individual shed cards (where they plan feed) stayed stale.
-  - **Fix #1** — added `onEobMorts(shedNum, morts)` prop to `BatchResultsView`. Called in the same xlsx-seed `useEffect` that already seeds catchMap, so every weight-sheet upload now writes morts into EOB cell `(shedRow, 24)` as well as catches into `(shedRow, 23)`.
-  - **Fix #2** — added a new `ShedLiveCountsRow` strip under each shed's bird-count + breed row on the Summary tab. Renders red `−234 morts` and green `✓ 12,345 caught` pills the moment data is available. Hidden when both are zero. `data-testid="shed-morts"` and `shed-caught` for QA.
-  - **Fix #3** — passed the App-level `catchMap` state through `SummaryView` → `ShedSummaryCard` so the caught counts update live as the user pastes a Baiada/Adelaide Weighbridge email, uploads a new weight-sheet xlsx, or edits the Catches tab manually.
-  - Build clean, smoke-screenshotted. With no batch loaded the pills stay hidden (correct behaviour); once the user uploads their weight sheet they'll appear instantly per shed.
-- **2026-06-24 (Farm Buddy + days-of-feed projection now use LIVE bird count)**:
-  - **Root cause #2 of "feed planning ignores my pickups"**: `farmBuddySheds` was emitting `birdsPlaced = original placement` and computing `daysOfFeedLeft = siloTotal / dailyUsageT` — both assumed a constant flock size for the whole batch. After a pickup of 4,500 of 13,500 birds Farm Buddy was still projecting feed demand for 13,500.
-  - **Fix (frontend)** — `farmBuddySheds` now computes:
-    - `LIVE birdsPlaced = original placement − morts (from EOB col 24) − birds caught in the past (from catchMap)`.
-    - `upcomingCatches: [{date, birds}, ...]` for any planning entries in the next 14 days.
-    - `daysOfFeedLeft` is now a **day-by-day projection** that subtracts upcoming catches from the live flock on the scheduled catch dates before computing each day's feed demand — so after a big pickup the projection automatically lengthens.
-  - **Fix (backend)** — `farm_buddy.py` `ShedSnapshot` gained `birdsOriginalPlaced`, `mortsToDate`, `birdsCaught`, `upcomingCatches`. The prompt builder now feeds the LLM lines like *"18,000 live birds (5,500 already caught of 24,000 placed), upcoming catches: 6,000 on 26/06/2026, 12,000 on 01/07/2026, day 42, silos 15.0t"* so advice scales with the shrinking flock instead of over-ordering.
-  - Verified end-to-end: `POST /api/farm-buddy/recommend` returns a sensible response with the new payload shape; React build clean; page renders with no console errors.
-- **2026-06-24 (Weight-sheet upload now drops BIRDS LEFT column per-day + trims trailing ghost rows)**:
-  - **Root cause #3 — bird-count display wasn't dropping**: each shed sheet's "BIRDS LEFT" column (col 14) is computed by `birdsLeftByRow` = `placement − sum(col 13 entries on or before this row)`. Previous fix wrote catches only to the EOB sheet and the catchMap — but never to the per-day **col 13** on the individual shed tab. So the grower saw the EOB updated and the Summary card pills updated but the spreadsheet's BIRDS LEFT column stayed at the full placement number on every row.
-  - **Fix** — added `onShedSheetCatch(shedNum, dateSerial, birds)` prop on `BatchResultsView`. Called once per catch row during xlsx seeding. The parent finds the matching SHED tab (via `SHED_SHEET_ORDER`), locates the row by date (col B/C), and adds the catch's bird count into col 13 of that row. **Tracked with localStorage key `xlsx-shed-catches-synced-v1`** so re-uploading the same weight sheet never double-counts.
-  - **Trailing "ghost rows" trim**: the shed template auto-fills cols D/G/H/I/J with formulas for the entire 60-day range, so `lastNonEmptyRow` always returned row 72 — the user saw rows past the batch with negative feed alloc and constant 80,000 birds. Added a stricter `lastInputRow` that only counts user-input columns (ORDERED, silo readings, catch/morts). `shedDisplayEndRow` now:
-    - Batch in progress → today + 14 rows
-    - Batch ended (today way past last input) → lastInputRow + 3 rows (kills the ghost rows)
-    - Empty sheet → first 14 rows minimum so a fresh batch doesn't look broken
-- **2026-06-24 (Hard cap shed rendering at "Total Morts" / "Total Birds Caught" labels)**:
-  - User screenshot showed 3 ghost rows still appearing *below* the Total Morts and Total Birds Caught labels with values like `-543,300`, `-225,621`, `0` — formula scaffolding rolling over template rows 75-77.
-  - Added a `totalsLabelRow` lookup that scans the first 5 columns of each shed sheet for any cell matching `/total\s+(morts|birds|feed)/i`. The last such row becomes the absolute hard cap for `shedDisplayEndRow`. Nothing renders past it. If no totals labels are found we fall back to `shedDataStartRow + 62`.
-- **2026-06-24 (Weight-sheet upload auto-populates Planning Catches)**:
-  - User asked: "can we make the weight sheet update the plan catches on the date they're going to pick".
-  - **Fix**: added a new `useEffect` inside `BatchResultsView` that, on every xlsx parse, mirrors each catch row into `weighPlanMap` (the Planning Catches map). Uses `xlsx-weigh-plan-synced-v1` localStorage set for fingerprint-based idempotency so re-uploads never double up. Skips dates the user has already entered manually (manual entries win).
-  - Calls `saveWeighPlanMap` → fires `weighPlanUpdated` custom event → the App-level `weighPlanMap` listener picks it up → `planningCatchMap` (catchMap merged on top of weighPlanMap) refreshes → `farmBuddySheds` recomputes with the new upcoming catches → Farm Buddy's next-7-days projection shrinks the flock on the right dates.
-- **2026-06-24 (Critical fix — parseWeighSheetBuffer was returning 0 rows for Double-B format)**:
-  - **Root cause** of "weight sheet upload not changing any bird numbers across all sheds": the parser at line 2918 only accepted date cells stored as Excel serial numbers (`typeof v === "number" && v > 40000`). The user's actual weight sheet (`Double B Weigh Sheet`) stores dates as **datetime objects**, which xlsx returns as JS `Date` instances → the parser found zero day-columns → returned `[]` → nothing imported, no shed numbers updated.
-  - **Fix**:
-    1. Switched `XLSX.read` to use `cellDates: true` so all date cells normalise to JS `Date`.
-    2. Added a `toDDMMYYYY()` helper that accepts JS Date, Excel-serial number, AND ISO/DD-MM-YYYY strings.
-    3. The parser now finds EVERY MON/TUES-style header row in the file (the Double-B layout has 2 weeks stacked vertically — old parser only found the first one), parses each block until the next header, and merges all pickup events.
-    4. Added a fallback that synthesises dates from "MON/TUES/WED" labels anchored to the upcoming Monday when no real date cells exist.
-    5. Shed-label detection now accepts plain numbers like `1` as well as `1(CB)`, `3 (CB)`, etc.
-  - **Verified end-to-end against the user's actual `Double B Weigh Sheet - 2026-06-24` file**: 22 pickup events extracted across 2 weeks (Shed 3 → 7000 birds on 29/06, Shed 12 → 11500 on 29/06, Shed 1 → 13533 on 03/07 ... all the way through Week 2). Python test reproduces the JS logic exactly.
-- **2026-06-24 (Re-upload now AUTO-CORRECTS broken data from prior parser)**:
-  - User asked: "the system already has the weight sheet in it but has not done what it needed before — when uploaded again it needs to auto correct it some how".
-  - **Problem**: previous logic deduped by `xlsx-weigh-plan-synced-v1` fingerprints and `existing + birds` accumulation on shed-sheet col 13. If a prior (broken-parser) upload had left wrong/stale values behind, re-uploading would either skip the entries or ADD on top of the bad data.
-  - **Fix #1 — Planning Catches map**: dropped the localStorage dedupe tracker. Every fresh xlsx parse now **fully replaces** each shed's `weighPlanMap` entries with what the new xlsx says (sheds not in the xlsx keep their existing data). Manual entries live in `catchMap` so they're untouched.
-  - **Fix #2 — Shed-sheet col 13 (CATCH/MORTS)**: dropped the `existing + birds` accumulation. Each catch from a fresh xlsx now **overwrites** the matching `(row, 13)` cell on the shed tab. If the catcher amends a count and the grower re-uploads, the cell shows the new number cleanly — no stale-data leftovers.
-  - End result: any re-upload is now the source of truth. Wipes and rebuilds, no manual cleanup needed.
-- **2026-06-25 (System health sweep — backend stability + DB indexes + unified branding)**:
-  - User asked: "can you check the whole system find fixes how to make better" + "app needs a matching logo on it" + "all same logo program and app and user wants there own logo same deal do what needs to be done".
-  - **Backend fix #1 — `KeyError: 'name'` in `/api/readings/today`**: silos created without a `name` field were crashing the endpoint with `KeyError: 'name'` at `server.py:509`. Changed to `s.get("name", s.get("letter", "Silo"))` so legacy/letter-only silos render cleanly.
-  - **Backend fix #2 — `RuntimeError: Response content longer than Content-Length`**: the rate-limiter was a `BaseHTTPMiddleware` (`@app.middleware("http")`) which wraps every response in a Starlette TaskGroup and breaks FastAPI's auto-Content-Length on streaming/file responses. Rewrote it as a pure ASGI middleware (`_RateLimitASGI` in `hardening.py`) that only intercepts when the path is in `RATE_LIMITS` — every other request passes straight through unwrapped. Zero Content-Length errors after restart.
-  - **Backend fix #3 — Mongo indexes on hot collections**: added a startup hook `_ensure_indexes()` in `server.py` that creates compound indexes on `readings (farmId, readingDate desc)`, `deliveries (farmId, deliveryDate desc)`, `silos`, `shed_groups`, `feed_program_state (farmId unique)`, `farms (slug unique, ownerEmail)`, `farm_config (id unique)`, `photos (farmId, createdAt desc)`, `chat_messages (farm_id, created_at desc)`, `payments (session_id unique)`. Verified all 9 collections now have the new indexes.
-  - **Branding fix — unified logo across Reader, Feed Program, Landing**:
-    - Synced `icon-192.png`, `icon-512.png`, `apple-touch-icon.png`, `logo.png`, `logo-small.png` between `/app/backend/static/` (Reader) and `/app/silo/artifacts/feed-program/public/` + `dist/public/` (Feed Program). All MD5s now match.
-    - Updated `theme-color` to `#0f3d24` (brand green) in `reader.html`, `silo/artifacts/feed-program/index.html` + `dist/public/index.html`, `backend/static/manifest.json`, and `silo/.../public/manifest.json`.
-    - Repointed the Reader's top "status-bar" strip from orange → brand green so the page chrome matches the silo+rooster logo.
-    - Custom logo data flow (already in place): user uploads via Reader Settings → stored in `farm_config.logoData` (base64) → Feed Program's `App.tsx` polls `/api/farm-config` and renders `customLogo` in the SPA header. So a user's uploaded logo now appears in BOTH the Reader and the Feed Program automatically.
-  - **Verified**: `curl /api/readings/today`, `curl /api/farm-buddy/alerts`, `curl /api/error-report` × 5 (rate-limited) all return 200. Backend logs are clean — 0 KeyError / 0 Content-Length errors after the fix.
-- **2026-07-02 (Farm Buddy phantom-shed suppression + www→apex 301 redirect)**:
-  - **Bug fix (P0) — Farm Buddy false alerts on unconfigured sheds 13/14/15/16**: `/api/farm-buddy/alerts` used to pin a "🐔 EMPTY" info alert for every shed_group not present in `farm_config.enabledGroupIds`. Because the default seed always creates 20 sheds (10 groups), growers running fewer sheds saw 4-8 spurious warnings for phantom sheds they never placed. Fix at `server.py:1175-1240`: computed `phantom_group_ids = empty_group_ids ∩ groups_without_history` (any group with zero historical silo readings + currently disabled). Phantom sheds are now skipped from EMPTY-pin generation entirely; real depopulated sheds (readings on file + disabled) still get the info pin. Same filter applies to stale-reading and missing-today watchdog loops (already were, via `empty_group_ids`).
-  - **SEO fix (P2) — www→apex 301 middleware**: added `@app.middleware("http")` `www_to_apex_redirect` at `server.py:94-107`. Any request whose `Host` header starts with `www.` gets a 301 to `https://<apex><path>?<query>`. Backup to DNS-level redirect flagged by Semrush audit; preserves link equity.
-  - **Testing**: 13/13 backend pytest tests pass (`/app/backend/tests/test_phantom_sheds_and_www_redirect.py`) via `testing_agent_v3_fork` (iteration_3). Phantom sheds now excluded from `syncHealth.emptyGroups`. Local curl verified 301 redirect (`location: https://broilerbasemate.com.au/`).
-- **2026-08-01 (AI Weigh Birds — real implementation + Day-Old Chick Counter + mobile reader parity)**:
-  - **BIG BUG SURFACED — AI Weigh Birds was a stub**: `/api/weigh-bird` (`server.py:1696`) was returning `{"ok": True, "stored": False}` with no `estimatedWeightKg`. The Feed Program's ⚖️ AI Camera button captured photos and got no response — grower didn't realise it was broken because manual entry (which uses localStorage only) still worked. **Rebuilt as a real Gemini vision call** using `emergentintegrations` + `gemini-2.5-flash` (same as Farm Buddy). Returns `{estimatedWeightKg, confidenceLevel, notes}` JSON. Uses age hint as sanity anchor against Ross 308 / Cobb 500 growth standard.
-  - **NEW feature — Day-Old Chick Counter (`/api/count-chicks`)**: On chick-truck day, grower snaps a crate photo → Gemini counts chicks visible → returns `{count, cratesDetected, confidenceLevel, notes}`. Anchor: ~100 chicks per Aussie crate. Diff vs expected shown in green (±5) or red.
-  - **Mobile reader parity — 2 new tabs on `reader.html`**: ⚖️ **Weigh** (AI camera + manual entry, saves to same `feedmate-flock-weighins` localStorage key as the Feed Program so it shows up in Flock Forecast) and 🐣 **Chicks** (crate counter, saves to `feedmate-chick-counts`). Both use the phone's native camera (`accept="image/*" capture="environment"`) and send base64 to the Gemini endpoints. Session-log below each shows recent captures. Same tab bar now has 7 items: Today · History · Deliveries · **Weigh** · **Chicks** · Photos · Settings.
-  - **Backend tests**: 87/87 still passing (existing pricing + integration tests).
-- **2026-07-31 (Code review fixes — HIGH pricing/EOB/race bugs + workbook date parsing)**:
-  - **HIGH — Ops Pack pricing mismatch (revenue bug on LIVE Stripe)**: `server.py`'s `PACKAGES` dict had duplicate `ops_bronze/silver/gold` keys — the second `ops_bundle` block shadowed the first `subscription` block, and the checkout handler used a hardcoded `{bronze:25, silver:45, gold:75}` tier map that mismatched the landing page's `TIERS={bronze:50→25, silver:75→37.50, gold:100→50, platinum:150→75}` display. Ops annual multiplier + volume discount were completely ignored server-side. Real customers were being charged wrong amounts. **Fix**: extracted a single-source-of-truth `_OPS_TIER_PRICE` dict + `_ops_volume_discount()` + `_price_ops_bundle(farms, billing_period)` pricer that mirrors landing.html's `computeTotal()` math exactly. Added `billingPeriod` field to `CheckoutRequest`. Landing now sends billing period. Added `ops_platinum` package (was missing → falling back to $50). Deduped duplicate PACKAGES keys. Wrote 23 pytest regression tests in `/app/backend/tests/test_ops_pricing.py` covering tier prices, volume-discount tiers, monthly+annual totals, edge cases. **87/87 backend tests now pass** (was 64).
-  - **HIGH — EOB email silently degraded to plain text**: `EndOfBatchContent.tsx:805` referenced an undeclared `farmName` variable → ReferenceError → swallowed by empty `catch` → `report` undefined → backend sent plain-text email with no KPIs / no PDF. Fixed by removing the `|| farmName` fallback (the surrounding `.trim() || null` already handles empty gracefully).
-  - **HIGH — Duplicate provisioning race**: `_provision_purchase` check-then-set on `provisioned` flag was non-atomic. Status-page poll + Stripe webhook could both slip through and create duplicate farms + duplicate welcome emails. **Fix**: replaced the read-then-set with an atomic `update_one({provisioned:{$ne:True}}, $set:provisioned:True)` MongoDB claim — only the FIRST caller wins the race, subsequent races short-circuit with `matched_count == 0`. Removed the redundant late `provisioned:True` write.
-  - **MEDIUM — Workbook date parsing was dead code**: `App.tsx:10002-10014` was reading `cell.v` / `cell.rawNum` fields that don't exist on `CellInfo` (which only has `value` + `numericValue`). Every date branch fell through to `NaN`, skewing age/FCR/projections whenever a placement date came from an imported spreadsheet cell rather than a user edit. Rewrote to use `cell.numericValue` (Excel serial) → JS Date, with `cell.value` string fallback.
-- **2026-07-31 (First-login setup wizard + Success page redesign + resend-welcome endpoint + Density NaN fix)**:
-  - **P0 activation — 5-step first-login wizard delivered**: New component `/app/silo/artifacts/feed-program/src/components/FirstLoginWizard.tsx`, mounted at the top of App.tsx's render. Auto-appears when `localStorage.silo-farm-config.farmName` is empty AND `feedmate-wizard-done !== "1"`. Steps: 1) Welcome + "what we'll capture" checklist, 2) Farm name (text input), 3) Broiler / Breeder tiles, 4) Shed count grid (2/4/6/8/10/12/16/20 → auto-generates shed groups), 5) Processor selector (Ingham's / Baiada) + "you're almost there" callout. Skip button on every step, live progress dots, `data-testid`s throughout. On Finish → saves via existing `saveFarmConfig()` (single source of truth, no duplicate storage). Verified end-to-end via Playwright — completing the wizard puts the farm name into the app header ("Double B Test — Broiler Base Mate").
-  - **P0 conversion — magic-link "waiting" screen** (earlier this session): Success page now leads with a "YOU'RE IN — START RIGHT NOW" gold CTA, per-farm reader links, and a Resend welcome-email button (rate-limited, live cooldown). New endpoint `POST /api/checkout/resend-welcome/{session_id}`.
-  - **P0 bug — Density NaN fix**: readWeighInGroup used in DensityView + Flock Forecast card.
-- **2026-07-27 (QR-claim honesty pass + Buyer Modal killed + Trust-first hero + Founding Grower + Live screenshots)**:
-  - **P0 honesty fix — user flagged incorrect QR claims**: The landing page was overclaiming a per-shed QR feature and a "Pair Phone" flow that don't exist. Scrubbed 5 places: (1) mobile-card bullet — was "Scan the QR at each shed", now "Open the reader on your phone"; (2) How-it-Works step 1 — was "Scan to open" via QR, now "Open on your phone" via a private reader link; (3) FAQ about workers — was "They scan a QR code", now "You share a private reader link"; (4) demo modal step 1 — replaced fake-QR mockup with an honest "your farm's private reader link" card; (5) partner-program feature — was "QR-code stickers for your silos", now "Docket-scanning that recognises your delivery paperwork". Renamed feature tile "QR Scanning" → **"Docket Scanning"** (the only real QR use case). Only remaining QR mention is the honest one: "Scan dockets on arrival · Photo or QR" for feed delivery dockets.
-  - **P0 conversion fix — killed Buyer Details Modal**: `.start-btn` and `#ops-checkout` now go straight to Stripe (which collects email itself). Verified: click → `checkout.stripe.com/c/pay/cs_live_...` in one step. Estimated 20-40% conversion lift.
-  - **Landing rewrite + real app screenshots**: tighter hero ("Kill the paperwork. Grow better birds."), Founding Grower deal band (25-spot scarcity), "See it in action" section with real Feed Program + Silo Reader screenshots captured via Playwright.
-  - **Sales Playbook** at `/app/memory/sales_playbook.md`.
-- **2026-07-22 (Reader History layout + Excel export upgrade)**:
-  - **UI fix (P1) — "on app when i read silo its has nice lay out … why can we do the same for history"**: Rebuilt `loadHistory()` in `/app/backend/static/reader.html` so each day now renders one card per shed group (matching the "Today" tab), with silos A/B/C in a single horizontal row + a per-shed **TOTAL** and an orange **DAY TOTAL** on the date header. Added `.hist-shed-card` / `.hist-silo-cell` styles.
-  - **Excel export upgrade (P1) — "needs a total of feed for the day when i share excel"**: Rewrote the "Export Excel" click handler to pivot readings into columns: **Date · Time · Shed Group · Silo A (t) · Silo B (t) · Silo C (t) · Shed Total (t)**, with a **DAY TOTAL** row after each date section and a blank separator. All amounts normalised to tonnes so head-office can sum any column instantly.
-  - **Verified visually**: reader.html History tab shows the new card layout with orange DAY TOTAL badges. Excel export sample confirmed via JS-in-page evaluation.
-- **2026-07-22 (Flock Forecast — per-shed weigh-ins + "2 Shed 7" label bug + AI camera unhidden on desktop)**:
-  - **UI/data fix (P1) — "putting in weights but its sheds in groups, no weights for each shed"**: Weigh-ins were stored as one group-level number per age → weighing Shed 3 then Shed 4 silently averaged them together. Rebuilt storage to per-slot: `WeighInEntry = number | { s1?: number; s2?: number }` with `readWeighInSlot` / `readWeighInGroup` / `writeWeighInSlot` helpers that transparently migrate legacy `number` entries. Updated `logManualWeight`, `logToForecast` (⚖️ Weigh Birds tab) and the FlockForecastView tracker table to save/render per slot. Weigh-in Tracker now shows **two columns** — one per individual shed — with per-slot editing and correct Δ% aggregation. Whole-farm aggregation reads via `readWeighInGroup` so cross-shed averages still work.
-  - **Label fix (P1) — "there was 2 shed 7"**: `Shed 9 & 10` card was showing "SHED 7 / SHED 8" in its slot chips because the XLSX template left stale labels in rows 3/4 col B. Added a regex guard: if the raw XLSX label doesn't contain the group's expected shed number (`\bN\b`), fall back to the canonical `Shed N`.
-  - **UI fix (P0) — "AI camera missing, only manual weights"**: The ⚖️ Weigh Birds tab (with the AI camera) was gated behind `isTouchDevice = navigator.maxTouchPoints > 0` — so it was invisible on desktop browsers. Removed the gate: the tab now shows on all devices. Modern desktop browsers support `getUserMedia` too, so the AI camera flow works everywhere. Verified visually — AI Camera / Manual Entry toggle both visible on desktop.
-  - **Verified visually**: Shed 9 & 10 card now shows "Shed 9 / Shed 10" chips + "SHED 9 / SHED 10" tracker columns. Backend regression suite still 64/64 green.
-- **2026-07-15 (Backend stability + Sheds 1 & 2 header label fix + Farm Buddy smarter data)**:
-  - **Test fix (P3) — Flaky `test_today_filters_to_today_only`**: rewrote the test in `/app/backend/tests/test_sync_and_alerts.py` to pre-clean any stale readings for the target silo, use the LAST silo of the group (not `gsilos[1]`), and post-clean after asserting. Now runs deterministically. Full backend suite: **64/64 passing**.
-  - **UI fix (P1) — Sheds 1 & 2 missing "FEED ALLOC" gold header**: the XLSX template had empty cells at COL_G on the Shed 1&2 tab (Sheds 3+ carry the label). Added an override in `App.tsx` render loop (`isMissingFeedAllocHeader`) that injects "FEED"/"ALLOC" on header rows 7/8 and forces gold text color even when `info.bold` is false. Rebuilt via `BASE_PATH=/ yarn build` in `/app/silo/artifacts/feed-program/`. Verified visually via magic-link screenshot — Shed 1 & 2 now identical to Shed 3 & 4.
-  - **AI fix (P0) — Farm Buddy "way off track with silo data"**: The `getShedSnapshots` builder only read COL_J/K/L/M (physical silo dips) so if the user pasted feed orders without doing a manual silo reading, Farm Buddy saw `siloTotal=0` and cried "critical". Three-part fix in `App.tsx`:
-    1. When silo A/B/C are empty, **fall back to FEED ON HAND (COL_I)** — this cascades automatically from deliveries + usage.
-    2. **Sum future FEED ORDERED (COL_E) entries** as `incomingT`, add to the days-of-feed projection, and annotate the shed name (e.g. "Shed 1&2 (30.0t incoming)") so the LLM sees the pipeline.
-    3. **Skip completed batches** — if `dayAge >= batchEndAge` OR `liveBirds <= 0`, the shed is excluded from Farm Buddy's context so stale/finished batches don't trigger false "critical" alarms.
-  - **Removed from roadmap** (per user 2026-07-15): "Wingman" voice AI (permanently dropped) and all P1 marketing/email-domain tasks.
-- **2026-02-09 (EOB "Feed from Last Batch" carry-over)**:
-  - **UX fix (P1) — "there's no feed from last batch"**: When users started a new batch via `resetForNewBatch()` in `App.tsx`, both `Last Batch Left` (cell 7,18) and `Feed Left` (cell 15,18) got wiped — so the new batch always began with a blank "feed from last batch" row. Added a capture step BEFORE the wipe: read the current `Feed Left` value (prefer edits, fall back to xlsx), then AFTER clearing, seed cell `7,18` on the fresh EOB with that value. So batch 122's "Last Batch Left" now auto-populates from batch 121's "Feed Left" — no manual re-typing. Rebuilt via `BASE_PATH=/feed-program/ yarn build` and restarted frontend.
-- **2026-02-10 (Reader Settings + Head-Office Share + Mobile landing overhaul)**:
-  - **P1 — "Head office only needs the silo reading from the day I click share"**: `/api/history/share-email` now filters silo readings to TODAY (AEST calendar day) only, regardless of the delivery-history window selected. Deliveries still use the `days` window for context. Modal blurb + section label updated ("today's silo readings", "Delivery History Period").
-  - **P1 — Reader workspace cleanup**: Moved Language selector + Logout into the mobile Reader's Settings tab under a new "APP" section. Hid the floating `#appcovi-lang-chip` on `/reader` and stopped `auth-guard.js` from rendering the top-right "👤 · Logout" badge on the reader route. Also fixed `i18n-snippet.js` to skip injecting the chip when `location.pathname` starts with `/reader`.
-  - **P1 — Fixed farm-switcher polluting public pages**: `mountFarmSwitcher` in the feed-program SPA `index.html` (both source + built) now short-circuits on `/landing`, `/success`, `/checkout`, `/pricing` — the "🚜 Farm: My Farm (default) · Ops →" pill no longer floats over marketing hero copy.
-  - **P0 — Mobile landing.html overhaul**: Added a full mobile layer (@media ≤900px + ≤420px) with: proper hamburger + slide-in menu (right-drawer, safe-area padding, Esc-to-close), hidden desktop nav links + APPCOVI corner chip on small screens, tightened section padding (from 56px → 36px → 30px), hero headline down to 36/32px with line-height 1.08, buttons stretch full width, pricing cards forced to single-column with strong ink-colour text (fixes previously-washed-out $25 tier), 2-column feature strip, single-column steps/sponsor/build cards, sticky-CTA safe-area padding for iOS, language-chip nudged above CTA. Desktop unchanged (verified: hamburger hidden, nav links visible).
+- P2: Custom-domain email sender (switch Resend from `onboarding@resend.dev` to `jason@appcovi.com.au` via DNS)
+- P3: Refactor server.py and App.tsx into smaller modules (both are monolithic)
+- P3: Multi-worker uvicorn + CDN for 10k+ user scale
+- P3: Live price ticker in Ops builder
+- P3: Day-3 no-login founder alert
+- P3: Carousel video demo — 20-sec docket-scan → silo-update autoplay muted video slide
+- P3: Weekly Playwright screenshot refresh cron
 
-- **2026-02-10 (Sticky WhatsApp CTA — mobile)**: Added floating `#wa-fab` pill on landing.html — WhatsApp brand green (#25D366), 30px SVG icon + "Chat" label, sits at `right:16px` and `bottom:calc(84px + env(safe-area-inset-bottom))` so it hovers above the "Start free trial" sticky bar without covering it. Opens `wa.me/61428337887` with pre-filled message "Hi Jason, saw Broiler Base Mate — got a couple of questions." Subtle 2.4s pulse ring for attention (disabled on reduced-motion). Hidden on desktop via `@media (max-width: 768px)`.
-- **2026-02-10 (Weigh Birds — per-shed cards)**: `initWeighTab()` in reader.html was hardcoded to 2 sheds per group (`sheds.push(n*2-1, n*2)`) — so a 12-shed farm on non-paired groups saw the wrong shed list. Refactored to mirror the Photos tab: driven by `farmConfig.totalSheds`, generating one weigh card per shed (Shed 1..N). Jason (12 sheds set in Settings) now sees exactly 12 cards.
-- **2026-02-10 (Merge Weigh + Photos into one tab)**: Removed the standalone Weigh tab from the reader nav; renamed Photos → Weigh. Each shed section in the merged tab now shows 3 buttons — **AI Weigh** (camera, gold), **Manual** (weight entry, navy), **Photo** (audit-trail, green thumbnail) — plus the existing photo grid. Bird Age input sits at the top of the tab and is shared across all sheds. Preserved `logWeigh()`, `weigh-photo-in`, `weigh-preview`, and `weigh-session-log` for the AI-camera flow (feeds `feedmate-flock-weighins` localStorage → Feed Program). Deprecated `initWeighTab()` (now a no-op). Fixed a null-reference in `setActiveTab()` that referenced the removed `#tab-weigh`.
-- **2026-02-10 (Snap Scale — read weight from scale photo)**: Renamed the per-shed "Photo" button to "📸 Snap Scale". New backend endpoint `POST /api/read-scale` — Gemini-2.5-Flash reads the weight shown on either a digital LCD or an analogue needle scale, handles both kg and grams (auto-normalises to kg), and returns `{weightKg, rawReading, unit, isAnalogue, confidenceLevel, notes}`. New `readScaleFromPhoto()` on the reader runs after the photo is saved to the shed gallery (still an audit trail) — shows the extracted kg number in a tappable input, so Jason can override before hitting "Log to Shed N". Confirm → same `logWeigh()` path (source: `"scale-photo"`) → syncs to Feed Program via `feedmate-flock-weighins` localStorage.
+## Test credentials
+- Admin magic link: appcovi2026@gmail.com
 
-- **2026-02-10 (SEO audit fixes — homepage crawlability + text ratio)**:
-  - **P0**: Replaced the `#html-splash` on the SPA index (both `/app/silo/artifacts/feed-program/index.html` and `/app/silo/artifacts/feed-program/dist/public/index.html`) with rich crawlable HTML: proper `<h1>` "End the paperwork. Grow better birds.", value-prop paragraph, 8-point feature list under `<h2>What you get</h2>`, pricing summary under `<h2>Simple monthly plans</h2>`, founder blurb, WhatsApp CTA, and a link to `/landing`. Visible-word count on `/` jumped from **27 → 354** (13× more content for Googlebot).
-  - **P0**: Fixed canonical URL — was `https://broilerbasemate.com.au/feed-program/` (a sub-page), now points to `https://broilerbasemate.com.au/`. Updated OG:url, meta description (mentions BPL + independent farms, not just Ingham/Baiada), title (better keyword mix), added `keywords` meta, `max-image-preview:large` robots directive.
-  - **P0**: Expanded JSON-LD to a full `@graph` with `SoftwareApplication` (all 3 pricing offers, feature list, image), `Organization` (founder Jason Coverdale, WhatsApp contactPoint), and `WebSite` schema.
-  - **P1**: Cache-Control on `/api/page/landing` (and success, onboarding-guide) changed from `no-store` → `public, max-age=300, s-maxage=600` so crawlers + browsers can cache marketing pages. Auth-gated pages (reader, ops-dashboard, admin) stay `no-store`.
-  - **P1**: Cleaned sitemap.xml — removed auth-gated `/reader` and `/ops-dashboard` entries (they 401 for Googlebot). Added `<lastmod>` dates for freshness signals. Added `/onboarding-guide`.
-  - **Still needs user action (DNS)**: `https://www.broilerbasemate.com.au/` returns nothing. Emergent Support / DNS provider must configure a `www` CNAME → apex OR a 301 redirect from `www` → apex. This is the "Homepage not being crawled" root cause and can't be fixed in code.
-
-
-- **2026-02-10 (Bug fix — Manual weigh modal never opened)**: `openManualWeigh()` set `display:none` in inline `cssText`, which beat the `.show { display:flex }` class rule due to CSS specificity — so tapping "Manual" on any shed appeared to do nothing. Fixed by moving the display rules into a stylesheet with `!important` (`#manual-weigh-modal{display:none !important;} #manual-weigh-modal.show{display:flex !important;}`) and removing the inline `display:none`. Verified end-to-end: modal opens → type 1.85 → Log → "✓ 1.850 kg" shows on shed header + Feed Program updated.
-- **2026-02-10 (EOB tab rebrand to match email)**: Ported the emailed EOB layout INTO the Feed Program's on-screen EOB tab. Added a new "Batch Report Preview" hero panel at the top (Appcovi navy gradient, gold `END OF BATCH REPORT` eyebrow, farm name + batch + generated-date sub) with an 8-tile KPI grid (Birds Placed / Caught / Morts / Mortality / Total Feed / Feed On Hand / Net Consumed / Batch). Swapped Bird Summary green (`#1a5c36`) → navy (`#1e2f4d`) across headers, totals row, balance colors, and Net Consumed banner (now navy gradient with gold top-border). Section labels now use gold-underlined navy chips instead of muted gray. Added a "BUILT BY APPCOVI" footer card at the bottom of the tab — identical style to the emailed report footer. Rebuilt with `BASE_PATH=/feed-program/ yarn build`; verified `END OF BATCH REPORT / Batch Performance / BUILT BY / POULTRY MANAGEMENT` all present in `dist/public/assets/index-*.js`.
-- **2026-02-11 (Remove Founding Grower Deal)**: Deleted the entire "🏆 LIMITED — FIRST 25 FARMS ONLY / Founding Grower Deal" section from landing.html (`#founding`), including the 4 perks (founding rate, direct line, roadmap, case study) and the `#founding-slots-left` counter. Renamed hero CTA "🚀 Claim Founding Grower Deal →" → "🚀 Start Free 30-Day Trial →". Verified no residual "Founding"/"Founder Deal" copy on landing, success or SEO splash. Pricing section now leads directly with the 3 plans.
-- **2026-02-11 (Remove Sponsor + Back the Build)**: Deleted `#sponsor` section (Sponsor Broiler Base Mate — $5/$12.50/$25 packages) and `#build` section (Back the Build — $50/$250/$500 tiers) from landing.html. Removed corresponding entries from the desktop `.links` nav and the mobile hamburger menu (`#m-nav-panel`). Reworded the Partners → Poultry Integrators card copy ("Sponsor Broiler Base Mate for every grower" → "Roll out Broiler Base Mate to every grower") so no stray sponsorship language remains. Mobile menu now: Plans & Pricing · Ops Pack · Partners · Charity · Login. Page height ~21k → ~18.3k px on mobile.
-- **2026-02-15 (Landing screenshots — See It In Action)**: Added a new "📸 SEE IT IN ACTION · Real screens from the app" card on landing.html, immediately below the AI Features text card. Four CSS/SVG mockups (no external images so no missing-asset risk): (1) AI Docket Scan with parsed Ingham's docket → auto-routed to Shed 3 Silo A, (2) Photos Per Shed with camera-crosshair over 🐔 + AI/Manual/Scale buttons + "REC" badge, (3) QR Onboarding with an inline SVG QR pattern (Appcovi navy+gold), (4) EOB Email & PDF with Gmail chrome, navy hero, KPI grid (Birds/Feed/FCR/Feed-Left) and "BUILT BY APPCOVI" footer. Responsive grid stacks to one column on phones. Also removed the legacy `shareEmail` mailto: plaintext handler in `App.tsx` — the "Share via Email" button now just tells growers to use the EOB tab's "Send End of Batch Report" flow (fixes the ugly plaintext email Jason showed on prod).
-- **2026-02-15 (Real iPhone screenshots + swipeable carousel)**: Captured real screenshots of the live app at 390×800 (iPhone width) using Playwright — reader Today (silo grid + Farm Buddy alerts), reader Weigh (per-shed AI Weigh / Manual / Snap Scale), reader Deliveries (AI-parsed docket history), and `/api/eob/preview-sample` (branded EOB email). Saved to `/app/backend/static/screenshots/*.jpg` and served via `/api/static-asset/screenshots/`. Replaced the CSS-mockup grid on landing with a swipeable iPhone-framed carousel — dark bezel, dynamic-island notch, `scroll-snap-type: x mandatory`, hidden scrollbar. Auto-advances every 4.5s (respects `prefers-reduced-motion`, pauses on touch/hover/dot-click). Desktop shows arrow buttons + gold dot navigation.
-
-
-
-
-
-
-
-
-
-
-
-
-## Future / Backlog
-- 🟡 P1: Stripe LIVE mode — swap `sk_test_` for user's `sk_live_…` + real Price IDs (next session when user is home).
-- 🟡 P1: Paste real Resend API key + verify live email delivery to `appcovi2026@gmail.com`.
-- P2: Auth — Emergent Google Auth or JWT to lock down farm data.
-- P2: Sora 2 social-marketing video clips (awaiting credit top-up).
-- P2: Auto-allocation — parse `deliveryInstructions` "5 B 10, 6 B 5, 7 B 13" → create one delivery row per shed-silo automatically.
-- P2: Feed Program UI farm-picker (currently always uses `default`; can be added once Ops have farms).
-- P2: PDF / CSV export of full history.
-- P2: Search / filter in History (by supplier, date range, feed type, docket #).
-- P3: Custom-domain email via Resend (DNS for `broilerbasemate.com.au`).
-- P3: Refactor monolithic `server.py` (>1800 lines) and `App.tsx` (>10000 lines).
-- P3: Multi-worker Uvicorn + CDN for 10k+ user scale.
-- P3: Google Drive / OneDrive cloud sync (needs user OAuth tokens).
-- P3: Restore companion Silo Tracker PWA (needs Clerk publishable key).
+## Key files
+- Backend: /app/backend/server.py (monolith), /app/backend/email_service.py
+- Backend static: /app/backend/static/{landing,reader,ops-dashboard,onboarding-guide,tools-*,ross-308-growth-chart,cobb-500-growth-chart,vs-poultrylog}.html
+- SPA host: /app/silo/artifacts/feed-program/index.html
+- SPA source: /app/silo/artifacts/feed-program/src/App.tsx (monolith) + /app/silo/artifacts/feed-program/src/components/
+- SPA public assets: /app/silo/artifacts/feed-program/public/{llms.txt,llms-full.txt,sitemap.xml,robots.txt}
+- Memory: /app/memory/PRD.md, /app/memory/KEYWORD_GAPS.md, /app/memory/test_credentials.md
