@@ -3492,6 +3492,8 @@ async def api_page(page_name: str):
         "admin": "admin-health.html",
         "admin/health": "admin-health.html",
         "onboarding-guide": "onboarding-guide.html",
+        "tools/fcr-calculator": "tools-fcr-calculator.html",
+        "ross-308-growth-chart": "ross-308-growth-chart.html",
     }
     if page_name not in allowed:
         raise HTTPException(404, "Page not found")
@@ -3504,7 +3506,7 @@ async def api_page(page_name: str):
     html = html.replace("/reader-assets/", "/api/static-asset/")
     # SEO: allow crawlers + browsers to cache marketing pages for 5 minutes.
     # Ops/reader/admin stay uncached (auth-guarded, user-specific).
-    is_public = page_name in ("landing", "landing/success", "onboarding-guide")
+    is_public = page_name in ("landing", "landing/success", "onboarding-guide", "tools/fcr-calculator", "ross-308-growth-chart")
     cache_hdr = "public, max-age=300, s-maxage=600" if is_public else "no-store"
     return Response(content=html, media_type="text/html; charset=utf-8",
                     headers={"Cache-Control": cache_hdr})
@@ -3516,6 +3518,31 @@ async def onboarding_guide_page():
     """Customer onboarding guide — install instructions for iPhone/Android/desktop,
     first-batch walkthrough, Farm Buddy tips. Printable as PDF via the in-page button."""
     return FileResponse(os.path.join(STATIC_DIR, "onboarding-guide.html"))
+
+
+# ─── SEO magnet pages — public, crawlable, cached ─────────────────────────
+@app.get("/tools/fcr-calculator")
+@app.get("/tools/fcr-calculator/")
+async def fcr_calculator_page():
+    """Free FCR + cFCR calculator — SEO magnet targeting 'FCR calculator broiler'
+    and long-tail 'how to calculate FCR' queries."""
+    path = os.path.join(STATIC_DIR, "tools-fcr-calculator.html")
+    with open(path, "r", encoding="utf-8") as f:
+        html = f.read()
+    return Response(content=html, media_type="text/html; charset=utf-8",
+                    headers={"Cache-Control": "public, max-age=600, s-maxage=1800"})
+
+
+@app.get("/ross-308-growth-chart")
+@app.get("/ross-308-growth-chart/")
+async def ross_308_growth_chart_page():
+    """Ross 308 target-weight/FCR chart reference page — SEO magnet targeting
+    Aviagen Ross 308 keyword cluster."""
+    path = os.path.join(STATIC_DIR, "ross-308-growth-chart.html")
+    with open(path, "r", encoding="utf-8") as f:
+        html = f.read()
+    return Response(content=html, media_type="text/html; charset=utf-8",
+                    headers={"Cache-Control": "public, max-age=600, s-maxage=1800"})
 
 
 @app.get("/reader")
