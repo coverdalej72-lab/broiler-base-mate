@@ -3465,6 +3465,135 @@ async def admin_health_page():
     return FileResponse(os.path.join(STATIC_DIR, "admin-health.html"))
 
 
+# ─── Legacy Stripe price migration ──────────────────────────────────────
+# Bulk-move any active broiler subscribers still on old prices onto the
+# current A$20 / A$25 / A$30 AUD monthly (or A$204 / A$255 / A$306 annual)
+# tiers. Uses Stripe API directly (no reliance on stored Price IDs — creates
+# ad-hoc price_data by amount + interval, same shape as our checkout flow).
+_TARGET_PRICES = {
+    # (currency, interval, plan_name) -> amount_cents
+    ("aud", "month", "Bronze"): 2000,
+    ("aud", "month", "Silver"): 2500,
+    ("aud", "month", "Gold"):   3000,
+    ("aud", "year",  "Bronze"): 20400,
+    ("aud", "year",  "Silver"): 25500,
+    ("aud", "year",  "Gold"):   30600,
+}
+
+
+def _guess_plan_from_metadata(sub) -> Optional[str]:
+    """Read plan tier from subscription/item metadata written at checkout time."""
+    md = (sub.get("metadata") or {})
+    for k in ("plan", "tier", "package_id"):
+        v = (md.get(k) or "").lower()
+        if "bronze" in v: return "Bronze"
+        if "silver" in v: return "Silver"
+        if "gold"   in v: return "Gold"
+    # Fall back: check the first item's metadata
+    items = ((sub.get("items") or {}).get("data") or [])
+    if items:
+        imd = (items[0].get("metadata") or {})
+        for k in ("plan", "tier", "package_id"):
+            v = (imd.get(k) or "").lower()
+            if "bronze" in v: return "Bronze"
+            if "silver" in v: return "Silver"
+            if "gold"   in v: return "Gold"
+    return None
+
+
+@app.post("/api/admin/migrate-legacy-subs")
+async def migrate_legacy_subs(request: Request, dry_run: bool = True):
+    """Bulk-migrate active Stripe subscriptions onto the current A$20/25/30
+    price tiers. Set ?dry_run=false to actually apply changes.
+
+    Returns a per-subscription report so the admin can audit the migration.
+    """
+    await _require_admin(request)
+    import stripe as _stripe
+    _stripe.api_key = os.environ["STRIPE_API_KEY"]
+
+    report = {"scanned": 0, "already_current": 0, "migrated": 0, "skipped": 0,
+              "failed": 0, "dry_run": dry_run, "changes": []}
+
+    # Page through all active subscriptions
+    starting_after = None
+    while True:
+        kwargs = {"status": "active", "limit": 100, "expand": ["data.items"]}
+        if starting_after:
+            kwargs["starting_after"] = starting_after
+        subs = _stripe.Subscription.list(**kwargs)
+        for sub in subs.data:
+            report["scanned"] += 1
+            sub_dict = sub.to_dict() if hasattr(sub, "to_dict") else dict(sub)
+            items = ((sub_dict.get("items") or {}).get("data") or [])
+            if not items:
+                report["skipped"] += 1
+                report["changes"].append({"sub_id": sub.id, "action": "skipped", "reason": "no items"})
+                continue
+            item = items[0]
+            price = item.get("price") or {}
+            cur = (price.get("currency") or "aud").lower()
+            interval = ((price.get("recurring") or {}).get("interval") or "month").lower()
+            amt = price.get("unit_amount") or 0
+            plan = _guess_plan_from_metadata(sub_dict)
+            if not plan:
+                report["skipped"] += 1
+                report["changes"].append({"sub_id": sub.id, "action": "skipped",
+                                          "reason": "unknown plan tier (missing metadata)",
+                                          "current_amount": amt, "currency": cur})
+                continue
+            target_amt = _TARGET_PRICES.get((cur, interval, plan))
+            if target_amt is None:
+                report["skipped"] += 1
+                report["changes"].append({"sub_id": sub.id, "action": "skipped",
+                                          "reason": f"no target for {cur}/{interval}/{plan}"})
+                continue
+            if amt == target_amt:
+                report["already_current"] += 1
+                continue
+            # Migrate: build new price_data and update the subscription item
+            change = {
+                "sub_id": sub.id, "customer": sub.customer, "plan": plan, "interval": interval,
+                "currency": cur, "from_amount": amt, "to_amount": target_amt, "action": "migrate",
+            }
+            if dry_run:
+                report["migrated"] += 1
+                report["changes"].append(change)
+                continue
+            try:
+                _stripe.Subscription.modify(
+                    sub.id,
+                    items=[{
+                        "id": item["id"],
+                        "price_data": {
+                            "currency": cur,
+                            "product": price.get("product"),
+                            "unit_amount": target_amt,
+                            "recurring": {"interval": interval},
+                        },
+                    }],
+                    proration_behavior="none",  # don't retroactively charge or credit
+                    metadata={**(sub_dict.get("metadata") or {}), "migrated_at": datetime.now(timezone.utc).isoformat(),
+                              "migrated_from_amount": str(amt), "migrated_to_amount": str(target_amt),
+                              "plan": plan},
+                )
+                report["migrated"] += 1
+                change["ok"] = True
+                report["changes"].append(change)
+            except Exception as e:
+                report["failed"] += 1
+                change["ok"] = False
+                change["error"] = str(e)
+                report["changes"].append(change)
+                import logging as _lg
+                _lg.getLogger("stripe_migration").exception("Stripe migration failed for %s", sub.id)
+        if not subs.has_more:
+            break
+        starting_after = subs.data[-1].id if subs.data else None
+
+    return report
+
+
 # ─── Static field reader ─────────────────────────────────────────────────
 STATIC_DIR = os.path.join(os.path.dirname(__file__), "static")
 if os.path.isdir(STATIC_DIR):

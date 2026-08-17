@@ -119,6 +119,8 @@
       <div id="backup-summary" class="empty">…</div>
       <div class="actions" style="margin-top: 12px;">
         <button class="btn" id="btn-backup-now" data-testid="btn-backup-now">📦 Backup now</button>
+        <button class="btn" id="btn-migrate-dry" data-testid="btn-migrate-dry" style="background:#e6b800;color:#0a1428;">🔍 Preview Stripe migration</button>
+        <button class="btn" id="btn-migrate-apply" data-testid="btn-migrate-apply" style="background:#c9302c;">⚠️ Apply Stripe migration</button>
         <button class="btn ghost" id="btn-refresh" data-testid="btn-refresh">↻ Refresh</button>
       </div>
     </div>
@@ -244,6 +246,39 @@
       btn.disabled = false; btn.textContent = "📦 Backup now";
     }
   });
+
+  // ─── Stripe legacy-price bulk migrate ────────────────────────────────
+  async function runMigration(dryRun) {
+    const btn = document.getElementById(dryRun ? "btn-migrate-dry" : "btn-migrate-apply");
+    const label = btn.textContent;
+    if (!dryRun) {
+      if (!confirm("This will actually update Stripe subscriptions to the new A$20 / A$25 / A$30 pricing. Proration is disabled — customers won't be charged extra now. Continue?")) return;
+    }
+    btn.disabled = true; btn.textContent = dryRun ? "Scanning…" : "Migrating…";
+    try {
+      const r = await fetch("/api/admin/migrate-legacy-subs?dry_run=" + (dryRun ? "true" : "false"),
+                            { method: "POST", credentials: "include" });
+      if (!r.ok) throw new Error(await r.text());
+      const rep = await r.json();
+      const summary = `${dryRun ? "PREVIEW" : "APPLIED"}\n\n` +
+        `Scanned: ${rep.scanned}\n` +
+        `Already on new pricing: ${rep.already_current}\n` +
+        `${dryRun ? "Would migrate" : "Migrated"}: ${rep.migrated}\n` +
+        `Skipped (no metadata / unknown plan): ${rep.skipped}\n` +
+        `Failed: ${rep.failed}\n\n` +
+        (rep.changes.length ? "First 10 changes:\n" + rep.changes.slice(0,10).map(c =>
+          `${c.sub_id.slice(0,15)}… ${c.plan || "?"} ${c.from_amount/100 || "?"} → ${c.to_amount/100 || "?"} ${c.currency ? c.currency.toUpperCase() : ""} ${c.ok === false ? "❌" + (c.error||"") : ""}`
+        ).join("\n") : "(no eligible subs found)");
+      alert(summary);
+      console.log("Migration report:", rep);
+    } catch (e) {
+      alert((dryRun ? "Preview" : "Migration") + " failed: " + e.message);
+    } finally {
+      btn.disabled = false; btn.textContent = label;
+    }
+  }
+  document.getElementById("btn-migrate-dry").addEventListener("click", () => runMigration(true));
+  document.getElementById("btn-migrate-apply").addEventListener("click", () => runMigration(false));
 </script>
 </body>
 </html>
