@@ -1474,12 +1474,10 @@
           </div>
           <button data-mw-close style="background:transparent;border:0;color:#fff;font-size:24px;cursor:pointer;">×</button>
         </div>
-        <div style="padding:20px 16px;">
+        <div style="padding:20px 16px 24px;">
           <label style="font-size:11px;color:var(--muted);font-weight:800;letter-spacing:0.5px;">WEIGHT (KG)</label>
-          <div style="display:grid;grid-template-columns:1fr auto;gap:8px;margin-top:6px;">
-            <input id="mw-input" type="number" step="0.001" inputmode="decimal" placeholder="e.g. 1.850" style="padding:14px;font-size:22px;font-weight:900;text-align:center;border-radius:10px;border:1px solid var(--line);background:var(--panel);color:var(--ink);" />
-            <button id="mw-save" data-testid="mw-save" style="padding:14px 22px;background:var(--green-700);color:#fff;border:0;border-radius:10px;font-weight:900;font-size:14px;">Log</button>
-          </div>
+          <input id="mw-input" type="number" step="0.001" inputmode="decimal" placeholder="e.g. 1.850" style="display:block;width:100%;margin-top:6px;padding:16px;font-size:24px;font-weight:900;text-align:center;border-radius:12px;border:1.5px solid var(--line);background:var(--panel);color:var(--ink);box-sizing:border-box;" />
+          <button id="mw-save" data-testid="mw-save" style="display:block;width:100%;margin-top:14px;padding:16px;background:var(--green-700);color:#fff;border:0;border-radius:12px;font-weight:900;font-size:16px;box-shadow:0 4px 12px rgba(26,122,64,0.35);cursor:pointer;">✓ Save Weight</button>
         </div>`;
       m.classList.add("show");
       setTimeout(() => document.getElementById("mw-input").focus(), 100);
