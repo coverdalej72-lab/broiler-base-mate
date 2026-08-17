@@ -1907,6 +1907,158 @@ RULES:
                 "notes": f"AI error: {str(e)[:120]}", "targetKg": target, "breed": breed_label}
 
 
+@api.post("/weigh-bird-video")
+async def weigh_bird_video(payload: dict):
+    """Video-mode weigh — grower records ~60 s of birds walking around the
+    shed on their phone. The client extracts 8–10 evenly-spaced still frames
+    and posts them here as an array of base64 images. We send all frames to
+    Gemini 2.5 Flash in a single multi-image call, so it can average across
+    many birds and angles (way more robust than a single-photo assessment).
+
+    Body: {
+      framesBase64: [str, str, ...],           # 4–12 frames, JPEG/PNG, base64 (no data-URL prefix)
+      ageDays: int,                            # bird age in days (mandatory)
+      breed?: 'ross308' | 'cobb500',           # optional, default ross308
+      shedNum?: int,
+    }
+    Returns: { ok, estimatedWeightKg, confidenceLevel, notes, sizeVsAge,
+               targetKg, breed, ageDays, framesAnalysed }
+    """
+    frames = (payload or {}).get("framesBase64") or []
+    if not isinstance(frames, list) or len(frames) < 3:
+        raise HTTPException(400, "framesBase64 must be a list of at least 3 base64 images")
+    if len(frames) > 12:
+        frames = frames[:12]  # cap for Gemini token budget
+    # strip data-URL prefixes if the client sent them
+    frames = [
+        (f.split(",", 1)[1] if isinstance(f, str) and f.startswith("data:") and "," in f else f)
+        for f in frames if f
+    ]
+    age_days = (payload or {}).get("ageDays")
+    if not age_days or not isinstance(age_days, (int, float)) or age_days < 1 or age_days > 60:
+        raise HTTPException(400, "ageDays (1-60) required to anchor the estimate")
+    age_days = int(round(age_days))
+    breed = ((payload or {}).get("breed") or "ross308").lower()
+
+    # Reuse the same Ross 308 / Cobb 500 target tables as /weigh-bird
+    ROSS_308 = {
+        1:0.049, 2:0.065, 3:0.085, 4:0.108, 5:0.135, 6:0.166, 7:0.205,
+        8:0.245, 9:0.291, 10:0.343, 11:0.398, 12:0.457, 13:0.520, 14:0.586,
+        15:0.655, 16:0.727, 17:0.803, 18:0.881, 19:0.862, 20:0.945, 21:1.012,
+        22:1.099, 23:1.188, 24:1.279, 25:1.371, 26:1.464, 27:1.558, 28:1.616,
+        29:1.748, 30:1.843, 31:1.938, 32:2.033, 33:2.128, 34:2.222, 35:2.296,
+        36:2.408, 37:2.500, 38:2.591, 39:2.681, 40:2.769, 41:2.855, 42:2.998,
+        43:3.070, 44:3.140, 45:3.210, 46:3.278, 47:3.346, 48:3.414, 49:3.480,
+        50:3.545, 51:3.610, 52:3.674, 53:3.737, 54:3.799, 55:3.860, 56:3.920,
+        57:3.980, 58:4.038, 59:4.096, 60:4.152,
+    }
+    COBB_500 = {1:0.052, 7:0.210, 14:0.597, 21:1.158, 28:1.840, 35:2.529, 42:3.020, 49:3.500, 56:3.940}
+    if breed == "cobb500":
+        known = sorted(COBB_500.keys())
+        if age_days <= known[0]:
+            target = COBB_500[known[0]]
+        elif age_days >= known[-1]:
+            target = COBB_500[known[-1]]
+        else:
+            for i in range(len(known)-1):
+                if known[i] <= age_days <= known[i+1]:
+                    lo, hi = known[i], known[i+1]
+                    frac = (age_days - lo) / (hi - lo)
+                    target = COBB_500[lo] + frac * (COBB_500[hi] - COBB_500[lo])
+                    break
+    else:
+        target = ROSS_308.get(age_days) or ROSS_308[min(ROSS_308.keys(), key=lambda k: abs(k - age_days))]
+    target = round(target, 3)
+
+    api_key = os.environ.get("EMERGENT_LLM_KEY")
+    if not api_key:
+        raise HTTPException(503, "LLM key not configured")
+    try:
+        from emergentintegrations.llm.chat import LlmChat, UserMessage, ImageContent
+    except Exception as e:
+        raise HTTPException(503, f"LLM lib missing: {e}")
+
+    breed_label = "Cobb 500" if breed == "cobb500" else "Ross 308"
+    system_msg = f"""You are an experienced Australian broiler grower assessing bird SIZE-VS-AGE from a short video clip (delivered as {len(frames)} evenly-spaced still frames from a ~60 second recording of birds walking around a broiler shed).
+
+CONTEXT:
+- All birds in the frames are {age_days} days old (grower-confirmed).
+- Breed: {breed_label}.
+- {breed_label} target weight at day {age_days}: {target:.3f} kg (as-hatched, on-farm).
+- Because you're seeing MANY birds across MANY frames, your answer should reflect the AVERAGE of the flock, not any single bird.
+
+YOUR JOB — return ONE JSON object, no markdown fences, no code blocks:
+{{
+  "sizeVsAge": "much_smaller" | "smaller" | "on_target" | "larger" | "much_larger",
+  "confidenceLevel": "high" | "medium" | "low",
+  "notes": "One short sentence: what you see across the frames + why you picked that size bucket. Reference visual cues like feathering stage, comb size, body fullness, standing height."
+}}
+
+HOW TO PICK sizeVsAge:
+- Compare typical bird body-fullness and feather-cover across the frames against what a healthy day-{age_days} {breed_label} bird should look like
+- "on_target" ≈ within ±5% of target ({target:.3f} kg)
+- "smaller" ≈ 10% under · "much_smaller" ≈ 25% under
+- "larger" ≈ 10% over · "much_larger" ≈ 25% over
+
+CONFIDENCE RULES:
+- high: birds are clear, in-focus, multiple frames show good detail, at least 3 birds visible
+- medium: some blur or dim frames but the flock's general size is readable
+- low: video is too dark, too blurry, or shows something other than broilers → return sizeVsAge="on_target"
+
+Never invent a raw kg number — the server computes it from your sizeVsAge bucket + target.
+""" + _lang_directive(payload)
+
+    chat = LlmChat(
+        api_key=api_key,
+        session_id=f"weigh-video-{uuid.uuid4().hex[:8]}",
+        system_message=system_msg,
+    ).with_model("gemini", "gemini-2.5-flash")
+
+    OFFSETS = {
+        "much_smaller": -0.25, "smaller": -0.10, "on_target": 0.00,
+        "larger": +0.10, "much_larger": +0.25,
+    }
+
+    try:
+        msg = UserMessage(
+            text=f"Assess the flock size vs the {breed_label} day-{age_days} target ({target:.3f} kg). Return JSON only.",
+            file_contents=[ImageContent(image_base64=b) for b in frames],
+        )
+        raw = await chat.send_message(msg)
+        text = str(raw).strip()
+        if text.startswith("```"):
+            text = text.strip("`").split("\n", 1)[-1] if "\n" in text else text
+            if text.endswith("```"):
+                text = text[:-3]
+        import json as _json
+        start = text.find("{"); end = text.rfind("}")
+        if start == -1 or end == -1:
+            return {"ok": False, "estimatedWeightKg": None, "confidenceLevel": "low",
+                    "notes": "AI did not return JSON", "targetKg": target, "breed": breed_label,
+                    "framesAnalysed": len(frames)}
+        data = _json.loads(text[start:end+1])
+        bucket = (data.get("sizeVsAge") or "on_target").lower()
+        offset = OFFSETS.get(bucket, 0.0)
+        estimated = round(target * (1.0 + offset), 3)
+        return {
+            "ok": True,
+            "estimatedWeightKg": estimated,
+            "confidenceLevel": data.get("confidenceLevel", "medium"),
+            "notes": data.get("notes", ""),
+            "sizeVsAge": bucket,
+            "targetKg": target,
+            "breed": breed_label,
+            "ageDays": age_days,
+            "framesAnalysed": len(frames),
+        }
+    except Exception as e:
+        return {"ok": False, "estimatedWeightKg": None, "confidenceLevel": "low",
+                "notes": f"AI error: {str(e)[:140]}", "targetKg": target,
+                "breed": breed_label, "framesAnalysed": len(frames)}
+
+
+
+
 @api.post("/read-scale")
 async def read_scale(payload: dict):
     """Read the weight shown on a farm scale (digital LCD or analogue needle).

@@ -1428,15 +1428,149 @@
                 <span>Snap Scale</span>
               </button>
             </div>
+            <button data-weigh-video="${n}" data-testid="weigh-video-${n}" style="width:100%;padding:12px;background:linear-gradient(135deg,#C9A227 0%,#8a6d1e 100%);color:#0a1428;border:0;border-radius:12px;font-weight:900;font-size:14px;letter-spacing:0.3px;cursor:pointer;margin-bottom:8px;display:flex;align-items:center;justify-content:center;gap:8px;">
+              🎥 <span>AI Video Weigh · 60 s</span>
+            </button>
             <div style="font-size:11px;color:var(--muted);text-align:center;margin:-4px 0 8px;">
-              Tap <b style="color:var(--ink);">Log Weight</b> to type in a reading, or <b style="color:var(--ink);">Snap Scale</b> to photo-read the scale display.
+              <b style="color:var(--ink);">Log Weight</b> = type it · <b style="color:var(--ink);">Snap Scale</b> = photo of the scale · <b style="color:var(--ink);">Video Weigh</b> = record 60 s of birds, AI estimates the average.
             </div>
             ${ph.length ? renderPhotoGrid(ph) : '<div class="photo-empty">No photos yet for Shed '+n+'</div>'}
           </div></div>`;
       }).join("");
       bindPhotoBtns();
-      // Wire up the per-shed manual weigh buttons.
+      // Wire up per-shed weigh buttons.
       $$("[data-weigh-manual]").forEach(b => b.addEventListener("click", () => openManualWeigh(+b.dataset.weighManual)));
+      $$("[data-weigh-video]").forEach(b => b.addEventListener("click", () => startVideoWeigh(+b.dataset.weighVideo)));
+    }
+
+    // ── AI Video Weigh (60 s record → 10 frames → Gemini) ──────────────
+    // Grower taps the button → back camera opens → we record ~60 s of birds
+    // walking around → sample 10 evenly-spaced still frames from the clip →
+    // POST them to /api/weigh-bird-video. AI returns an average weight
+    // grounded in Ross 308 / Cobb 500 target for that day. Estimate pre-fills
+    // the Manual Weigh modal so grower reviews before saving — never silent.
+    async function startVideoWeigh(shed) {
+      const age = +document.getElementById("weigh-age").value;
+      if (!age) { toast("Enter bird age first", "err"); document.getElementById("weigh-age").focus(); return; }
+      if (!navigator.mediaDevices || !window.MediaRecorder) {
+        toast("This device doesn't support video recording — use Log Weight instead", "err");
+        return;
+      }
+      const RECORD_MS = 60000;
+      const FRAME_COUNT = 10;
+
+      // Build a full-screen recorder UI on the fly
+      const overlay = document.createElement("div");
+      overlay.style.cssText = "position:fixed;inset:0;z-index:99999;background:#000;display:flex;flex-direction:column;align-items:center;justify-content:center;";
+      overlay.innerHTML = `
+        <video id="vw-preview" playsinline autoplay muted style="width:100%;max-width:520px;background:#000;"></video>
+        <div id="vw-status" style="color:#C9A227;font-weight:900;letter-spacing:1px;font-size:14px;margin-top:16px;">READY</div>
+        <div id="vw-timer" style="color:#fff;font-size:48px;font-weight:900;letter-spacing:-1px;margin-top:4px;">60</div>
+        <div style="display:flex;gap:14px;margin-top:22px;">
+          <button id="vw-stop" style="background:#c0392b;color:#fff;border:0;padding:14px 26px;border-radius:99px;font-weight:900;font-size:15px;">■ Stop</button>
+          <button id="vw-cancel" style="background:#333;color:#fff;border:0;padding:14px 22px;border-radius:99px;font-weight:800;font-size:14px;">Cancel</button>
+        </div>
+        <div style="color:#8fa5c4;font-size:11px;margin-top:14px;max-width:280px;text-align:center;">Point the camera at birds walking around · we'll sample frames automatically</div>`;
+      document.body.appendChild(overlay);
+      const cleanup = () => { try { overlay.remove(); } catch (e) {} };
+      document.getElementById("vw-cancel").addEventListener("click", cleanup);
+
+      let stream, mediaRec, chunks = [];
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: { ideal: "environment" }, width: { ideal: 720 }, height: { ideal: 720 } },
+          audio: false,
+        });
+      } catch (e) {
+        toast("Camera denied — check phone permissions", "err");
+        cleanup(); return;
+      }
+      const previewEl = document.getElementById("vw-preview");
+      previewEl.srcObject = stream;
+      document.getElementById("vw-status").textContent = "RECORDING…";
+
+      const mime = MediaRecorder.isTypeSupported("video/webm;codecs=vp9") ? "video/webm;codecs=vp9"
+                 : MediaRecorder.isTypeSupported("video/webm;codecs=vp8") ? "video/webm;codecs=vp8"
+                 : MediaRecorder.isTypeSupported("video/webm") ? "video/webm"
+                 : "video/mp4";
+      mediaRec = new MediaRecorder(stream, { mimeType: mime, videoBitsPerSecond: 800000 });
+      mediaRec.ondataavailable = e => { if (e.data && e.data.size) chunks.push(e.data); };
+
+      let stopped = false;
+      const stopAndSample = async () => {
+        if (stopped) return; stopped = true;
+        clearInterval(tickH);
+        try { mediaRec.stop(); } catch (e) {}
+        stream.getTracks().forEach(t => t.stop());
+        document.getElementById("vw-status").textContent = "EXTRACTING FRAMES…";
+        document.getElementById("vw-timer").textContent = "…";
+
+        // Wait for the last chunk
+        await new Promise(res => setTimeout(res, 300));
+        const blob = new Blob(chunks, { type: mime });
+        const url = URL.createObjectURL(blob);
+        const vid = document.createElement("video");
+        vid.src = url; vid.muted = true; vid.playsInline = true;
+
+        await new Promise((res, rej) => {
+          vid.onloadedmetadata = res; vid.onerror = rej;
+          setTimeout(rej, 8000);
+        }).catch(() => {});
+
+        const duration = isFinite(vid.duration) && vid.duration > 0 ? vid.duration : (chunks.length * 0.5);
+        const canvas = document.createElement("canvas");
+        const size = 480;
+        canvas.width = size; canvas.height = size;
+        const ctx = canvas.getContext("2d");
+        const frames = [];
+        for (let i = 0; i < FRAME_COUNT; i++) {
+          const t = (duration * (i + 0.5)) / FRAME_COUNT;  // evenly-spaced mid-window
+          await new Promise(res => {
+            const onSeek = () => { vid.removeEventListener("seeked", onSeek); res(); };
+            vid.addEventListener("seeked", onSeek);
+            try { vid.currentTime = t; } catch (e) { res(); }
+            setTimeout(res, 1500);  // safety
+          });
+          ctx.drawImage(vid, 0, 0, size, size);
+          const dataUrl = canvas.toDataURL("image/jpeg", 0.72);
+          frames.push(dataUrl.split(",")[1]);
+        }
+        URL.revokeObjectURL(url);
+
+        document.getElementById("vw-status").textContent = "AI READING FLOCK…";
+        try {
+          const r = await fetch("/api/weigh-bird-video", {
+            method: "POST", headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ framesBase64: frames, ageDays: age, shedNum: shed })
+          });
+          const j = await r.json();
+          cleanup();
+          if (!j.ok || !j.estimatedWeightKg) {
+            toast(j.notes || "AI couldn't read the video — use Log Weight", "err");
+            return;
+          }
+          // Pre-fill the manual weigh modal with the estimate
+          openManualWeigh(shed, j.estimatedWeightKg, {
+            confidence: j.confidenceLevel, size: j.sizeVsAge, target: j.targetKg,
+            breed: j.breed, notes: j.notes, framesAnalysed: j.framesAnalysed,
+          });
+        } catch (err) {
+          cleanup();
+          toast("Video Weigh failed: " + err.message, "err");
+        }
+      };
+
+      document.getElementById("vw-stop").addEventListener("click", stopAndSample);
+      mediaRec.start(500);
+
+      // Countdown
+      let remaining = RECORD_MS / 1000;
+      const timerEl = document.getElementById("vw-timer");
+      const tickH = setInterval(() => {
+        remaining -= 1;
+        if (remaining <= 0) { stopAndSample(); }
+        else { timerEl.textContent = remaining; }
+      }, 1000);
     }
 
     function startAiWeigh(shed) {
@@ -1447,7 +1581,7 @@
       inp.click();
     }
 
-    function openManualWeigh(shed) {
+    function openManualWeigh(shed, prefill, aiCtx) {
       const age = +document.getElementById("weigh-age").value;
       if (!age) { toast("Enter bird age first", "err"); document.getElementById("weigh-age").focus(); return; }
       let m = document.getElementById("manual-weigh-modal");
@@ -1464,17 +1598,28 @@
         st.textContent = "#manual-weigh-modal{display:none !important;} #manual-weigh-modal.show{display:flex !important;} @media(min-width:640px){#manual-weigh-modal.show{align-items:center !important;} #mw-body{border-radius:20px;}}";
         document.head.appendChild(st);
       }
+      // Optional AI-estimate banner when this modal was opened from Video Weigh
+      const aiBanner = aiCtx ? `
+        <div style="background:linear-gradient(135deg,rgba(201,162,39,0.14),rgba(201,162,39,0.06));border:1px solid rgba(201,162,39,0.4);border-radius:10px;padding:10px 12px;margin-bottom:12px;">
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;">
+            <span style="background:${aiCtx.confidence==='high'?'#1a7a40':aiCtx.confidence==='medium'?'#C9A227':'#c0392b'};color:#fff;padding:2px 8px;border-radius:99px;font-size:10px;font-weight:800;letter-spacing:0.5px;text-transform:uppercase;">${aiCtx.confidence||'?'} confidence</span>
+            <span style="color:var(--ink);font-size:12px;font-weight:800;">${aiCtx.breed||'Ross 308'} target: ${aiCtx.target?aiCtx.target.toFixed(3):'?'} kg</span>
+          </div>
+          <div style="color:var(--muted);font-size:11px;line-height:1.4;">${aiCtx.notes||''}${aiCtx.framesAnalysed?` · ${aiCtx.framesAnalysed} frames analysed`:''}</div>
+          <div style="color:var(--muted);font-size:11px;margin-top:4px;">✏️ Review and adjust the number if it looks off, then Save.</div>
+        </div>` : "";
       document.getElementById("mw-body").innerHTML = `
         <div style="padding:16px 18px;background:#2b4266;color:#fff;border-top-left-radius:20px;border-top-right-radius:20px;display:flex;align-items:center;justify-content:space-between;">
           <div>
-            <div style="font-size:11px;letter-spacing:1.5px;font-weight:800;opacity:0.8;">⚖️ MANUAL WEIGH</div>
+            <div style="font-size:11px;letter-spacing:1.5px;font-weight:800;opacity:0.8;">${aiCtx?'🎥 AI VIDEO WEIGH':'⚖️ MANUAL WEIGH'}</div>
             <div style="font-size:16px;font-weight:900;margin-top:2px;">Shed ${shed} · Day ${age}</div>
           </div>
           <button data-mw-close style="background:transparent;border:0;color:#fff;font-size:24px;cursor:pointer;">×</button>
         </div>
         <div style="padding:20px 16px 24px;">
+          ${aiBanner}
           <label style="font-size:11px;color:var(--muted);font-weight:800;letter-spacing:0.5px;">WEIGHT (KG)</label>
-          <input id="mw-input" type="number" step="0.001" inputmode="decimal" placeholder="e.g. 1.850" style="display:block;width:100%;margin-top:6px;padding:16px;font-size:24px;font-weight:900;text-align:center;border-radius:12px;border:1.5px solid var(--line);background:var(--panel);color:var(--ink);box-sizing:border-box;" />
+          <input id="mw-input" type="number" step="0.001" inputmode="decimal" placeholder="e.g. 1.850" value="${prefill?prefill:''}" style="display:block;width:100%;margin-top:6px;padding:16px;font-size:24px;font-weight:900;text-align:center;border-radius:12px;border:1.5px solid var(--line);background:var(--panel);color:var(--ink);box-sizing:border-box;" />
           <button id="mw-save" data-testid="mw-save" style="display:block;width:100%;margin-top:14px;padding:16px;background:var(--green-700);color:#fff;border:0;border-radius:12px;font-weight:900;font-size:16px;box-shadow:0 4px 12px rgba(26,122,64,0.35);cursor:pointer;">✓ Save Weight</button>
         </div>`;
       m.classList.add("show");
