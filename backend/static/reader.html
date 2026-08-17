@@ -465,7 +465,7 @@
     <div class="scroll-area" id="tab-photos" style="display:none">
       <div style="padding:14px 16px;background:linear-gradient(180deg,#fff8e0,#fff);border-bottom:1px solid #f0e0a0;">
         <div style="font-size:11px;letter-spacing:1.5px;color:#7a5000;font-weight:800;margin-bottom:4px;">⚖️ WEIGH BIRDS · PER SHED</div>
-        <div style="font-size:12px;color:#5a5a5a;line-height:1.5;">Set the bird age once — tap a shed to <b>AI-weigh</b> the bird, <b>Snap</b> the scale display (AI reads the number), or type in <b>Manual</b>. Everything auto-syncs to the Feed Program.</div>
+        <div style="font-size:12px;color:#5a5a5a;line-height:1.5;">Set the bird age once — tap <b>Log Weight</b> to type in a reading, or <b>Snap Scale</b> to photo-read the scale display (AI reads the number). Everything auto-syncs to the Feed Program.</div>
       </div>
       <div style="padding:14px 16px 4px;">
         <!-- Shared age input -->
@@ -1418,26 +1418,26 @@
             <span>▲</span>
           </div>
           <div class="ph-body">
-            <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:10px;">
-              <button data-weigh-ai="${n}" data-testid="weigh-ai-${n}" style="padding:14px 8px;background:#C9A227;color:#1a1000;border:0;border-radius:12px;font-weight:900;font-size:13px;display:flex;flex-direction:column;align-items:center;gap:4px;cursor:pointer;">
-                <span style="font-size:22px;">📷</span>
-                <span>AI Weigh</span>
+            <div style="display:grid;grid-template-columns:2fr 1fr;gap:8px;margin-bottom:10px;">
+              <button data-weigh-manual="${n}" data-testid="weigh-manual-${n}" style="padding:16px 10px;background:#1a7a40;color:#fff;border:0;border-radius:12px;font-weight:900;font-size:15px;display:flex;flex-direction:column;align-items:center;gap:4px;cursor:pointer;box-shadow:0 4px 12px rgba(26,122,64,0.35);">
+                <span style="font-size:24px;">⚖️</span>
+                <span>Log Weight</span>
               </button>
-              <button data-weigh-manual="${n}" data-testid="weigh-manual-${n}" style="padding:14px 8px;background:#2b4266;color:#fff;border:0;border-radius:12px;font-weight:900;font-size:13px;display:flex;flex-direction:column;align-items:center;gap:4px;cursor:pointer;">
-                <span style="font-size:22px;">⚖️</span>
-                <span>Manual</span>
-              </button>
-              <button class="photo-btn weight" data-cat="bird_weight" data-shed="${n}" style="padding:14px 8px;font-size:13px;display:flex;flex-direction:column;align-items:center;gap:4px;">
-                <span style="font-size:22px;">📸</span>
+              <button class="photo-btn weight" data-cat="bird_weight" data-shed="${n}" style="padding:14px 8px;background:#2b4266;color:#fff;border:0;border-radius:12px;font-weight:900;font-size:13px;display:flex;flex-direction:column;align-items:center;gap:4px;">
+                <span style="font-size:20px;">📸</span>
                 <span>Snap Scale</span>
               </button>
+            </div>
+            <div style="font-size:11px;color:var(--muted);text-align:center;margin:-4px 0 8px;">
+              Tap <b style="color:var(--ink);">Log Weight</b> to type in a reading, or <b style="color:var(--ink);">Snap Scale</b> to photo-read the scale display.
             </div>
             ${ph.length ? renderPhotoGrid(ph) : '<div class="photo-empty">No photos yet for Shed '+n+'</div>'}
           </div></div>`;
       }).join("");
       bindPhotoBtns();
-      // Wire up the per-shed AI/Manual weigh buttons
-      $$("[data-weigh-ai]").forEach(b => b.addEventListener("click", () => startAiWeigh(+b.dataset.weighAi)));
+      // Wire up the per-shed manual weigh buttons (AI-Weigh removed Feb 2026 —
+      // Gemini can't reliably guess live weight from a bird photo. Growers use
+      // Log Weight (fastest) or Snap Scale (photo of the actual scale display).
       $$("[data-weigh-manual]").forEach(b => b.addEventListener("click", () => openManualWeigh(+b.dataset.weighManual)));
     }
 
