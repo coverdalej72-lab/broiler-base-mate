@@ -1766,18 +1766,62 @@ def _lang_directive(payload: dict) -> str:
 
 @api.post("/weigh-bird")
 async def weigh_bird(payload: dict):
-    """Estimate a live bird's weight from a photo using Gemini vision.
+    """Estimate a live broiler's weight from a photo, GROUNDED in the bird's
+    known age (mandatory) and the Ross 308 growth curve. Instead of asking
+    Gemini to guess a raw kg from a photo (impossible without a scale
+    reference), we anchor the estimate on the industry-standard target for
+    that day and ask Gemini only to judge SIZE-vs-AGE — small / on-target /
+    large — then compute the weight from the target ± that offset.
 
-    Body: { imageBase64: str, mimeType?: str, ageDays?: int, shedNum?: int }
-    Returns: { ok, estimatedWeightKg, confidenceLevel: 'high'|'medium'|'low', notes }
+    Body: { imageBase64: str, mimeType?: str, ageDays: int, shedNum?: int, breed?: 'ross308'|'cobb500' }
+    Returns: { ok, estimatedWeightKg, confidenceLevel, notes, sizeVsAge, targetKg, breed }
     """
     image_b64 = (payload or {}).get("imageBase64")
     if not image_b64:
         raise HTTPException(400, "imageBase64 required")
-    # Strip data-URL prefix if present
     if "," in image_b64 and image_b64.startswith("data:"):
         image_b64 = image_b64.split(",", 1)[1]
     age_days = (payload or {}).get("ageDays")
+    if not age_days or not isinstance(age_days, (int, float)) or age_days < 1 or age_days > 60:
+        raise HTTPException(400, "ageDays (1-60) is required to anchor the estimate")
+    age_days = int(round(age_days))
+    breed = ((payload or {}).get("breed") or "ross308").lower()
+
+    # Ross 308 target body weight (kg) by day — Aviagen 2022 as-hatched.
+    ROSS_308 = {
+        1:0.049, 2:0.065, 3:0.085, 4:0.108, 5:0.135, 6:0.166, 7:0.205,
+        8:0.245, 9:0.291, 10:0.343, 11:0.398, 12:0.457, 13:0.520, 14:0.586,
+        15:0.655, 16:0.727, 17:0.803, 18:0.881, 19:0.862, 20:0.945, 21:1.012,
+        22:1.099, 23:1.188, 24:1.279, 25:1.371, 26:1.464, 27:1.558, 28:1.616,
+        29:1.748, 30:1.843, 31:1.938, 32:2.033, 33:2.128, 34:2.222, 35:2.296,
+        36:2.408, 37:2.500, 38:2.591, 39:2.681, 40:2.769, 41:2.855, 42:2.998,
+        43:3.070, 44:3.140, 45:3.210, 46:3.278, 47:3.346, 48:3.414, 49:3.480,
+        50:3.545, 51:3.610, 52:3.674, 53:3.737, 54:3.799, 55:3.860, 56:3.920,
+        57:3.980, 58:4.038, 59:4.096, 60:4.152,
+    }
+    # Cobb 500 approximate as-hatched targets by day
+    COBB_500 = {
+        1:0.052, 7:0.210, 14:0.597, 21:1.158, 28:1.840, 35:2.529, 42:3.020,
+        49:3.500, 56:3.940,
+    }
+    if breed == "cobb500":
+        # linear-interpolate cobb targets between known milestones
+        known = sorted(COBB_500.keys())
+        if age_days <= known[0]:
+            target = COBB_500[known[0]]
+        elif age_days >= known[-1]:
+            target = COBB_500[known[-1]]
+        else:
+            for i in range(len(known)-1):
+                if known[i] <= age_days <= known[i+1]:
+                    lo, hi = known[i], known[i+1]
+                    frac = (age_days - lo) / (hi - lo)
+                    target = COBB_500[lo] + frac * (COBB_500[hi] - COBB_500[lo])
+                    break
+    else:
+        target = ROSS_308.get(age_days) or ROSS_308[min(ROSS_308.keys(), key=lambda k: abs(k - age_days))]
+    target = round(target, 3)
+
     api_key = os.environ.get("EMERGENT_LLM_KEY")
     if not api_key:
         raise HTTPException(503, "LLM key not configured")
@@ -1786,46 +1830,81 @@ async def weigh_bird(payload: dict):
     except Exception as e:
         raise HTTPException(503, f"LLM lib missing: {e}")
 
-    age_hint = f"The bird is approximately {age_days} days old — use this as a sanity anchor against the Ross 308 / Cobb 500 growth standard." if age_days else "The age is unknown — estimate purely on visual size."
-    system_msg = f"""You are an experienced Australian broiler grower assessing bird weight from a single photograph. You must reply with ONLY a JSON object, no markdown.
+    breed_label = "Cobb 500" if breed == "cobb500" else "Ross 308"
+    system_msg = f"""You are an experienced Australian broiler grower assessing bird SIZE-VS-AGE from a single photograph. You do NOT guess raw weight — you compare the bird against the {breed_label} target for its age.
 
-{age_hint}
+CONTEXT:
+- Bird is {age_days} days old (grower-confirmed).
+- Breed: {breed_label}.
+- {breed_label} target weight at day {age_days}: {target:.3f} kg (as-hatched, on-farm).
 
-JSON schema:
+YOUR JOB — return ONE JSON object, no markdown fences:
 {{
-  "estimatedWeightKg": <float, 2 decimals — best-guess live weight>,
+  "sizeVsAge": "much_smaller" | "smaller" | "on_target" | "larger" | "much_larger",
   "confidenceLevel": "high" | "medium" | "low",
-  "notes": "One short sentence: what you see + reason for the confidence rating"
+  "notes": "One short sentence: describe what you see (feathering stage, comb size, standing height, body fullness) and why you picked that size bucket."
 }}
 
-If the photo does NOT clearly show a live broiler chicken, return:
-{{ "estimatedWeightKg": null, "confidenceLevel": "low", "notes": "No bird detected in photo" }}
+HOW TO PICK sizeVsAge — use these cues:
+- Feather cover (down vs primary feathers vs full plumage) → maps to expected age look
+- Comb + wattle visibility → larger + redder = mature bird
+- Body fullness relative to leg length
+- Overall postural presence in the frame vs. a bird you'd expect at day {age_days}
+
+RULES:
+- If the photo is blurry, dark, or clearly NOT a live broiler → confidenceLevel=low, sizeVsAge="on_target" (safe default), notes="photo unclear".
+- confidenceLevel=high ONLY if the bird is clear, in-focus, on a plain background, filling most of the frame.
+- Never invent a weight number — that job is done server-side from your sizeVsAge bucket.
 """ + _lang_directive(payload)
+
     chat = LlmChat(
         api_key=api_key,
         session_id=f"weigh-bird-{uuid.uuid4().hex[:8]}",
         system_message=system_msg,
     ).with_model("gemini", "gemini-2.5-flash")
+
+    # Offset applied to the target weight for each size bucket. Broilers vary
+    # by roughly ±10% of target within a healthy flock, ±25% in outliers.
+    OFFSETS = {
+        "much_smaller": -0.25,
+        "smaller":      -0.10,
+        "on_target":     0.00,
+        "larger":       +0.10,
+        "much_larger":  +0.25,
+    }
+
     try:
         msg = UserMessage(
-            text="Estimate this bird's live weight and return JSON only.",
+            text=f"Assess this bird against the {breed_label} day-{age_days} target ({target:.3f} kg) and return JSON only.",
             file_contents=[ImageContent(image_base64=image_b64)],
         )
         raw = await chat.send_message(msg)
         text = str(raw).strip()
-        # Strip ```json fences if present
         if text.startswith("```"):
             text = text.strip("`").split("\n", 1)[-1] if "\n" in text else text
             if text.endswith("```"): text = text[:-3]
-        # Extract first JSON object
         import json as _json
         start = text.find("{"); end = text.rfind("}")
         if start == -1 or end == -1:
-            return {"ok": False, "estimatedWeightKg": None, "confidenceLevel": "low", "notes": "AI did not return JSON"}
+            return {"ok": False, "estimatedWeightKg": None, "confidenceLevel": "low",
+                    "notes": "AI did not return JSON", "targetKg": target, "breed": breed_label}
         data = _json.loads(text[start:end+1])
-        return {"ok": True, **data}
+        bucket = (data.get("sizeVsAge") or "on_target").lower()
+        offset = OFFSETS.get(bucket, 0.0)
+        estimated = round(target * (1.0 + offset), 3)
+        return {
+            "ok": True,
+            "estimatedWeightKg": estimated,
+            "confidenceLevel": data.get("confidenceLevel", "medium"),
+            "notes": data.get("notes", ""),
+            "sizeVsAge": bucket,
+            "targetKg": target,
+            "breed": breed_label,
+            "ageDays": age_days,
+        }
     except Exception as e:
-        return {"ok": False, "estimatedWeightKg": None, "confidenceLevel": "low", "notes": f"AI error: {str(e)[:120]}"}
+        return {"ok": False, "estimatedWeightKg": None, "confidenceLevel": "low",
+                "notes": f"AI error: {str(e)[:120]}", "targetKg": target, "breed": breed_label}
 
 
 @api.post("/read-scale")

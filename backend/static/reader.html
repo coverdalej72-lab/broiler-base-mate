@@ -1435,9 +1435,7 @@
           </div></div>`;
       }).join("");
       bindPhotoBtns();
-      // Wire up the per-shed manual weigh buttons (AI-Weigh removed Feb 2026 —
-      // Gemini can't reliably guess live weight from a bird photo. Growers use
-      // Log Weight (fastest) or Snap Scale (photo of the actual scale display).
+      // Wire up the per-shed manual weigh buttons.
       $$("[data-weigh-manual]").forEach(b => b.addEventListener("click", () => openManualWeigh(+b.dataset.weighManual)));
     }
 
