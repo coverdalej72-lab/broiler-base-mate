@@ -3565,12 +3565,31 @@ class InviteOperatorBody(BaseModel):
 
 
 @app.get("/api/farms")
-async def list_farms():
-    rows = await farms_col.find().sort("createdAt", 1).to_list(length=500)
+async def list_farms(request: Request):
+    """List farms this user can access — their OWNED farms + any farms they've
+    been INVITED to via the Ops Manager. Admins see everything.
+
+    Bug fix (Feb 2026): previously this endpoint returned ALL farms in the DB
+    to any caller, which leaked farm names (e.g. "Takhar Farm 1") into the
+    farm-switcher of unrelated growers. Now scoped to the caller's own /
+    invited farms.
+    """
+    user = await _user_from_request(request)
+    if not user:
+        raise HTTPException(401, "Authentication required")
+    farms_info = await _list_user_farms(db, user["email"])
+    role = farms_info.get("role")
+    if role == "admin":
+        # Admins keep the full-DB view (used by /admin/health)
+        rows = await farms_col.find().sort("createdAt", 1).to_list(length=500)
+    else:
+        allowed_slugs = {f["slug"] for f in farms_info["owned"]} | {f["slug"] for f in farms_info["invited"]}
+        if not allowed_slugs:
+            return []
+        rows = await farms_col.find({"slug": {"$in": list(allowed_slugs)}}).sort("createdAt", 1).to_list(length=500)
     out = []
     for r in rows:
         slug = r.get("slug")
-        # count rows per farm for stats
         f_filter = _farm_filter(slug) if slug else {}
         readings_count = await readings_col.count_documents(f_filter)
         deliveries_count = await deliveries_col.count_documents(f_filter)
