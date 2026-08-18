@@ -2738,15 +2738,18 @@ PACKAGES = {
     "bronze_monthly":      {"label": "Bronze",   "amount": 20.0,  "kind": "subscription"},
     "silver_monthly":      {"label": "Silver",   "amount": 25.0,  "kind": "subscription"},
     "gold_monthly":        {"label": "Gold",     "amount": 30.0,  "kind": "subscription"},
+    "platinum_monthly":    {"label": "Platinum", "amount": 40.0,  "kind": "subscription"},
     # Annual variants (~15% off, ~10 months for the price of 12)
     "bronze_annual":       {"label": "Bronze Annual",   "amount": 204.0,  "kind": "subscription"},
     "silver_annual":       {"label": "Silver Annual",   "amount": 255.0,  "kind": "subscription"},
     "gold_annual":         {"label": "Gold Annual",     "amount": 306.0,  "kind": "subscription"},
+    "platinum_annual":     {"label": "Platinum Annual", "amount": 408.0,  "kind": "subscription"},
     # Operation Manager Pack — multi-farm bundles (priced dynamically from `farms` list).
     # The `amount` here is a legacy fallback only.
     "ops_bronze":          {"label": "Ops Manager Pack",  "amount": 20.0, "kind": "ops_bundle"},
     "ops_silver":          {"label": "Ops Manager Pack",  "amount": 25.0, "kind": "ops_bundle"},
     "ops_gold":            {"label": "Ops Manager Pack",  "amount": 30.0, "kind": "ops_bundle"},
+    "ops_platinum":        {"label": "Ops Manager Pack",  "amount": 40.0, "kind": "ops_bundle"},
     # Sponsor tiers
     "sponsor_10":          {"label": "Sponsor — $5/mo",   "amount": 5.0,   "kind": "sponsor"},
     "sponsor_25":          {"label": "Sponsor — $12.50/mo", "amount": 12.50, "kind": "sponsor"},
@@ -2761,7 +2764,7 @@ PACKAGES = {
 # Must stay in sync with the landing page's `TIERS` object at
 # `/app/backend/static/landing.html` (search `const TIERS`). When one changes,
 # update the other and add a test in `/app/backend/tests/test_ops_pricing.py`.
-_OPS_TIER_PRICE = {"bronze": 20.0, "silver": 25.0, "gold": 30.0}
+_OPS_TIER_PRICE = {"bronze": 20.0, "silver": 25.0, "gold": 30.0, "platinum": 40.0}
 
 
 def _ops_volume_discount(n_farms: int) -> float:

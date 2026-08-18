@@ -41,9 +41,10 @@
       "author": { "@id": "https://broilerbasemate.com.au/#organization" },
       "publisher": { "@id": "https://broilerbasemate.com.au/#organization" },
       "offers": [
-        { "@type": "Offer", "name": "Bronze", "price": "20", "priceCurrency": "AUD", "availability": "https://schema.org/InStock", "url": "https://broilerbasemate.com.au/#plans" },
-        { "@type": "Offer", "name": "Silver", "price": "25", "priceCurrency": "AUD", "availability": "https://schema.org/InStock", "url": "https://broilerbasemate.com.au/#plans" },
-        { "@type": "Offer", "name": "Gold",   "price": "30", "priceCurrency": "AUD", "availability": "https://schema.org/InStock", "url": "https://broilerbasemate.com.au/#plans" }
+        { "@type": "Offer", "name": "Bronze",   "price": "20", "priceCurrency": "AUD", "availability": "https://schema.org/InStock", "url": "https://broilerbasemate.com.au/#plans" },
+        { "@type": "Offer", "name": "Silver",   "price": "25", "priceCurrency": "AUD", "availability": "https://schema.org/InStock", "url": "https://broilerbasemate.com.au/#plans" },
+        { "@type": "Offer", "name": "Gold",     "price": "30", "priceCurrency": "AUD", "availability": "https://schema.org/InStock", "url": "https://broilerbasemate.com.au/#plans" },
+        { "@type": "Offer", "name": "Platinum", "price": "40", "priceCurrency": "AUD", "availability": "https://schema.org/InStock", "url": "https://broilerbasemate.com.au/#plans" }
       ],
       "featureList": [
         "Live silo weight tracking per shed",
@@ -97,7 +98,7 @@
         { "@type": "Question", "name": "Does it work offline in the shed?",
           "acceptedAnswer": { "@type": "Answer", "text": "Yes. The Reader PWA queues silo readings and dockets locally and syncs the moment reception returns." } },
         { "@type": "Question", "name": "How much does Broiler Base Mate cost?",
-          "acceptedAnswer": { "@type": "Answer", "text": "Bronze A$20, Silver A$25 and Gold A$30 per farm per month AUD. All plans include a 30-day free trial with no credit card required." } },
+          "acceptedAnswer": { "@type": "Answer", "text": "Bronze A$20, Silver A$25, Gold A$30 and Platinum A$40 per farm per month AUD. All plans include a 30-day free trial with no credit card required." } },
         { "@type": "Question", "name": "Who built Broiler Base Mate?",
           "acceptedAnswer": { "@type": "Answer", "text": "Jason Coverdale, a third-generation Australian broiler grower on a Baiada contract, founded Appcovi and built Broiler Base Mate to fix the paperwork burden on his own farm." } }
       ]
@@ -959,6 +960,21 @@
             </ul>
             <button class="start-btn" data-pkg="gold_monthly">Start Free Trial</button>
           </div>
+          <div class="plan" style="border:2px solid #7C4DFF;background:linear-gradient(180deg,#f7f3ff,#fff);">
+            <div class="badge" style="background:#7C4DFF;color:#fff;">✦ ENTERPRISE</div>
+            <div class="tier">💎 Platinum</div>
+            <div class="price">$40<span>/month</span></div>
+            <div class="trial">30-day free trial</div>
+            <ul>
+              <li><b>30+ sheds</b> · unlimited scale</li>
+              <li>Everything in Gold</li>
+              <li>Priority AI processing queue</li>
+              <li>Dedicated onboarding call</li>
+              <li>Custom EOB report branding</li>
+              <li>SLA + priority phone support</li>
+            </ul>
+            <button class="start-btn" data-pkg="platinum_monthly">Start Free Trial</button>
+          </div>
           <div class="plan" style="opacity:0.85;border:2px dashed #C9A227;background:linear-gradient(180deg,#fffbf0,#fff);">
             <div class="tier">🐣 Breeders</div>
             <div class="price" style="color:#C9A227;">Coming Soon<span style="font-size:12px;">&nbsp;</span></div>
@@ -991,6 +1007,7 @@
         <div class="sponsor-card" style="text-align:left;"><div class="amt" style="font-size:26px;">🥉 $20<span style="font-size:13px;color:var(--muted);">/farm/mo</span></div><div class="split">Bronze — up to <b>6 sheds</b></div></div>
         <div class="sponsor-card" style="text-align:left;border-color:var(--green-500);"><div class="amt" style="font-size:26px;color:var(--green-700);">🥈 $25<span style="font-size:13px;color:var(--muted);">/farm/mo</span></div><div class="split">Silver — <b>7–12 sheds</b></div></div>
         <div class="sponsor-card" style="text-align:left;"><div class="amt" style="font-size:26px;">🥇 $30<span style="font-size:13px;color:var(--muted);">/farm/mo</span></div><div class="split">Gold — <b>13–30 sheds</b></div></div>
+        <div class="sponsor-card" style="text-align:left;border-color:#7C4DFF;"><div class="amt" style="font-size:26px;color:#7C4DFF;">💎 $40<span style="font-size:13px;color:var(--muted);">/farm/mo</span></div><div class="split">Platinum — <b>30+ sheds</b></div></div>
         <div class="sponsor-card" style="text-align:left;opacity:0.85;border:2px dashed #C9A227;"><div class="amt" style="font-size:22px;color:#C9A227;">🐣 Coming Soon</div><div class="split">Breeders — waitlist open</div></div>
       </div>
 
@@ -1192,7 +1209,7 @@
         <details style="background:#fff;border:1px solid var(--line);border-radius:12px;"><summary style="padding:18px 22px;cursor:pointer;font-weight:800;font-size:15px;list-style:none;display:flex;justify-content:space-between;align-items:center;">Can I cancel anytime?<span style="color:var(--green-700);font-size:20px;">+</span></summary><div style="padding:0 22px 18px;color:var(--muted);font-size:14px;line-height:1.7;">Yes. One-click cancel from your account page. Your data stays accessible for 90 days afterwards so you can export it.</div></details>
         <details style="background:#fff;border:1px solid var(--line);border-radius:12px;"><summary style="padding:18px 22px;cursor:pointer;font-weight:800;font-size:15px;list-style:none;display:flex;justify-content:space-between;align-items:center;">Does it work on iPhone AND Android?<span style="color:var(--green-700);font-size:20px;">+</span></summary><div style="padding:0 22px 18px;color:var(--muted);font-size:14px;line-height:1.7;">Yes. Both work the same way — no app store install needed. Open the link in any browser, tap 'Add to Home Screen', and it lives on your phone like a real app.</div></details>
         <details style="background:#fff;border:1px solid var(--line);border-radius:12px;"><summary style="padding:18px 22px;cursor:pointer;font-weight:800;font-size:15px;list-style:none;display:flex;justify-content:space-between;align-items:center;">Is my data secure?<span style="color:var(--green-700);font-size:20px;">+</span></summary><div style="padding:0 22px 18px;color:var(--muted);font-size:14px;line-height:1.7;">Yes. All data is encrypted in transit (HTTPS) and at rest in MongoDB Atlas. Payments are processed entirely by Stripe — we never see your card details.</div></details>
-        <details style="background:#fff;border:1px solid var(--line);border-radius:12px;"><summary style="padding:18px 22px;cursor:pointer;font-weight:800;font-size:15px;list-style:none;display:flex;justify-content:space-between;align-items:center;">What if I have more than 30 sheds?<span style="color:var(--green-700);font-size:20px;">+</span></summary><div style="padding:0 22px 18px;color:var(--muted);font-size:14px;line-height:1.7;">No worries — we've already wired multi-farm support into the codebase for larger operations and Integrators. <a href="#partners" style="color:var(--green-700);font-weight:700;text-decoration:none;">Get in touch</a> and we'll sort a plan that suits your setup.</div></details>
+        <details style="background:#fff;border:1px solid var(--line);border-radius:12px;"><summary style="padding:18px 22px;cursor:pointer;font-weight:800;font-size:15px;list-style:none;display:flex;justify-content:space-between;align-items:center;">What if I have more than 30 sheds?<span style="color:var(--green-700);font-size:20px;">+</span></summary><div style="padding:0 22px 18px;color:var(--muted);font-size:14px;line-height:1.7;">Grab the <b style="color:#7C4DFF;">💎 Platinum plan — $40/farm/mo</b>. It covers 30+ sheds with no cap, priority AI processing and a dedicated onboarding call. Running multiple farms? Use the <a href="#ops" style="color:var(--green-700);font-weight:700;text-decoration:none;">Operation Manager bundle</a> to stack up to 25% volume discount on top.</div></details>
         <details style="background:#fff;border:1px solid var(--line);border-radius:12px;"><summary style="padding:18px 22px;cursor:pointer;font-weight:800;font-size:15px;list-style:none;display:flex;justify-content:space-between;align-items:center;">Do you support Ingham's, Baiada, AND BPL Adelaide dockets?<span style="color:var(--green-700);font-size:20px;">+</span></summary><div style="padding:0 22px 18px;color:var(--muted);font-size:14px;line-height:1.7;">Yes — all three. The AI auto-detects the supplier from the docket header. If you've got a docket from a smaller mill, send us a photo and we'll add it.</div></details>
         <details style="background:#fff;border:1px solid var(--line);border-radius:12px;"><summary style="padding:18px 22px;cursor:pointer;font-weight:800;font-size:15px;list-style:none;display:flex;justify-content:space-between;align-items:center;">Can my workers use it without an account?<span style="color:var(--green-700);font-size:20px;">+</span></summary><div style="padding:0 22px 18px;color:var(--muted);font-size:14px;line-height:1.7;">Yes. You share a private reader link with them — no login needed on the phone. Just open and tap silo readings.</div></details>
         <details style="background:#fff;border:1px solid var(--line);border-radius:12px;"><summary style="padding:18px 22px;cursor:pointer;font-weight:800;font-size:15px;list-style:none;display:flex;justify-content:space-between;align-items:center;">Do I keep my data if I cancel?<span style="color:var(--green-700);font-size:20px;">+</span></summary><div style="padding:0 22px 18px;color:var(--muted);font-size:14px;line-height:1.7;">Always. Export to CSV/Excel anytime. After cancelling, your data stays exportable for 90 days.</div></details>
@@ -1640,7 +1657,7 @@
     })();
 
     // ── Operation Manager Pack bundle builder ──
-    const TIERS = { bronze: 20, silver: 25, gold: 30 };
+    const TIERS = { bronze: 20, silver: 25, gold: 30, platinum: 40 };
     // Volume discount — applied to subtotal based on number of farms bundled
     function volumeDiscount(numFarms) {
       if (numFarms >= 10) return { pct: 25, label: "10+ farms · 25% off" };
@@ -1662,6 +1679,7 @@
             <option value="bronze"   ${f.tier==="bronze"  ?"selected":""}>🥉 Bronze $20</option>
             <option value="silver"   ${f.tier==="silver"  ?"selected":""}>🥈 Silver $25</option>
             <option value="gold"     ${f.tier==="gold"    ?"selected":""}>🥇 Gold $30</option>
+            <option value="platinum" ${f.tier==="platinum"?"selected":""}>💎 Platinum $40</option>
           </select>
           <button data-ops-del="${i}" style="border:0;background:transparent;color:#b91c1c;font-size:18px;cursor:pointer;${opsFarms.length<=1?"opacity:0.3;pointer-events:none;":""}">✕</button>
         </div>`).join("");
@@ -1702,7 +1720,7 @@
     });
     document.getElementById("ops-checkout").onclick = async () => {
       // Direct-to-Stripe (skips buyer modal). Stripe collects email itself.
-      const tierOrder = ["bronze", "silver", "gold"];
+      const tierOrder = ["bronze", "silver", "gold", "platinum"];
       const highest = opsFarms.reduce((best, f) =>
         tierOrder.indexOf(f.tier) > tierOrder.indexOf(best) ? f.tier : best, "bronze");
       const pkg = `ops_${highest}`;
@@ -2118,6 +2136,7 @@
               ['🥉','Bronze',  '$20', '/mo'],
               ['🥈','Silver',  '$25', '/mo'],
               ['🥇','Gold',    '$30','/mo'],
+              ['💎','Platinum','$40','/mo'],
               ['🐣','Breeders','Soon',''],
             ].map(([ico,tier,price,per]) => `
               <div style="background:#fff;border:2px solid #2b4266;border-radius:12px;padding:14px 16px;text-align:center;min-width:96px;box-shadow:0 4px 12px rgba(0,0,0,.18);">

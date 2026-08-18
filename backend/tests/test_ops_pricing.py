@@ -4,7 +4,7 @@ If the tier prices, volume-discount tiers, or annual multiplier change on the
 landing page, these tests must be updated in lockstep. Any drift → real
 Stripe over/under-charges on live customers.
 
-Feb 2026 update: Platinum tier removed. Standard pricing: Bronze $20, Silver $25, Gold $30.
+Feb 2026 update: Platinum tier reintroduced at $40/mo (30+ sheds). Pricing: Bronze $20, Silver $25, Gold $30, Platinum $40.
 """
 
 import pytest
@@ -29,9 +29,9 @@ class TestOpsTierPrices:
     def test_gold_price_matches_landing(self):
         assert _OPS_TIER_PRICE["gold"] == 30.0
 
-    def test_platinum_removed(self):
-        # Platinum tier was retired in Feb 2026. Breeders is now "coming soon" with no live price.
-        assert "platinum" not in _OPS_TIER_PRICE
+    def test_platinum_price_matches_landing(self):
+        # Platinum re-introduced Feb 2026 at $40/mo (30+ sheds).
+        assert _OPS_TIER_PRICE["platinum"] == 40.0
 
 
 class TestVolumeDiscount:
@@ -107,10 +107,10 @@ class TestOpsBundleEdgeCases:
         farms = [CheckoutFarmConfig(name="F1", tier=None)]
         assert _price_ops_bundle(farms, "monthly") == 20.0
 
-    def test_platinum_tier_falls_back_to_bronze(self):
-        # Old platinum-tagged farms (pre Feb 2026) now fall back to bronze
+    def test_platinum_tier_priced_at_40(self):
+        # Platinum farms are priced at $40/mo (reintroduced Feb 2026 for 30+ shed operations)
         farms = make_farms("platinum")
-        assert _price_ops_bundle(farms, "monthly") == 20.0
+        assert _price_ops_bundle(farms, "monthly") == 40.0
 
     def test_empty_farms_list_returns_zero(self):
         assert _price_ops_bundle([], "monthly") == 0.0
