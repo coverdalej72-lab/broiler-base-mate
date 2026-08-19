@@ -58,6 +58,9 @@
         "Offline-queued sync"
       ],
       "inLanguage": "en-AU",
+      "datePublished": "2025-11-01",
+      "softwareVersion": "2026.02",
+      "isAccessibleForFree": true,
       "audience": {
         "@type": "Audience",
         "audienceType": "Australian broiler poultry growers, contract growers, Ops Managers"
@@ -102,6 +105,47 @@
         { "@type": "Question", "name": "Who built Broiler Base Mate?",
           "acceptedAnswer": { "@type": "Answer", "text": "Jason Coverdale, a third-generation Australian broiler grower on a Baiada contract, founded Appcovi and built Broiler Base Mate to fix the paperwork burden on his own farm." } }
       ]
+    },
+    {
+      "@type": "WebSite",
+      "@id": "https://broilerbasemate.com.au/#website",
+      "name": "Broiler Base Mate",
+      "url": "https://broilerbasemate.com.au/",
+      "publisher": { "@id": "https://broilerbasemate.com.au/#organization" },
+      "inLanguage": "en-AU",
+      "potentialAction": {
+        "@type": "SearchAction",
+        "target": { "@type": "EntryPoint", "urlTemplate": "https://broilerbasemate.com.au/?q={search_term_string}" },
+        "query-input": "required name=search_term_string"
+      }
+    },
+    {
+      "@type": "BreadcrumbList",
+      "@id": "https://broilerbasemate.com.au/#breadcrumbs",
+      "itemListElement": [
+        { "@type": "ListItem", "position": 1, "name": "Home",           "item": "https://broilerbasemate.com.au/" },
+        { "@type": "ListItem", "position": 2, "name": "Plans & Pricing","item": "https://broilerbasemate.com.au/#plans" },
+        { "@type": "ListItem", "position": 3, "name": "Ops Manager Pack","item": "https://broilerbasemate.com.au/#ops" },
+        { "@type": "ListItem", "position": 4, "name": "Feed Program",   "item": "https://broilerbasemate.com.au/feed-program" },
+        { "@type": "ListItem", "position": 5, "name": "Field Reader",   "item": "https://broilerbasemate.com.au/reader" }
+      ]
+    },
+    {
+      "@type": "Product",
+      "@id": "https://broilerbasemate.com.au/#product",
+      "name": "Broiler Base Mate",
+      "brand": { "@id": "https://broilerbasemate.com.au/#organization" },
+      "description": "Aussie broiler-farm management SaaS — live silo tracking, AI docket scanning, real-time FCR/cFCR, End-of-Batch reports and multi-farm Ops Manager view.",
+      "image": "https://broilerbasemate.com.au/reader-assets/appcovi-hero.png",
+      "offers": {
+        "@type": "AggregateOffer",
+        "priceCurrency": "AUD",
+        "lowPrice": "20",
+        "highPrice": "40",
+        "offerCount": "4",
+        "availability": "https://schema.org/InStock",
+        "url": "https://broilerbasemate.com.au/#plans"
+      }
     }
   ]
 }
