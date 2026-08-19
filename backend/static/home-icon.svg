@@ -1,0 +1,141 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Broiler Base Mate home-screen icon">
+  <!--
+    Home-screen icon ONLY (icon-192, icon-512, apple-touch-icon).
+    Same silo + rooster identity as the in-app logo, but redrawn at 512×512
+    with iOS-app-icon depth: gradient pasture background, gold horizon glow,
+    bright silo with subtle metal shading, larger crowing rooster in gold,
+    top-left gloss highlight. Feels like a real app icon amongst Chrome/Uber/etc.
+  -->
+  <defs>
+    <!-- Deep pasture gradient (twilight paddock) -->
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%"  stop-color="#1e5a34"/>
+      <stop offset="55%" stop-color="#0f3d24"/>
+      <stop offset="100%" stop-color="#082414"/>
+    </linearGradient>
+    <!-- Warm horizon glow behind the silo -->
+    <radialGradient id="horizon" cx="50%" cy="72%" r="55%">
+      <stop offset="0%"  stop-color="#C9A227" stop-opacity="0.45"/>
+      <stop offset="60%" stop-color="#C9A227" stop-opacity="0.05"/>
+      <stop offset="100%" stop-color="#C9A227" stop-opacity="0"/>
+    </radialGradient>
+    <!-- Silo cylinder — subtle metal shading -->
+    <linearGradient id="silo" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%"   stop-color="#e6ecdf"/>
+      <stop offset="45%"  stop-color="#ffffff"/>
+      <stop offset="100%" stop-color="#a9baa2"/>
+    </linearGradient>
+    <!-- Gold roof -->
+    <linearGradient id="roof" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%"  stop-color="#f0c449"/>
+      <stop offset="100%" stop-color="#a67f1a"/>
+    </linearGradient>
+    <!-- Rooster gold -->
+    <linearGradient id="cockerel" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%"  stop-color="#f5cc4a"/>
+      <stop offset="100%" stop-color="#b0871a"/>
+    </linearGradient>
+    <!-- Glossy top-left highlight -->
+    <radialGradient id="gloss" cx="30%" cy="22%" r="65%">
+      <stop offset="0%"  stop-color="#ffffff" stop-opacity="0.28"/>
+      <stop offset="55%" stop-color="#ffffff" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+
+  <!-- Rounded-square background (iOS 26% corner radius = 133px on a 512 tile) -->
+  <rect x="0" y="0" width="512" height="512" rx="112" fill="url(#bg)"/>
+  <!-- Warm horizon glow -->
+  <rect x="0" y="0" width="512" height="512" rx="112" fill="url(#horizon)"/>
+  <!-- Subtle gold ring inside the badge -->
+  <rect x="24" y="24" width="464" height="464" rx="92"
+        fill="none" stroke="#C9A227" stroke-width="4" opacity="0.35"/>
+
+  <!-- Ground shadow beneath silo -->
+  <ellipse cx="222" cy="410" rx="150" ry="14" fill="#000000" opacity="0.28"/>
+
+  <!-- ─── SILO ───────────────────────────────────────────────── -->
+  <g transform="translate(222 300)">
+    <!-- main cylinder -->
+    <rect x="-96" y="-92" width="192" height="200" rx="8" fill="url(#silo)"/>
+    <!-- panel lines -->
+    <line x1="-96" y1="-38" x2="96" y2="-38" stroke="#89a180" stroke-width="3"/>
+    <line x1="-96" y1="14"  x2="96" y2="14"  stroke="#89a180" stroke-width="3"/>
+    <line x1="-96" y1="66"  x2="96" y2="66"  stroke="#89a180" stroke-width="3"/>
+    <!-- deep right-side shading -->
+    <rect x="60" y="-92" width="36" height="200" rx="0" fill="#7c9174" opacity="0.55"/>
+    <!-- vertical seam -->
+    <line x1="0" y1="-92" x2="0" y2="108" stroke="#c4d0b8" stroke-width="1.5" opacity="0.55"/>
+    <!-- Base plate -->
+    <rect x="-108" y="105" width="216" height="14" rx="3" fill="#5f745a"/>
+    <!-- Conical roof -->
+    <path d="M -104 -92 L 0 -180 L 104 -92 Z" fill="url(#roof)"/>
+    <!-- Roof seam highlight -->
+    <path d="M -104 -92 L 0 -180" stroke="#ffe391" stroke-width="2" opacity="0.6" fill="none"/>
+    <!-- Top vent -->
+    <rect x="-14" y="-198" width="28" height="22" rx="3" fill="url(#roof)"/>
+    <rect x="-8"  y="-208" width="16" height="12" rx="2" fill="#C9A227"/>
+    <!-- Access hatch on cylinder -->
+    <rect x="-18" y="30" width="36" height="52" rx="4" fill="#5f745a" opacity="0.7"/>
+    <circle cx="0" cy="56" r="3" fill="#C9A227"/>
+  </g>
+
+  <!-- ─── ROOSTER (front-right, crowing) ─────────────────────── -->
+  <g transform="translate(360 340)">
+    <!-- tail feathers (behind body) -->
+    <path d="M -20 -10
+             C -60 -20 -90 -60 -78 -100
+             C -52 -80 -32 -50 -30 -20
+             C -34 -6 -28 -2 -20 -6 Z"
+          fill="url(#cockerel)" opacity="0.95"/>
+    <path d="M -14 -18
+             C -42 -32 -60 -66 -50 -92
+             C -32 -76 -20 -54 -18 -34 Z"
+          fill="#8a6712" opacity="0.5"/>
+    <!-- body -->
+    <path d="M 0 50
+             C -34 50 -54 32 -54 4
+             C -54 -22 -34 -40 -8 -40
+             L 22 -40
+             C 48 -40 66 -22 66 4
+             C 66 32 46 50 22 50 Z"
+          fill="url(#cockerel)"/>
+    <!-- chest highlight -->
+    <path d="M -30 40
+             C -46 30 -50 12 -44 -6
+             C -34 -14 -22 -18 -8 -16
+             C -18 -6 -24 12 -22 34
+             C -26 42 -28 42 -30 40 Z"
+          fill="#ffdf7a" opacity="0.55"/>
+    <!-- neck + head -->
+    <path d="M 30 -32
+             C 24 -46 38 -60 56 -60
+             C 76 -60 88 -46 88 -30
+             C 88 -14 76 -6 62 -10
+             C 50 -14 42 -22 30 -32 Z"
+          fill="url(#cockerel)"/>
+    <circle cx="72" cy="-40" r="22" fill="url(#cockerel)"/>
+    <!-- comb (red) -->
+    <path d="M 60 -62
+             q 4 -10 12 -8
+             q 3 -10 12 -6
+             q 4 -10 12 -4
+             q 2 -6 8 -2
+             L 90 -50 Z" fill="#e04e3a"/>
+    <!-- wattle -->
+    <path d="M 78 -26 q 6 6 -2 14 q -8 4 -8 -4 Z" fill="#e04e3a"/>
+    <!-- beak -->
+    <path d="M 92 -38 L 108 -34 L 92 -30 Z" fill="#f5a41f"/>
+    <!-- eye -->
+    <circle cx="76" cy="-44" r="3.2" fill="#0f2410"/>
+    <circle cx="77" cy="-45" r="1"   fill="#ffffff"/>
+    <!-- legs -->
+    <rect x="-6" y="50" width="5" height="24" fill="#7a4514" rx="1"/>
+    <rect x="14" y="50" width="5" height="24" fill="#7a4514" rx="1"/>
+    <!-- feet -->
+    <path d="M -10 74 L 4 74 L -4 78 Z" fill="#7a4514"/>
+    <path d="M 10  74 L 24 74 L 16 78 Z" fill="#7a4514"/>
+  </g>
+
+  <!-- Glossy top-left highlight over everything -->
+  <rect x="0" y="0" width="512" height="512" rx="112" fill="url(#gloss)"/>
+</svg>
