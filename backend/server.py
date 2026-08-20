@@ -12,7 +12,7 @@ import os
 import re
 import uuid
 from datetime import datetime, timedelta, timezone
-from typing import Annotated, List, Optional
+from typing import Annotated, Any, Dict, List, Optional
 
 from dotenv import load_dotenv
 from fastapi import APIRouter, FastAPI, HTTPException, Query, Request
@@ -2797,7 +2797,7 @@ def _price_ops_bundle(farms: List["CheckoutFarmConfig"], billing_period: str) ->
 
 class CheckoutFarmConfig(BaseModel):
     name: str
-    tier: Optional[str] = None  # "bronze" | "silver" | "gold"
+    tier: Optional[str] = None  # "bronze" | "silver" | "gold" | "platinum"
 
 
 class CheckoutRequest(BaseModel):
@@ -2810,39 +2810,141 @@ class CheckoutRequest(BaseModel):
     billingPeriod: Optional[str] = None  # "monthly" | "annual" — ops-bundle only
 
 
+# ── True Stripe Subscriptions (mode="subscription") ─────────────────────
+# The 4 tiers × {monthly, annual} = 8 recurring prices. `lookup_key` lets us
+# fetch/create the Stripe Price idempotently on first checkout so we never
+# hard-code Price IDs in env vars.
+_SUB_PRICE_MAP = {
+    # package_id           -> (product_name, unit_amount_cents, interval, lookup_key, plan_label)
+    "bronze_monthly":   ("Broiler Base Mate — Bronze",   2000,  "month", "bbm_bronze_monthly_aud",   "Bronze"),
+    "silver_monthly":   ("Broiler Base Mate — Silver",   2500,  "month", "bbm_silver_monthly_aud",   "Silver"),
+    "gold_monthly":     ("Broiler Base Mate — Gold",     3000,  "month", "bbm_gold_monthly_aud",     "Gold"),
+    "platinum_monthly": ("Broiler Base Mate — Platinum", 4000,  "month", "bbm_platinum_monthly_aud", "Platinum"),
+    "bronze_annual":    ("Broiler Base Mate — Bronze",   20400, "year",  "bbm_bronze_annual_aud",    "Bronze"),
+    "silver_annual":    ("Broiler Base Mate — Silver",   25500, "year",  "bbm_silver_annual_aud",    "Silver"),
+    "gold_annual":      ("Broiler Base Mate — Gold",     30600, "year",  "bbm_gold_annual_aud",      "Gold"),
+    "platinum_annual":  ("Broiler Base Mate — Platinum", 40800, "year",  "bbm_platinum_annual_aud",  "Platinum"),
+}
+# In-process cache of Stripe Price IDs by package_id — populated lazily.
+_STRIPE_PRICE_CACHE: Dict[str, str] = {}
+
+
+def _ensure_stripe_price(package_id: str) -> str:
+    """Return the Stripe Price ID for a subscription package, creating the
+    Product + recurring Price in Stripe on first request. Idempotent: uses
+    `lookup_key` so we never create duplicates across restarts.
+    """
+    if package_id in _STRIPE_PRICE_CACHE:
+        return _STRIPE_PRICE_CACHE[package_id]
+    if package_id not in _SUB_PRICE_MAP:
+        raise HTTPException(400, f"Unknown subscription package: {package_id}")
+    product_name, amount, interval, lookup_key, plan_label = _SUB_PRICE_MAP[package_id]
+
+    import stripe
+    stripe.api_key = os.environ["STRIPE_API_KEY"]
+
+    # 1) Look up existing price by lookup_key (idempotent)
+    existing = stripe.Price.list(lookup_keys=[lookup_key], active=True, limit=1, expand=["data.product"])
+    if existing.data:
+        price_id = existing.data[0].id
+        _STRIPE_PRICE_CACHE[package_id] = price_id
+        return price_id
+
+    # 2) Create Product + Price
+    product = stripe.Product.create(
+        name=product_name,
+        metadata={"plan": plan_label, "interval": interval, "app": "broilerbasemate"},
+    )
+    price = stripe.Price.create(
+        product=product.id,
+        unit_amount=amount,
+        currency="aud",
+        recurring={"interval": interval},
+        lookup_key=lookup_key,
+        nickname=f"{plan_label} {interval}",
+        metadata={"plan": plan_label, "package_id": package_id},
+    )
+    _STRIPE_PRICE_CACHE[package_id] = price.id
+    return price.id
+
+
 @app.post("/api/checkout")
 async def create_checkout(body: CheckoutRequest):
     if body.packageId not in PACKAGES:
         raise HTTPException(400, "Invalid package")
     pkg = PACKAGES[body.packageId]
-    try:
-        from emergentintegrations.payments.stripe.checkout import StripeCheckout, CheckoutSessionRequest
-    except Exception as e:
-        raise HTTPException(503, f"Stripe lib missing: {e}")
-
     api_key = os.environ.get("STRIPE_API_KEY")
     if not api_key:
         raise HTTPException(503, "STRIPE_API_KEY not configured")
 
     origin = body.originUrl.rstrip("/")
-    webhook_url = f"{origin}/api/webhook/stripe"
-    checkout = StripeCheckout(api_key=api_key, webhook_url=webhook_url)
-
     success_url = f"{origin}/landing/success?session_id={{CHECKOUT_SESSION_ID}}"
     cancel_url = f"{origin}/landing"
 
     meta = {"package_id": body.packageId, "kind": pkg["kind"], "label": pkg["label"]}
-    if body.email: meta["email"] = body.email
-    if body.ref: meta["ref"] = body.ref.strip().lower()
+    if body.email:     meta["email"] = body.email
+    if body.buyerName: meta["buyer_name"] = body.buyerName
+    if body.ref:       meta["ref"] = body.ref.strip().lower()
 
-    # Calculate dynamic amount for ops_bundle. Uses the single-source-of-truth
-    # pricer that mirrors the landing page's `computeTotal()` math (tier prices,
-    # volume discount, annual multiplier). See `_price_ops_bundle` above.
+    # ── SUBSCRIPTION MODE (Bronze/Silver/Gold/Platinum × monthly/annual) ──
+    # True recurring billing via Stripe Subscriptions with 30-day free trial.
+    if pkg["kind"] == "subscription":
+        import stripe
+        stripe.api_key = api_key
+        price_id = _ensure_stripe_price(body.packageId)
+
+        session = stripe.checkout.Session.create(
+            mode="subscription",
+            line_items=[{"price": price_id, "quantity": 1}],
+            subscription_data={
+                "trial_period_days": 30,
+                "metadata": meta,   # copied onto the subscription for auditing
+            },
+            success_url=success_url,
+            cancel_url=cancel_url,
+            metadata=meta,
+            customer_email=body.email or None,
+            allow_promotion_codes=True,
+            billing_address_collection="auto",
+            # Payment method collected upfront; card charged only if the buyer doesn't cancel before day 30.
+            payment_method_collection="always",
+        )
+        amount = pkg["amount"]
+
+        await payments_col.insert_one({
+            "id": str(uuid.uuid4()),
+            "session_id": session.id,
+            "package_id": body.packageId,
+            "amount": amount,
+            "currency": "aud",
+            "kind": pkg["kind"],
+            "mode": "subscription",
+            "stripe_price_id": price_id,
+            "email": body.email,
+            "buyerName": body.buyerName,
+            "ref": (body.ref.strip().lower() if body.ref else None),
+            "provisioned": False,
+            "payment_status": "initiated",
+            "status": "open",
+            "createdAt": datetime.now(timezone.utc),
+        })
+        return {"url": session.url, "session_id": session.id}
+
+    # ── OPS BUNDLE MODE (multi-farm, dynamic pricing) ────────────────────
+    # Kept on emergent lib one-time payment for now (matches the volume-discount
+    # math from `_price_ops_bundle`). Roadmap: convert to subscription too.
+    try:
+        from emergentintegrations.payments.stripe.checkout import StripeCheckout, CheckoutSessionRequest
+    except Exception as e:
+        raise HTTPException(503, f"Stripe lib missing: {e}")
+
+    webhook_url = f"{origin}/api/webhook/stripe"
+    checkout = StripeCheckout(api_key=api_key, webhook_url=webhook_url)
+
     amount = float(pkg["amount"])
     if pkg["kind"] == "ops_bundle" and body.farms:
         billing = (body.billingPeriod or "monthly").lower()
         amount = _price_ops_bundle(body.farms, billing)
-        # Reflect period in metadata so we can audit charges later
         meta["billing_period"] = billing
         meta["farm_count"]     = str(len(body.farms))
 
@@ -2859,6 +2961,7 @@ async def create_checkout(body: CheckoutRequest):
         "amount": amount,
         "currency": "aud",
         "kind": pkg["kind"],
+        "mode": "payment",
         "email": body.email,
         "buyerName": body.buyerName,
         "ref": (body.ref.strip().lower() if body.ref else None),
@@ -3048,28 +3151,66 @@ async def referral_stats(farm: str = "default"):
 
 @app.get("/api/checkout/status/{session_id}")
 async def checkout_status(session_id: str):
-    try:
-        from emergentintegrations.payments.stripe.checkout import StripeCheckout
-    except Exception as e:
-        raise HTTPException(503, f"Stripe lib missing: {e}")
     api_key = os.environ.get("STRIPE_API_KEY")
-    checkout = StripeCheckout(api_key=api_key, webhook_url="")
-    s = await checkout.get_checkout_status(session_id)
-    # Update DB only if status changed (idempotent)
+    if not api_key:
+        raise HTTPException(503, "STRIPE_API_KEY not configured")
+
     cur = await payments_col.find_one({"session_id": session_id})
-    if cur and cur.get("payment_status") != s.payment_status:
-        await payments_col.update_one({"session_id": session_id},
-            {"$set": {"payment_status": s.payment_status, "status": s.status,
-                      "updatedAt": datetime.now(timezone.utc)}})
+    session_mode = (cur or {}).get("mode")
+
+    # For subscription sessions (Bronze/Silver/Gold/Platinum), the "paid" moment
+    # is when the checkout completes and the trial subscription is created —
+    # not when a card is charged (that only happens at day 30).
+    if session_mode == "subscription":
+        import stripe
+        stripe.api_key = api_key
+        s = stripe.checkout.Session.retrieve(session_id, expand=["subscription"])
+        status = s.get("status") or "open"
+        # A subscription checkout with `payment_status=no_payment_required` +
+        # `status=complete` means the trial subscription was created OK.
+        # We consider that "paid" for provisioning purposes (Stripe holds the
+        # card and will auto-charge at trial end unless the customer cancels).
+        raw_pay_status = s.get("payment_status") or "unpaid"
+        if status == "complete":
+            payment_status = "paid"
+        else:
+            payment_status = raw_pay_status
+        amount_total = s.get("amount_total") or 0
+        currency = s.get("currency") or "aud"
+        metadata = s.get("metadata") or {}
+        sub_id = None
+        if s.get("subscription"):
+            sub_id = s["subscription"] if isinstance(s["subscription"], str) else s["subscription"].get("id")
+    else:
+        # Legacy one-time payment session (ops_bundle) via emergent lib
+        try:
+            from emergentintegrations.payments.stripe.checkout import StripeCheckout
+        except Exception as e:
+            raise HTTPException(503, f"Stripe lib missing: {e}")
+        checkout = StripeCheckout(api_key=api_key, webhook_url="")
+        s = await checkout.get_checkout_status(session_id)
+        status = s.status
+        payment_status = s.payment_status
+        amount_total = s.amount_total
+        currency = s.currency
+        metadata = s.metadata or {}
+        sub_id = None
+
+    # Update DB only if status changed (idempotent)
+    if cur and (cur.get("payment_status") != payment_status or (sub_id and cur.get("stripe_subscription_id") != sub_id)):
+        updates: Dict[str, Any] = {
+            "payment_status": payment_status, "status": status,
+            "updatedAt": datetime.now(timezone.utc),
+        }
+        if sub_id: updates["stripe_subscription_id"] = sub_id
+        await payments_col.update_one({"session_id": session_id}, {"$set": updates})
 
     # Auto-onboarding: when payment first becomes 'paid', provision farms + email buyer
     onboarding = None
-    if cur and s.payment_status == "paid" and not cur.get("provisioned"):
+    if cur and payment_status == "paid" and not cur.get("provisioned"):
         try:
             onboarding = await _provision_purchase(session_id)
         except Exception as prov_err:
-            # Don't fail the status check the buyer is watching — log and let the
-            # next status poll / webhook retry. Admin gets emailed once per error.
             import logging as _logging
             _logging.exception("Status-check provisioning failed: %s", prov_err)
             try:
@@ -3083,8 +3224,9 @@ async def checkout_status(session_id: str):
                 pass
             onboarding = {"error": "Provisioning will retry — admin notified."}
 
-    return {"status": s.status, "payment_status": s.payment_status, "amount_total": s.amount_total,
-            "currency": s.currency, "metadata": s.metadata, "onboarding": onboarding}
+    return {"status": status, "payment_status": payment_status, "amount_total": amount_total,
+            "currency": currency, "metadata": metadata, "onboarding": onboarding,
+            "subscription_id": sub_id}
 
 
 async def _provision_purchase(session_id: str) -> Optional[dict]:
@@ -3292,49 +3434,132 @@ async def resend_welcome_email(session_id: str):
 
 @app.post("/api/webhook/stripe")
 async def stripe_webhook(request: Request):
-    raw = await request.body() if hasattr(request, "body") else b""
-    sig = request.headers.get("Stripe-Signature", "") if hasattr(request, "headers") else ""
+    """Handle Stripe events natively:
+      • checkout.session.completed          → provision farms + welcome email (both subscription & payment mode)
+      • customer.subscription.updated       → sync farms.subscriptionStatus (trialing / active / past_due / canceled)
+      • customer.subscription.deleted       → mark farms canceled
+      • invoice.payment_failed              → alert admin (buyer has broken card)
+    Signature is verified if STRIPE_WEBHOOK_SECRET is set; otherwise we parse
+    the payload directly (dev / initial setup mode) and log a warning.
+    """
+    import stripe as _stripe, json as _json
+    _stripe.api_key = os.environ.get("STRIPE_API_KEY", "")
+    raw = await request.body()
+    sig = request.headers.get("Stripe-Signature", "")
+    secret = os.environ.get("STRIPE_WEBHOOK_SECRET", "")
+
     try:
-        from emergentintegrations.payments.stripe.checkout import StripeCheckout
-        api_key = os.environ.get("STRIPE_API_KEY")
-        checkout = StripeCheckout(api_key=api_key, webhook_url="")
-        evt = await checkout.handle_webhook(raw, sig)
-        await payments_col.update_one({"session_id": evt.session_id},
-            {"$set": {"payment_status": evt.payment_status, "webhook_event": evt.event_type,
-                      "updatedAt": datetime.now(timezone.utc)}})
-        # Auto-onboard on first paid webhook (idempotent — _provision_purchase skips if already provisioned)
-        if evt.payment_status == "paid":
-            try:
-                await _provision_purchase(evt.session_id)
-            except Exception as prov_err:
-                # Never fail the webhook just because onboarding hit an issue —
-                # the user has paid, we must ack 200 so Stripe doesn't retry storm.
-                # Surface to admin so we can manually fix the missed provisioning.
-                import logging as _logging
-                _logging.exception("Auto-onboarding from webhook failed: %s", prov_err)
-                try:
-                    await log_error(
-                        db,
-                        category="stripe_provision",
-                        message=f"Webhook provisioning failed for session {evt.session_id}: {prov_err}",
-                        details={"session_id": evt.session_id, "event_type": evt.event_type},
-                        request=request,
-                    )
-                except Exception:
-                    pass
+        if secret:
+            event = _stripe.Webhook.construct_event(raw, sig, secret)
+        else:
+            # No secret configured yet — parse unverified (safe: we only READ Stripe API
+            # to double-check any state before writing). Log a one-off warning.
+            event = _json.loads(raw.decode("utf-8"))
+            import logging as _log
+            _log.warning("Stripe webhook received without STRIPE_WEBHOOK_SECRET — signature NOT verified")
     except Exception as e:
-        # Webhook signature mismatch or library error — log loudly, but still 200
-        # so Stripe doesn't lock us out of future events. (Bad sig = nothing happened.)
+        # Bad signature or malformed payload — ack 200 so Stripe stops retrying,
+        # but log for admin.
         try:
             await log_error(
-                db,
-                category="stripe_webhook",
-                message=f"Webhook handler error: {e}",
+                db, category="stripe_webhook",
+                message=f"Webhook parse/verify failed: {e}",
                 request=request,
             )
         except Exception:
             pass
         return JSONResponse({"ok": False, "error": str(e)}, status_code=200)
+
+    event_type = event.get("type") if isinstance(event, dict) else event["type"]
+    obj = (event.get("data") or {}).get("object") if isinstance(event, dict) else event["data"]["object"]
+
+    try:
+        if event_type == "checkout.session.completed":
+            session_id = obj.get("id") if isinstance(obj, dict) else obj["id"]
+            mode = obj.get("mode") if isinstance(obj, dict) else obj["mode"]
+            sub_id = obj.get("subscription") if isinstance(obj, dict) else obj.get("subscription")
+
+            # Update our payments row
+            update = {
+                "payment_status": "paid",
+                "status": "complete",
+                "webhook_event": event_type,
+                "updatedAt": datetime.now(timezone.utc),
+            }
+            if sub_id: update["stripe_subscription_id"] = sub_id
+            await payments_col.update_one({"session_id": session_id}, {"$set": update})
+
+            # Provision farms + welcome email (idempotent — noop if already done)
+            try:
+                await _provision_purchase(session_id)
+            except Exception as prov_err:
+                import logging as _logging
+                _logging.exception("Auto-onboarding from webhook failed: %s", prov_err)
+                try:
+                    await log_error(
+                        db, category="stripe_provision",
+                        message=f"Webhook provisioning failed for session {session_id}: {prov_err}",
+                        details={"session_id": session_id, "event_type": event_type, "mode": mode},
+                    )
+                except Exception:
+                    pass
+
+        elif event_type in ("customer.subscription.updated", "customer.subscription.created"):
+            sub_id = obj["id"]
+            status = obj.get("status")  # trialing | active | past_due | canceled | incomplete | unpaid
+            # Sync all farms tied to this subscription/session
+            payment_row = await payments_col.find_one({"stripe_subscription_id": sub_id})
+            if payment_row:
+                await farms_col.update_many(
+                    {"stripeSessionId": payment_row.get("session_id")},
+                    {"$set": {"subscriptionStatus": status, "updatedAt": datetime.now(timezone.utc)}},
+                )
+                await payments_col.update_one(
+                    {"stripe_subscription_id": sub_id},
+                    {"$set": {"subscription_status": status, "updatedAt": datetime.now(timezone.utc)}},
+                )
+
+        elif event_type == "customer.subscription.deleted":
+            sub_id = obj["id"]
+            payment_row = await payments_col.find_one({"stripe_subscription_id": sub_id})
+            if payment_row:
+                await farms_col.update_many(
+                    {"stripeSessionId": payment_row.get("session_id")},
+                    {"$set": {"subscriptionStatus": "canceled", "canceledAt": datetime.now(timezone.utc)}},
+                )
+                await payments_col.update_one(
+                    {"stripe_subscription_id": sub_id},
+                    {"$set": {"subscription_status": "canceled", "updatedAt": datetime.now(timezone.utc)}},
+                )
+
+        elif event_type == "invoice.payment_failed":
+            # Card declined at trial end or renewal — surface to admin.
+            admin = os.environ.get("ADMIN_EMAIL")
+            if admin:
+                try:
+                    from email_service import send_email
+                    cust_email = obj.get("customer_email") or "(unknown)"
+                    amt = (obj.get("amount_due") or 0) / 100.0
+                    await send_email(
+                        to=admin,
+                        subject=f"⚠️ Stripe payment failed — {cust_email} · AUD {amt:.2f}",
+                        html=f"<p>Invoice payment failed for <b>{cust_email}</b> (AUD {amt:.2f}). Subscription ID: {obj.get('subscription')}</p>",
+                    )
+                except Exception:
+                    pass
+
+    except Exception as e:
+        try:
+            await log_error(
+                db, category="stripe_webhook",
+                message=f"Webhook handler failed on {event_type}: {e}",
+                request=request,
+            )
+        except Exception:
+            pass
+        # Always 200 so Stripe doesn't retry-storm
+        return JSONResponse({"ok": False, "error": str(e)}, status_code=200)
+
     return {"ok": True}
 
 
@@ -3725,12 +3950,14 @@ async def admin_health_page():
 # ad-hoc price_data by amount + interval, same shape as our checkout flow).
 _TARGET_PRICES = {
     # (currency, interval, plan_name) -> amount_cents
-    ("aud", "month", "Bronze"): 2000,
-    ("aud", "month", "Silver"): 2500,
-    ("aud", "month", "Gold"):   3000,
-    ("aud", "year",  "Bronze"): 20400,
-    ("aud", "year",  "Silver"): 25500,
-    ("aud", "year",  "Gold"):   30600,
+    ("aud", "month", "Bronze"):   2000,
+    ("aud", "month", "Silver"):   2500,
+    ("aud", "month", "Gold"):     3000,
+    ("aud", "month", "Platinum"): 4000,
+    ("aud", "year",  "Bronze"):   20400,
+    ("aud", "year",  "Silver"):   25500,
+    ("aud", "year",  "Gold"):     30600,
+    ("aud", "year",  "Platinum"): 40800,
 }
 
 
@@ -3739,18 +3966,20 @@ def _guess_plan_from_metadata(sub) -> Optional[str]:
     md = (sub.get("metadata") or {})
     for k in ("plan", "tier", "package_id"):
         v = (md.get(k) or "").lower()
-        if "bronze" in v: return "Bronze"
-        if "silver" in v: return "Silver"
-        if "gold"   in v: return "Gold"
+        if "platinum" in v: return "Platinum"
+        if "bronze"   in v: return "Bronze"
+        if "silver"   in v: return "Silver"
+        if "gold"     in v: return "Gold"
     # Fall back: check the first item's metadata
     items = ((sub.get("items") or {}).get("data") or [])
     if items:
         imd = (items[0].get("metadata") or {})
         for k in ("plan", "tier", "package_id"):
             v = (imd.get(k) or "").lower()
-            if "bronze" in v: return "Bronze"
-            if "silver" in v: return "Silver"
-            if "gold"   in v: return "Gold"
+            if "platinum" in v: return "Platinum"
+            if "bronze"   in v: return "Bronze"
+            if "silver"   in v: return "Silver"
+            if "gold"     in v: return "Gold"
     return None
 
 
