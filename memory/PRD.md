@@ -1,5 +1,5 @@
 # Broiler Base Mate — Product Requirements Document
-Last updated: Feb 15, 2026
+Last updated: Feb 25, 2026
 
 ## Original problem statement (verbatim from founder)
 
@@ -17,7 +17,7 @@ Jason Coverdale (Appcovi, 3rd-gen Aussie broiler grower on a Baiada contract) ne
 - **URL**: https://broilerbasemate.com.au
 - **Stack**: FastAPI + React SPA (Vite) + MongoDB Atlas + vanilla HTML static pages
 - **Integrations**: Stripe (live), Resend (transactional email), Emergent LLM Key → Gemini 2.5 Flash Vision (AI features), Emergent Google Auth
-- **Plans**: A$20 (Bronze) / A$25 (Silver) / A$30 (Gold) per farm per month AUD, 30-day free trial no card
+- **Plans**: A$20 (Bronze/Starter) / A$25 (Silver) / A$30 (Gold) / A$40 (Platinum) per farm per month AUD, 30-day free trial no card. Native Stripe subscriptions live.
 
 ## Core features shipped
 
@@ -31,7 +31,20 @@ Jason Coverdale (Appcovi, 3rd-gen Aussie broiler grower on a Baiada contract) ne
 - Live FCR / cFCR / cage rating / efficiency rating
 - Branded End-of-Batch PDF email (matches processor sheet)
 - Feed-left auto-carry between batches
-- Flock Forecast
+- Flock Forecast (Card Grid with Ross 308/Cobb 500 growth curves + per-catch bar chart)
+- Density view (34 kg/m² Baiada threshold, manual today's-weight input)
+- Weighbridge paste inside Catch entry modal
+- EOB Copy-for-Email one-click + rich HTML export (feed loads + per-shed bird details)
+- Head-office share defaults to "Today only"
+
+### Recent updates (Feb 2026)
+- Feb 25: Landing pricing tiers updated with feature callouts — Chick Counter & Weigh Birds on Bronze/Starter, Docket Scanning + Video Weigh on Silver, Flock Forecast + Density + EOB Copy-for-Email on Gold, Ops Manager on Platinum. "NEW THIS MONTH" ribbon added above pricing grid. JSON-LD featureList refreshed.
+- Feb 20: Per-catch performance bar chart on Flock Forecast cards
+- Feb 18: Flock Forecast Card Grid with growth curve charts
+- Feb 15: EOB Copy-for-Email + compact EOB UI + Weighbridge paste in catches
+- Feb 12: Stripe native subscription checkout (was one-time), Platinum tier launched
+- Feb 10: Density threshold → 34 kg/m² + manual today weight input
+- Feb 08: Farm Buddy now sees density + catch weights
 
 ### Ops Manager
 - Multi-farm dashboard

@@ -48,12 +48,15 @@
       ],
       "featureList": [
         "Live silo weight tracking per shed",
-        "AI docket scanning (Ingham's, Baiada, BPL Adelaide)",
-        "AI Weigh Birds, Count Chicks, Mort Sheets, Scale Reading",
-        "AI Farm Buddy advisor",
+        "AI docket scanning (Ingham's, Baiada, BPL Adelaide, ProTen, Ridley)",
+        "AI Chick Counter — day-old crate counting on delivery",
+        "AI Weigh Birds (scale OCR) and 60-sec Video Weigh (Gemini)",
+        "AI Farm Buddy advisor with density and FCR context",
+        "Flock Forecast — Ross 308 / Cobb 500 growth curves + per-catch bar chart",
+        "Density view with 34 kg/m² Baiada threshold and manual weight input",
+        "End-of-Batch report — Copy-for-Email and rich HTML export",
         "Real-time FCR / cFCR / cage rating / payment $",
-        "End-of-Batch PDF report email",
-        "Ops Manager multi-farm dashboard",
+        "Ops Manager multi-farm dashboard with volume discounts",
         "PWA install on iOS and Android",
         "Offline-queued sync"
       ],
@@ -961,15 +964,35 @@
       <div class="wrap">
         <h2>Pick the plan <span class="accent">that fits your farm.</span></h2>
         <p class="sub">30-day free trial on every plan. Cancel anytime — no contracts, no setup fees.</p>
+
+        <!-- What's New ribbon -->
+        <div style="max-width:960px;margin:0 auto 32px;background:linear-gradient(90deg,#0f2e1e,#1a3a5c);border:1px solid #C9A227;border-radius:16px;padding:18px 24px;color:#fff;box-shadow:0 8px 30px rgba(0,0,0,0.15);">
+          <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">
+            <span style="background:#C9A227;color:#1a1000;font-weight:900;font-size:11px;padding:4px 10px;border-radius:99px;letter-spacing:1.5px;">✨ NEW THIS MONTH</span>
+            <span style="color:#c9d8cd;font-size:13px;">Shipped in the last few weeks — included in your trial</span>
+          </div>
+          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px;font-size:13px;line-height:1.5;color:#e7efe1;">
+            <div>🐣 <b style="color:#C9A227;">AI Chick Counter</b> — snap crates on delivery</div>
+            <div>🔮 <b style="color:#C9A227;">Flock Forecast</b> — per-catch performance bar chart</div>
+            <div>📊 <b style="color:#C9A227;">Density view</b> — 34 kg/m² Baiada limit</div>
+            <div>📄 <b style="color:#C9A227;">EOB Copy-for-Email</b> — one-click send</div>
+            <div>📋 <b style="color:#C9A227;">Weighbridge paste</b> in catch entry</div>
+            <div>🧠 <b style="color:#C9A227;">Farm Buddy</b> now knows density &amp; catch weights</div>
+          </div>
+        </div>
+
         <div class="plans-grid">
           <div class="plan">
-            <div class="tier">🥉 Bronze</div>
+            <div class="tier">🥉 Bronze <span style="font-size:11px;background:#eef8ee;color:var(--green-700);padding:2px 8px;border-radius:99px;font-weight:800;margin-left:6px;">STARTER</span></div>
             <div class="price">$20<span>/month</span></div>
             <div class="trial">30-day free trial</div>
             <ul>
               <li>Up to 6 sheds</li>
-              <li>Silo Tracker mobile app</li>
-              <li>Feed Program spreadsheet</li>
+              <li>Silo Tracker mobile app + PWA</li>
+              <li>Feed Program spreadsheet (auto-save)</li>
+              <li>🐣 <b>AI Chick Counter</b> (crate snap → day-old count)</li>
+              <li>⚖️ <b>AI Weigh Birds</b> (scale-display OCR)</li>
+              <li>🧠 Farm Buddy alerts (silo low, order feed)</li>
               <li>Batch history (last 3 batches)</li>
               <li>Email support</li>
             </ul>
@@ -983,8 +1006,10 @@
             <ul>
               <li>Up to 12 sheds</li>
               <li>Everything in Bronze</li>
-              <li>AI Docket Scanning (Ingham's / Baiada / BPL)</li>
-              <li>Feed Alerts &amp; Forecasting</li>
+              <li>🧾 <b>AI Docket Scanning</b> (Ingham's / Baiada / BPL / ProTen / Ridley)</li>
+              <li>📹 <b>60-sec Video Weigh</b> (walk the shed, AI averages)</li>
+              <li>🧠 Farm Buddy AI advisor (density + FCR insights)</li>
+              <li>Feed alerts &amp; forecasting</li>
               <li>CSV / Excel export</li>
               <li>Priority support</li>
             </ul>
@@ -997,7 +1022,10 @@
             <ul>
               <li>Up to 30 sheds</li>
               <li>Everything in Silver</li>
-              <li>Unlimited batch history</li>
+              <li>🔮 <b>Flock Forecast</b> — Ross 308 / Cobb 500 curves + per-catch bar chart</li>
+              <li>📊 <b>Density view</b> (34 kg/m² Baiada limit, manual weight input)</li>
+              <li>📄 <b>End of Batch</b> — Copy-for-Email + rich HTML export</li>
+              <li>Unlimited batch history &amp; head-office sharing</li>
               <li>Multi-user team access</li>
               <li>Cloud backup (Google Drive / OneDrive)</li>
               <li>Phone &amp; chat support</li>
@@ -1012,9 +1040,10 @@
             <ul>
               <li><b>30+ sheds</b> · unlimited scale</li>
               <li>Everything in Gold</li>
-              <li>Priority AI processing queue</li>
-              <li>Dedicated onboarding call</li>
-              <li>Custom EOB report branding</li>
+              <li>⚡ Priority AI processing queue</li>
+              <li>🎓 Dedicated onboarding call</li>
+              <li>🎨 Custom EOB report branding (your logo)</li>
+              <li>🏢 Ops Manager multi-farm dashboard</li>
               <li>SLA + priority phone support</li>
             </ul>
             <button class="start-btn" data-pkg="platinum_monthly">Start Free Trial</button>
