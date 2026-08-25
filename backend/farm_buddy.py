@@ -41,6 +41,15 @@ class ShedSnapshot(BaseModel):
     siloTotal: Optional[float] = None
     dailyUsageT: Optional[float] = None  # avg t/day
     daysOfFeedLeft: Optional[float] = None
+    # ── Weight & density (wired Feb 2026) ─────────────────────────────
+    # Hydrated by the frontend from: today's-weight override > latest
+    # catch aveWgt > latest weigh-in. Lets Farm Buddy speak about
+    # density automatically without the grower opening the density panel.
+    currentAvgWeightKg: Optional[float] = None
+    weightSource: Optional[str] = None      # "override" | "catch" | "weighin"
+    floorAreaM2: Optional[float] = None     # summed for the shed group
+    kgPerM2: Optional[float] = None         # currentAvgWeightKg × birdsPlaced / floorAreaM2
+    densityStatus: Optional[str] = None     # "ok" (<30) | "warn" (30-34) | "over" (≥34) — Baiada max 34
 
 
 class DeliverySnapshot(BaseModel):
@@ -87,6 +96,10 @@ SYSTEM_MSG = (
     "Always think in TONNES (t). Use shed numbers like 'Shed 5&6'. Be specific and concise. "
     "If the question is a general one (e.g. 'what's going on?'), give a 1-line headline, 2-4 short bullets, "
     "and (if relevant) a recommended split of the next load. "
+    "DENSITY: when a shed's context includes kgPerM2, factor it into your advice. Baiada max is "
+    "34 kg/m² — flag any shed at densityStatus='over' as URGENT ('shed X over Baiada max, thin-out "
+    "or depop now'), 'warn' (30-34 kg/m²) as WATCH ('shed X approaching Baiada max — plan thin-out'), "
+    "and 'ok' as fine. If both feed-runout AND density are concerns for the same shed, mention both. "
     "RETURN VALID JSON ONLY — no markdown fences, no commentary outside the JSON object."
 )
 
@@ -125,6 +138,14 @@ def _build_user_prompt(ctx: FarmContext, question: Optional[str]) -> str:
             parts.append(f"using {s.dailyUsageT:.1f}t/day")
         if s.daysOfFeedLeft is not None:
             parts.append(f"~{s.daysOfFeedLeft:.1f} days left")
+        # Density (Feb 2026): let Farm Buddy speak about kg/m² automatically.
+        if s.currentAvgWeightKg is not None and s.currentAvgWeightKg > 0:
+            src = f" via {s.weightSource}" if s.weightSource else ""
+            parts.append(f"avg weight {s.currentAvgWeightKg:.3f} kg/bird{src}")
+        if s.kgPerM2 is not None and s.kgPerM2 > 0:
+            status_lbl = {"over": "OVER Baiada max", "warn": "approaching max", "ok": "under max"}.get(s.densityStatus or "", "")
+            floor_str = f" ({s.floorAreaM2:.0f} m² floor)" if s.floorAreaM2 else ""
+            parts.append(f"density {s.kgPerM2:.1f} kg/m²{floor_str} — {status_lbl} (Baiada max 34)")
         sheds_compact.append(line + " — " + "; ".join(parts) if parts else line)
 
     deliveries_compact = []
