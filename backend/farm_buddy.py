@@ -96,6 +96,37 @@ SYSTEM_MSG = (
     "Always think in TONNES (t). Use shed numbers like 'Shed 5&6'. Be specific and concise. "
     "If the question is a general one (e.g. 'what's going on?'), give a 1-line headline, 2-4 short bullets, "
     "and (if relevant) a recommended split of the next load. "
+    "\n\n"
+    "── HOW THE WHOLE SYSTEM WORKS (read carefully) ──\n"
+    "Each shed has FOUR movers that decide how many birds are alive right now, and each one "
+    "affects daily feed usage. LIVE BIRDS = Placement − Morts − Culls − Catches.\n"
+    "  • PLACEMENT: the starting count from the hatchery (fixed, on the Feed Program's shed sheet).\n"
+    "  • MORTS: birds that died. Recorded in three places — daily on the shed tab (col 13), on the "
+    "    Morts log tab, and rolled up on the End-of-Batch sheet. The processor's Weight Sheet has "
+    "    RED-highlighted final-pickup rows that also imply morts (Placement − sum of catches).\n"
+    "  • CULLS: birds the grower removed (sick, weak). Recorded on the Culls log tab.\n"
+    "  • CATCHES (aka pickups): birds the processor collected on catch nights. On the Weight Sheet, "
+    "    the FINAL catch row for a shed is highlighted RED — after that catch, the shed is empty.\n"
+    "The number in birdsPlaced sent to you is already the LIVE reconciled count "
+    "(Placement − MAX(all mort sources) − Catches). birdsOriginalPlaced is the day-one number.\n"
+    "\n"
+    "── COMMON REAL-WORLD DISCREPANCIES ──\n"
+    "  1. Weight sheet says fewer birds left than shed sheet — probably morts under-recorded by the grower.\n"
+    "  2. Catches > placement — probably a data-entry duplicate OR the processor over-counted.\n"
+    "  3. Big mortality spike (heat wave, disease) — feed usage should also drop fast; if it doesn't, "
+    "     the birds may not actually be dying, they may be being caught early.\n"
+    "  4. Feed rate per bird looks too high for the age (>180 g/bird/day) — morts likely under-recorded, "
+    "     so the sheet thinks there are more birds than reality.\n"
+    "  5. Feed rate per bird too low (<80 g/bird/day for post-day-14 birds) — either birds dying "
+    "     unnoticed, or the placement was over-stated.\n"
+    "When you see any of these, call it out plainly, name the shed, and suggest what to check or fix.\n"
+    "\n"
+    "── FEED ORDER RECOMMENDATIONS ──\n"
+    "Use LIVE birds × standard g/bird/day for the age (Ross 308 curve), then multiply by days until "
+    "the next catch (upcomingCatches field). Subtract feed already on hand (siloTotal). If daily "
+    "usage is measured (dailyUsageT), trust it over standard curves. NEVER recommend more feed than "
+    "the sheds can consume before their next scheduled catch — that's wasted feed.\n"
+    "\n"
     "DENSITY: when a shed's context includes kgPerM2, factor it into your advice. Baiada max is "
     "34 kg/m² — flag any shed at densityStatus='over' as URGENT ('shed X over Baiada max, thin-out "
     "or depop now'), 'warn' (30-34 kg/m²) as WATCH ('shed X approaching Baiada max — plan thin-out'), "
@@ -113,11 +144,16 @@ def _build_user_prompt(ctx: FarmContext, question: Optional[str]) -> str:
             line += f" ({s.name})"
         parts = []
         if s.birdsPlaced:
-            parts.append(f"{int(s.birdsPlaced):,} live birds")
+            parts.append(f"{int(s.birdsPlaced):,} LIVE birds (reconciled)")
         if s.birdsOriginalPlaced and s.birdsCaught:
-            parts.append(f"({int(s.birdsCaught):,} already caught of {int(s.birdsOriginalPlaced):,} placed)")
+            impliedMorts = int(s.birdsOriginalPlaced) - int(s.birdsCaught) - int(s.birdsPlaced or 0)
+            parts.append(f"placement {int(s.birdsOriginalPlaced):,} − caught {int(s.birdsCaught):,} − morts/culls ~{max(0,impliedMorts):,}")
         elif s.birdsOriginalPlaced and s.mortsToDate:
-            parts.append(f"({int(s.birdsOriginalPlaced):,} placed − {int(s.mortsToDate):,} morts)")
+            parts.append(f"placement {int(s.birdsOriginalPlaced):,} − morts/culls {int(s.mortsToDate):,}")
+        # Feed per bird per day sanity check (helps AI flag under-recorded morts)
+        if s.dailyUsageT and s.birdsPlaced and s.birdsPlaced > 0:
+            gPerBirdPerDay = (s.dailyUsageT * 1_000_000) / s.birdsPlaced
+            parts.append(f"feed rate {gPerBirdPerDay:.0f} g/bird/day")
         if s.upcomingCatches:
             uc_str = ", ".join(f"{int(c.get('birds') or 0):,} on {c.get('date')}" for c in s.upcomingCatches[:5])
             parts.append(f"upcoming catches: {uc_str}")
