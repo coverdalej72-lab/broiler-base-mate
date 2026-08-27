@@ -40,6 +40,7 @@ feed_program_state_col = db["feed_program_state"]
 feed_program_state_history_col = db["feed_program_state_history"]
 payments_col = db["payment_transactions"]
 farms_col = db["farms"]
+eob_snapshots_col = db["eob_snapshots"]
 
 DEFAULT_FARM_ID = "default"
 
@@ -607,6 +608,143 @@ async def send_eob_report(req: EobEmailRequest, request: Request):
         raise HTTPException(500, "Could not send to any of the recipients. Check the email service is configured.")
 
     return {"ok": True, "sent": sent_to, "failed": failed_to}
+
+
+# ─── End-of-Batch LOCK / CLOSE — snapshots + auto-email to owner ─────────
+# Grower taps "🏁 End Batch" on the EOB tab → we freeze all the numbers
+# (placement + morts + catches + weights + feed) into an immutable snapshot,
+# email the branded PDF to the batch owner, and mark the batch closed so
+# processor amendments arriving days later can't retroactively change the
+# on-record numbers. Users see a "Batch Closed · Locked on <date>" banner
+# and the button disappears until a new batch is placed.
+
+class EobLockRequest(BaseModel):
+    batchIdentifier: str  # sheet name or batch number — unique per farm
+    farmSlug:        Optional[str] = None
+    farmName:        Optional[str] = None
+    report:          EobReport
+    # Free-form fingerprint blob so we can round-trip everything the SPA
+    # showed at lock-time (edits map, catch map, morts log, etc.) if the
+    # grower ever needs to audit. Kept optional so old clients still work.
+    fingerprint:     Optional[Dict[str, Any]] = None
+
+
+@app.post("/api/eob/lock-batch")
+async def lock_eob_batch(req: EobLockRequest, request: Request):
+    import logging as _logging
+    _log = _logging.getLogger("eob_lock")
+    user = await _user_from_request(request)
+    if not user:
+        raise HTTPException(401, "Authentication required")
+
+    farm_id = (req.farmSlug or DEFAULT_FARM_ID).strip() or DEFAULT_FARM_ID
+    batch_id = (req.batchIdentifier or "").strip()
+    if not batch_id:
+        raise HTTPException(400, "batchIdentifier is required")
+
+    # ── Already locked? Return the existing snapshot instead of re-emailing.
+    existing = await eob_snapshots_col.find_one(
+        {"farmId": farm_id, "batchIdentifier": batch_id},
+        {"_id": 0},
+    )
+    if existing:
+        return {"ok": True, "alreadyLocked": True, "snapshot": existing}
+
+    now_iso = datetime.now(timezone.utc).isoformat()
+    owner_email = (user.get("email") or "").strip()
+
+    # ── Render branded HTML + PDF (same renderer as send-report) ────────
+    from email_service import send_email
+    farm_label = req.farmName or "your farm"
+    html = _render_eob_html(req.report, farm_label, owner_email)
+    pdf_b64: Optional[str] = None
+    pdf_attachment: Optional[dict] = None
+    try:
+        pdf_bytes = await _render_html_to_pdf(html)
+        if pdf_bytes:
+            import base64 as _b64
+            pdf_b64 = _b64.b64encode(pdf_bytes).decode("ascii")
+            batch_slug = "".join(c if c.isalnum() else "-" for c in batch_id)
+            pdf_attachment = {"filename": f"EOB-{batch_slug}.pdf", "content": pdf_b64}
+    except Exception as e:
+        _log.warning("EOB lock PDF generation failed (email will still send without attachment): %s", e)
+
+    # ── Email the branded PDF to the batch owner ────────────────────────
+    email_result: Dict[str, Any] = {"sent": False, "error": None}
+    if owner_email and "@" in owner_email:
+        try:
+            await send_email(
+                to=owner_email,
+                subject=f"🏁 Batch Closed — {batch_id}",
+                html=html,
+                reply_to=owner_email,
+                attachments=[pdf_attachment] if pdf_attachment else None,
+            )
+            email_result["sent"] = True
+        except Exception as e:
+            _log.warning("EOB lock email send failed for %s: %s", owner_email, e)
+            email_result["error"] = str(e)
+    else:
+        email_result["error"] = "No owner email on session"
+
+    # ── Persist the snapshot (immutable) ────────────────────────────────
+    snapshot = {
+        "id":              str(uuid.uuid4()),
+        "farmId":          farm_id,
+        "batchIdentifier": batch_id,
+        "farmName":        req.farmName,
+        "lockedAt":        now_iso,
+        "lockedBy":        owner_email,
+        "report":          req.report.dict(),
+        "fingerprint":     req.fingerprint,
+        "html":            html,     # keep the rendered HTML so admins can re-view later
+        "pdfBase64":       pdf_b64,  # rendered PDF (may be None if Chrome unavailable)
+        "email":           email_result,
+    }
+    try:
+        await eob_snapshots_col.insert_one(dict(snapshot))
+    except Exception as e:
+        _log.error("EOB snapshot persist failed for farm=%s batch=%s: %s", farm_id, batch_id, e)
+        raise HTTPException(500, f"Could not persist snapshot: {e}")
+
+    # Never return the html/pdf/base64 blobs in the initial response
+    # — the client only needs the confirmation payload.
+    return {
+        "ok":              True,
+        "alreadyLocked":   False,
+        "snapshot": {
+            "id":              snapshot["id"],
+            "farmId":          farm_id,
+            "batchIdentifier": batch_id,
+            "lockedAt":        now_iso,
+            "lockedBy":        owner_email,
+            "email":           email_result,
+        },
+    }
+
+
+@app.get("/api/eob/locked-batches")
+async def list_locked_batches(farm: str = Query(default=DEFAULT_FARM_ID)):
+    """Return metadata for closed batches on this farm. Excludes html/pdf/report
+    blobs so the response stays small — client only needs to know which batches
+    are locked (to hide the End Batch button + show the badge)."""
+    cursor = eob_snapshots_col.find(
+        {"farmId": farm},
+        {"_id": 0, "html": 0, "pdfBase64": 0, "report": 0, "fingerprint": 0},
+    ).sort("lockedAt", -1).limit(200)
+    return [doc async for doc in cursor]
+
+
+@app.get("/api/eob/locked-batches/{snap_id}")
+async def get_locked_batch(snap_id: str, farm: str = Query(default=DEFAULT_FARM_ID)):
+    """Return the full snapshot (report payload + optional PDF base64) for viewing."""
+    doc = await eob_snapshots_col.find_one(
+        {"id": snap_id, "farmId": farm},
+        {"_id": 0},
+    )
+    if not doc:
+        raise HTTPException(404, "Snapshot not found")
+    return doc
 
 
 # ─── Share-history email — Reader → head office ──────────────────────────
@@ -1179,6 +1317,13 @@ async def _ensure_indexes():
 
         # payments — Stripe webhook lookups
         await payments_col.create_index([("session_id", 1)], unique=True, sparse=True)
+
+        # eob_snapshots — one per (farm, batch); listing sorted by lockedAt
+        await eob_snapshots_col.create_index(
+            [("farmId", 1), ("batchIdentifier", 1)], unique=True,
+        )
+        await eob_snapshots_col.create_index([("farmId", 1), ("lockedAt", -1)])
+        await eob_snapshots_col.create_index([("id", 1)], unique=True, sparse=True)
     except Exception as e:  # pragma: no cover — never block startup on index errors
         import logging
         logging.getLogger("server").warning(f"Index creation skipped: {e}")

@@ -1,5 +1,5 @@
 # Broiler Base Mate — Product Requirements Document
-Last updated: Feb 25, 2026
+Last updated: Feb 27, 2026
 
 ## Original problem statement (verbatim from founder)
 
@@ -38,6 +38,7 @@ Jason Coverdale (Appcovi, 3rd-gen Aussie broiler grower on a Baiada contract) ne
 - Head-office share defaults to "Today only"
 
 ### Recent updates (Feb 2026)
+- Feb 27: 🏁 End Batch (Lock & Close) button on EOB tab — snapshots placement/morts/catches/weights/feed to `eob_snapshots` collection, auto-emails branded PDF to batch owner, marks batch closed. Processor amendments to the weight sheet after lock no longer retroactively change the on-record report. New endpoints: `POST /api/eob/lock-batch`, `GET /api/eob/locked-batches`, `GET /api/eob/locked-batches/{id}`. Idempotent — re-clicking End Batch on an already-locked batch returns the existing snapshot instead of re-sending.
 - Feb 25: Landing pricing tiers updated with feature callouts — Chick Counter & Weigh Birds on Bronze/Starter, Docket Scanning + Video Weigh on Silver, Flock Forecast + Density + EOB Copy-for-Email on Gold, Ops Manager on Platinum. "NEW THIS MONTH" ribbon added above pricing grid. JSON-LD featureList refreshed.
 - Feb 20: Per-catch performance bar chart on Flock Forecast cards
 - Feb 18: Flock Forecast Card Grid with growth curve charts
