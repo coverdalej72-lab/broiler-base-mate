@@ -2,6 +2,12 @@
 Regression tests for the two URGENT bugs:
   1) Silo readings sync chain: Reader → /api/readings/batch → /api/readings/today
   2) Farm Buddy alerts threshold + feed-program state persistence.
+
+NOTE (Feb 2026, SEC-001): all write endpoints (POST /readings/batch, POST
+/deliveries, PATCH /farm-config, PUT /feed-program/state, DELETE /batch/reset)
+now require session auth. Tests that exercise those flows are skipped when no
+`BBM_TEST_SESSION_TOKEN` env var is present. Read-only GET endpoints remain
+open for the mobile reader UX and are still tested.
 """
 import os
 import re
@@ -12,6 +18,11 @@ import requests
 
 BASE_URL = os.environ.get("REACT_APP_BACKEND_URL", "https://harvest-hub-634.preview.emergentagent.com").rstrip("/")
 FARM = "default"
+AUTH_TOKEN = os.environ.get("BBM_TEST_SESSION_TOKEN", "")
+requires_auth = pytest.mark.skipif(
+    not AUTH_TOKEN,
+    reason="SEC-001: write endpoints now require auth. Set BBM_TEST_SESSION_TOKEN to run these.",
+)
 
 
 # ── Fixtures ────────────────────────────────────────────────────────────
@@ -19,6 +30,8 @@ FARM = "default"
 def api():
     s = requests.Session()
     s.headers.update({"Content-Type": "application/json"})
+    if AUTH_TOKEN:
+        s.cookies.set("session_token", AUTH_TOKEN)
     return s
 
 
@@ -45,6 +58,7 @@ def first_group_silos(groups_and_silos):
 # ── 1) Readings sync chain ──────────────────────────────────────────────
 class TestReadingsSyncChain:
 
+    @requires_auth
     def test_post_reading_and_today_returns_saved(self, api, first_group_silos):
         group, gsilos = first_group_silos
         silo = gsilos[0]
@@ -83,6 +97,7 @@ class TestReadingsSyncChain:
         assert "unit" in sil
         assert sil["amountRemaining"] == 18.5
 
+    @requires_auth
     def test_today_filters_to_today_only(self, api, first_group_silos):
         """POST a reading dated yesterday → /api/readings/today should not surface it as 'saved' for today."""
         group, gsilos = first_group_silos
@@ -151,6 +166,7 @@ class TestFarmBuddyAlerts:
         assert isinstance(body["alerts"], list)
         assert body["riskLevel"] in ("ok", "watch", "critical")
 
+    @requires_auth
     def test_critical_alert_after_3t_reading(self, api, groups_and_silos):
         """POST 1t to EVERY silo of a shed-group → total <5t → critical alert mentions group name."""
         groups, silos = groups_and_silos
@@ -220,6 +236,7 @@ class TestFarmBuddyRecommend:
 # ── 4) Feed Program state round-trip ────────────────────────────────────
 class TestFeedProgramState:
 
+    @requires_auth
     def test_state_round_trip(self, api):
         edits_payload = '[{"sheet":"SHED 1 & 2","row":2,"col":3,"value":"TEST_placement"}]'
         sheets = ["SHED 1 & 2", "SHED 3 & 4"]

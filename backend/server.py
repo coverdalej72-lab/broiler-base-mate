@@ -1384,8 +1384,9 @@ async def batch_version():
 
 
 @api.delete("/batch/reset")
-async def batch_reset(farm: str = Query(default=DEFAULT_FARM_ID)):
+async def batch_reset(request: Request, farm: str = Query(default=DEFAULT_FARM_ID)):
     """New Batch: wipe this farm's readings, deliveries, and photos so app starts empty."""
+    await _require_farm_access(request, farm)   # SEC-001 — DESTRUCTIVE, absolutely must be gated
     r = await readings_col.delete_many(_farm_filter(farm))
     d = await deliveries_col.delete_many(_farm_filter(farm))
     p = await photos_col.delete_many(_farm_filter(farm))
@@ -1436,7 +1437,8 @@ async def list_silos(farm: str = Query(default=DEFAULT_FARM_ID)):
 
 
 @api.post("/silos", status_code=201)
-async def create_silo(body: CreateSiloBody, farm: str = Query(default=DEFAULT_FARM_ID)):
+async def create_silo(body: CreateSiloBody, request: Request, farm: str = Query(default=DEFAULT_FARM_ID)):
+    await _require_farm_access(request, farm)   # SEC-001
     doc = {
         "id": str(uuid.uuid4()),
         "farmId": farm,
@@ -1450,7 +1452,16 @@ async def create_silo(body: CreateSiloBody, farm: str = Query(default=DEFAULT_FA
 
 
 @api.patch("/silos/{silo_id}")
-async def update_silo(silo_id: str, body: UpdateSiloBody):
+async def update_silo(silo_id: str, body: UpdateSiloBody, request: Request):
+    # SEC-001: session required BEFORE the existence check so anon callers
+    # can't probe silo IDs. Farm access is then re-checked on the record.
+    user = await _user_from_request(request)
+    if not user:
+        raise HTTPException(401, "Authentication required")
+    existing = await silos_col.find_one({"id": silo_id}, {"farmId": 1, "_id": 0})
+    if existing is None:
+        raise HTTPException(404, "Silo not found")
+    await _require_farm_access(request, existing.get("farmId") or DEFAULT_FARM_ID)
     patch = {k: v for k, v in body.model_dump(exclude_none=True).items()}
     if not patch:
         raise HTTPException(400, "Nothing to update")
@@ -1461,7 +1472,14 @@ async def update_silo(silo_id: str, body: UpdateSiloBody):
 
 
 @api.delete("/silos/{silo_id}", status_code=204)
-async def delete_silo(silo_id: str):
+async def delete_silo(silo_id: str, request: Request):
+    user = await _user_from_request(request)
+    if not user:
+        raise HTTPException(401, "Authentication required")
+    existing = await silos_col.find_one({"id": silo_id}, {"farmId": 1, "_id": 0})
+    if existing is None:
+        raise HTTPException(404, "Silo not found")
+    await _require_farm_access(request, existing.get("farmId") or DEFAULT_FARM_ID)   # SEC-001
     res = await silos_col.delete_one({"id": silo_id})
     if res.deleted_count == 0:
         raise HTTPException(404, "Silo not found")
@@ -1730,7 +1748,8 @@ async def farm_buddy_alerts(farm: str = Query(default=DEFAULT_FARM_ID)):
 
 
 @api.post("/readings/batch", status_code=201)
-async def batch_create_readings(body: BatchCreateReadingsBody, farm: str = Query(default=DEFAULT_FARM_ID)):
+async def batch_create_readings(body: BatchCreateReadingsBody, request: Request, farm: str = Query(default=DEFAULT_FARM_ID)):
+    await _require_farm_access(request, farm)   # SEC-001
     if not body.readings:
         raise HTTPException(400, "No readings provided")
     date = datetime.fromisoformat(body.readingDate.replace("Z", "+00:00")) if body.readingDate else datetime.now(timezone.utc)
@@ -1806,7 +1825,14 @@ async def list_readings(limit: int = Query(default=100, le=1000), siloId: Option
 
 
 @api.delete("/readings/{reading_id}", status_code=204)
-async def delete_reading(reading_id: str):
+async def delete_reading(reading_id: str, request: Request):
+    user = await _user_from_request(request)
+    if not user:
+        raise HTTPException(401, "Authentication required")
+    existing = await readings_col.find_one({"id": reading_id}, {"farmId": 1, "_id": 0})
+    if existing is None:
+        raise HTTPException(404, "Reading not found")
+    await _require_farm_access(request, existing.get("farmId") or DEFAULT_FARM_ID)
     res = await readings_col.delete_one({"id": reading_id})
     if res.deleted_count == 0:
         raise HTTPException(404, "Reading not found")
@@ -1852,7 +1878,8 @@ async def list_deliveries(limit: int = Query(default=100, le=1000), farm: str = 
 
 
 @api.post("/deliveries", status_code=201)
-async def create_delivery(body: CreateDeliveryBody, farm: str = Query(default=DEFAULT_FARM_ID)):
+async def create_delivery(body: CreateDeliveryBody, request: Request, farm: str = Query(default=DEFAULT_FARM_ID)):
+    await _require_farm_access(request, farm)   # SEC-001
     date = datetime.fromisoformat(body.deliveryDate.replace("Z", "+00:00")) if body.deliveryDate else datetime.now(timezone.utc)
     if date.tzinfo is None:
         date = date.replace(tzinfo=timezone.utc)
@@ -1907,7 +1934,14 @@ def _normalise_feed_type(raw: str) -> str:
 
 
 @api.delete("/deliveries/{delivery_id}", status_code=204)
-async def delete_delivery(delivery_id: str):
+async def delete_delivery(delivery_id: str, request: Request):
+    user = await _user_from_request(request)
+    if not user:
+        raise HTTPException(401, "Authentication required")
+    existing = await deliveries_col.find_one({"id": delivery_id}, {"farmId": 1, "_id": 0})
+    if existing is None:
+        raise HTTPException(404, "Delivery not found")
+    await _require_farm_access(request, existing.get("farmId") or DEFAULT_FARM_ID)   # SEC-001
     res = await deliveries_col.delete_one({"id": delivery_id})
     if res.deleted_count == 0:
         raise HTTPException(404, "Delivery not found")
@@ -2603,7 +2637,8 @@ async def get_farm_config(farm: str = Query(default=DEFAULT_FARM_ID)):
 
 
 @api.patch("/farm-config")
-async def patch_farm_config(body: FarmConfigBody, farm: str = Query(default=DEFAULT_FARM_ID)):
+async def patch_farm_config(body: FarmConfigBody, request: Request, farm: str = Query(default=DEFAULT_FARM_ID)):
+    await _require_farm_access(request, farm)   # SEC-001
     patch = {k: v for k, v in body.model_dump(exclude_none=True).items()}
     if not patch:
         raise HTTPException(400, "Nothing to update")
@@ -2654,7 +2689,8 @@ async def get_feed_program_state(farm: str = Query(default=DEFAULT_FARM_ID)):
 
 
 @api.put("/feed-program/state")
-async def put_feed_program_state(body: FeedProgramStateBody, farm: str = Query(default=DEFAULT_FARM_ID)):
+async def put_feed_program_state(body: FeedProgramStateBody, request: Request, farm: str = Query(default=DEFAULT_FARM_ID)):
+    await _require_farm_access(request, farm)   # SEC-001
     now = datetime.now(timezone.utc).isoformat()
 
     # ── Anti-corruption guard ────────────────────────────────────────────────
@@ -2760,10 +2796,11 @@ async def get_feed_program_history_item(snap_id: str, farm: str = Query(default=
 
 
 @api.post("/feed-program/history/{snap_id}/restore")
-async def restore_feed_program_history(snap_id: str, farm: str = Query(default=DEFAULT_FARM_ID)):
+async def restore_feed_program_history(snap_id: str, request: Request, farm: str = Query(default=DEFAULT_FARM_ID)):
     """Restore a snapshot as the current state. Snapshots current state first so the
     restore itself is rewind-able. Returns the restored state so the client can
     immediately re-hydrate without a second GET."""
+    await _require_farm_access(request, farm)   # SEC-001
     snap = await feed_program_state_history_col.find_one({"id": snap_id, "farmId": farm})
     if not snap:
         raise HTTPException(404, "Snapshot not found")
@@ -2821,7 +2858,8 @@ async def list_photos(category: Optional[str] = None, shedNumber: Optional[int] 
 
 
 @api.post("/photos", status_code=201)
-async def create_photo(body: CreatePhotoBody, farm: str = Query(default=DEFAULT_FARM_ID)):
+async def create_photo(body: CreatePhotoBody, request: Request, farm: str = Query(default=DEFAULT_FARM_ID)):
+    await _require_farm_access(request, farm)   # SEC-001
     if body.category not in ("mort_sheet", "bird_weight"):
         raise HTTPException(400, "Invalid category")
     if body.category == "bird_weight" and body.shedNumber is None:
@@ -2840,7 +2878,14 @@ async def create_photo(body: CreatePhotoBody, farm: str = Query(default=DEFAULT_
 
 
 @api.delete("/photos/{photo_id}", status_code=204)
-async def delete_photo(photo_id: str):
+async def delete_photo(photo_id: str, request: Request):
+    user = await _user_from_request(request)
+    if not user:
+        raise HTTPException(401, "Authentication required")
+    existing = await photos_col.find_one({"id": photo_id}, {"farmId": 1, "_id": 0})
+    if existing is None:
+        raise HTTPException(404, "Photo not found")
+    await _require_farm_access(request, existing.get("farmId") or DEFAULT_FARM_ID)   # SEC-001
     res = await photos_col.delete_one({"id": photo_id})
     if res.deleted_count == 0:
         raise HTTPException(404, "Photo not found")
