@@ -17,7 +17,7 @@ import uuid
 from datetime import datetime, timezone
 from typing import Any, Optional
 
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import FastAPI, HTTPException, Request, UploadFile, File, Form
 from pydantic import BaseModel
 
 log = logging.getLogger("farm_buddy")
@@ -492,3 +492,534 @@ def init_farm_buddy(app: FastAPI, db) -> None:
             pass
 
         return parsed
+
+
+# ─── Grower Pickup Report reconciliation ────────────────────────────────
+# Feb 2026 — Jason uploaded a Baiada "Grower Pickup Report" .docx and asked:
+# "can buddy audit this and compare his records and this". The reconciler
+# accepts the pickup-report rows (parsed client-side or via a raw text
+# paste that the server best-effort parses) plus the current app catchMap
+# and returns:
+#   • diff  → matched / missing (in report but not app) / extra (in app
+#              but not report) / mismatched (same shed+date but bird count
+#              or weight differ significantly)
+#   • narrative → plain-english Farm Buddy audit summary
+#
+# NO new deps — we regex-parse the pasted table text (Word tables copy as
+# tab or newline-separated rows). Everything happens in-process.
+# ────────────────────────────────────────────────────────────────────────
+
+class PickupReportRow(BaseModel):
+    pickupDate:  Optional[str] = None   # "DD/MM/YYYY" as printed in the doc
+    pickupNum:   Optional[str] = None   # "ADUBB01-2603-01" — last digits = shed
+    farmName:    Optional[str] = None
+    shedNum:     Optional[int] = None   # derived from pickupNum if not supplied
+    age:         Optional[int] = None
+    birdsCaught: Optional[float] = None
+    liveWeightKg: Optional[float] = None
+    aveWeightKg: Optional[float] = None
+
+
+class AppCatchRow(BaseModel):
+    shedNum:   int
+    date:      Optional[str] = None     # DD/MM/YYYY
+    age:       Optional[int] = None
+    birds:     Optional[float] = None
+    aveWgt:    Optional[float] = None
+    totalWgt:  Optional[float] = None
+
+
+class ReconcileRequest(BaseModel):
+    pickupText:   Optional[str] = None        # raw pasted text from the doc
+    pickupRows:   Optional[list[PickupReportRow]] = None  # already-parsed rows
+    appCatches:   list[AppCatchRow]
+    farmName:     Optional[str] = None
+    farmSlug:     Optional[str] = None
+    generateNarrative: Optional[bool] = True
+
+
+class ReconcileDiffRow(BaseModel):
+    status:  str        # "match" | "missing_in_app" | "extra_in_app" | "mismatch"
+    shedNum: int
+    date:    Optional[str] = None
+    age:     Optional[int] = None
+    reportBirds:   Optional[float] = None
+    reportWeight:  Optional[float] = None
+    reportAveKg:   Optional[float] = None
+    appBirds:      Optional[float] = None
+    appAveKg:      Optional[float] = None
+    note:    Optional[str] = None
+
+
+class ReconcileResponse(BaseModel):
+    matched:     list[ReconcileDiffRow]
+    missing:     list[ReconcileDiffRow]
+    extra:       list[ReconcileDiffRow]
+    mismatched:  list[ReconcileDiffRow]
+    totals: dict[str, Any]
+    narrative:   Optional[str] = None
+    parsedReport: list[PickupReportRow]
+
+
+_SHED_FROM_PICKUP_RE = re.compile(r"[-\s](\d{1,2})\s*$")
+_ROW_KG_RE           = re.compile(r"(\d+(?:\.\d+)?)\s*kg", re.IGNORECASE)
+_ROW_DATE_RE         = re.compile(r"\b(\d{1,2}[/-]\d{1,2}[/-]\d{2,4})\b")
+_ROW_PICKUP_RE       = re.compile(r"([A-Z]{2,}[A-Z0-9]*-\d+-\s*\d{1,2})", re.IGNORECASE)
+
+
+def _shed_from_pickup(pickup_num: Optional[str]) -> Optional[int]:
+    if not pickup_num:
+        return None
+    m = _SHED_FROM_PICKUP_RE.search(str(pickup_num).strip())
+    if m:
+        try:
+            return int(m.group(1))
+        except (TypeError, ValueError):
+            return None
+    return None
+
+
+def _parse_pickup_text(raw: str) -> list[PickupReportRow]:
+    """Best-effort parser for pasted Word/Excel table text. Each line is
+    treated as a candidate row; we look for a pickup# (…-XX), a date, an
+    age (2-digit stand-alone int under 100), a bird count (int > 100),
+    a total weight kg, and an average weight kg."""
+    if not raw:
+        return []
+    out: list[PickupReportRow] = []
+    for line in raw.splitlines():
+        s = line.strip()
+        if not s or len(s) < 8:
+            continue
+        # Skip obvious headers
+        if re.search(r"pickup\s*date|age.*catch|bird.*count|live.*weight", s, re.IGNORECASE):
+            continue
+        pickup_m = _ROW_PICKUP_RE.search(s)
+        date_m   = _ROW_DATE_RE.search(s)
+        kg_matches = _ROW_KG_RE.findall(s)
+        # Numbers on the line — strip commas
+        nums = [float(n.replace(",", "")) for n in re.findall(r"\b\d[\d,]*(?:\.\d+)?\b", s)]
+        if not (pickup_m and date_m and nums):
+            continue
+        pickup_num = re.sub(r"\s+", "", pickup_m.group(1))
+        shed = _shed_from_pickup(pickup_num)
+        # Heuristics for age / birds / weight ordering: age is a stand-alone
+        # small int (25-60), bird count is a mid int (500-15000), live weight
+        # is a big int (1000-50000), ave weight is small float in kg (1.5-4.5)
+        age = birds = live_kg = ave_kg = None
+        for n in nums:
+            if age is None and 20 <= n <= 60 and float(n).is_integer():
+                age = int(n); continue
+            if ave_kg is None and 1.2 <= n <= 5.0 and abs(n - int(n)) > 0.001:
+                ave_kg = n; continue
+            if birds is None and 200 <= n <= 20000 and float(n).is_integer():
+                birds = n; continue
+            if live_kg is None and 1000 <= n <= 60000 and float(n).is_integer():
+                live_kg = n; continue
+        # If ave wasn't picked but "N.NN kg" strings were, prefer those
+        if ave_kg is None and kg_matches:
+            for k in kg_matches:
+                v = float(k)
+                if 1.2 <= v <= 5.0:
+                    ave_kg = v; break
+        if shed is None:
+            continue
+        out.append(PickupReportRow(
+            pickupDate=date_m.group(1),
+            pickupNum=pickup_num,
+            shedNum=shed,
+            age=age,
+            birdsCaught=birds,
+            liveWeightKg=live_kg,
+            aveWeightKg=ave_kg,
+        ))
+    return out
+
+
+def _parse_pickup_docx(file_bytes: bytes) -> tuple[list[PickupReportRow], Optional[str]]:
+    """Parse a Baiada / Ingham / mTech-style Grower Pickup Report .docx by
+    reading its native tables (falls back to plain text if the doc has no
+    tables). Returns (rows, farmName). Never raises — on any error returns
+    ([], None) so the caller can retry with the paste-text path."""
+    try:
+        from docx import Document
+        import io
+        doc = Document(io.BytesIO(file_bytes))
+    except Exception as e:
+        log.warning("Could not open .docx: %s", e)
+        return [], None
+
+    farm_name: Optional[str] = None
+    rows_out: list[PickupReportRow] = []
+
+    # Walk every table — Baiada/mTech report is paginated into multiple
+    # tables. Each table has a "Farm Name: …" banner row, a header row
+    # (Trans Date · Entity · Farm Ref · Lot No · Age · Farm Head · Farm
+    # Weight · Avg LWT · RGB), then data rows. Farm Name lives on the
+    # banner row when the header row is `Trans Date …`.
+    for tbl in doc.tables:
+        if not tbl.rows:
+            continue
+
+        # Try to locate the header row — it's whichever row has "date" +
+        # ("age" or "weight") in it. Sometimes row 0 is a banner.
+        header_row_idx: Optional[int] = None
+        for ri, row in enumerate(tbl.rows[:3]):
+            joined = " ".join(c.text.strip().lower() for c in row.cells)
+            if ("trans date" in joined or "pickup date" in joined or "date" in joined) and \
+               ("age" in joined or "weight" in joined):
+                header_row_idx = ri
+                break
+        if header_row_idx is None:
+            continue
+
+        # Grab farm name from a "Farm Name: …" banner above the header
+        for ri in range(header_row_idx):
+            first_cell = tbl.rows[ri].cells[0].text.strip()
+            m = re.search(r"farm\s*name\s*:\s*(.+)", first_cell, re.IGNORECASE)
+            if m and not farm_name:
+                farm_name = m.group(1).strip()
+                break
+
+        header_cells = [c.text.strip().lower() for c in tbl.rows[header_row_idx].cells]
+        col_idx: dict[str, int] = {}
+        for i, h in enumerate(header_cells):
+            # Date column: "Trans Date" or "Pickup Date"
+            if "date" in h and "date" not in col_idx.get("_", ""):
+                col_idx.setdefault("date", i)
+            # Pickup number / batch#: "Entity" or "Pickup #" or "Batch"
+            if h in ("entity", "pickup #", "pickup no", "batch") or "pickup" in h and "date" not in h:
+                col_idx.setdefault("pickup", i)
+            if "farm" in h and "name" in h:
+                col_idx.setdefault("farm", i)
+            if "shed" in h:
+                col_idx.setdefault("shed", i)
+            if "age" in h:
+                col_idx.setdefault("age", i)
+            # Bird count: "Farm Head" or "Birds Caught" or "Head"
+            if h == "farm head" or "head" in h and "farm" in h or "bird" in h and ("caught" in h or "count" in h or "pick" in h):
+                col_idx.setdefault("birds", i)
+            # Live weight (total): "Farm Weight" or "Live Weight" or "Total Weight"
+            if (h == "farm weight" or "live" in h and "weight" in h or "total" in h and "weight" in h):
+                col_idx.setdefault("liveWeight", i)
+            # Average weight: "Avg LWT" or "Ave Weight"
+            if ("avg" in h or "ave" in h) and ("wt" in h or "weight" in h):
+                col_idx.setdefault("aveWeight", i)
+
+        # Skip tables that clearly aren't the pickup roster
+        if "pickup" not in col_idx and "date" not in col_idx:
+            continue
+
+        for row in tbl.rows[header_row_idx + 1:]:
+            cells = [c.text.strip() for c in row.cells]
+            # Skip banner rows repeated on subsequent pages
+            if cells and re.search(r"farm\s*name\s*:", cells[0], re.IGNORECASE):
+                continue
+            # Skip repeated header rows
+            joined = " ".join(cells).lower()
+            if "trans date" in joined or ("date" in joined and "age" in joined and "avg" in joined):
+                continue
+
+            def _cell(k: str) -> str:
+                i = col_idx.get(k)
+                return cells[i] if i is not None and i < len(cells) else ""
+
+            date  = _cell("date")
+            pickup = re.sub(r"\s+", "", _cell("pickup"))
+            farm  = _cell("farm") or None
+            if farm and not farm_name:
+                farm_name = farm
+            shed_txt = _cell("shed")
+            age_txt  = _cell("age")
+            birds_txt = _cell("birds").replace(",", "")
+            live_txt  = _cell("liveWeight").replace(",", "").replace("kg", "").strip()
+            ave_txt   = _cell("aveWeight").replace("kg", "").strip()
+
+            # Skip totals / blank rows
+            if not (pickup or date):
+                continue
+
+            def _to_float(s: str) -> Optional[float]:
+                try:
+                    return float(re.sub(r"[^\d.\-]", "", s)) if s else None
+                except (TypeError, ValueError):
+                    return None
+            def _to_int(s: str) -> Optional[int]:
+                try:
+                    return int(float(re.sub(r"[^\d.\-]", "", s))) if s else None
+                except (TypeError, ValueError):
+                    return None
+
+            shed = _to_int(shed_txt) or _shed_from_pickup(pickup)
+            rows_out.append(PickupReportRow(
+                pickupDate=date or None,
+                pickupNum=pickup or None,
+                farmName=farm,
+                shedNum=shed,
+                age=_to_int(age_txt),
+                birdsCaught=_to_float(birds_txt),
+                liveWeightKg=_to_float(live_txt),
+                aveWeightKg=_to_float(ave_txt),
+            ))
+
+        # NOTE: don't `break` — the Baiada report paginates into multiple
+        # tables, and all of them share the same schema. We want ALL rows.
+
+    # Fallback: no tables parsed → try the plain-text extractor
+    if not rows_out:
+        text = "\n".join(p.text for p in doc.paragraphs)
+        rows_out = _parse_pickup_text(text)
+
+    return rows_out, farm_name
+
+
+def _norm_date(s: Optional[str]) -> Optional[str]:
+    if not s:
+        return None
+    m = re.match(r"(\d{1,2})[/-](\d{1,2})[/-](\d{2,4})", str(s).strip())
+    if not m:
+        return None
+    d, mo, y = m.groups()
+    if len(y) == 2:
+        y = "20" + y
+    return f"{int(d):02d}/{int(mo):02d}/{y}"
+
+
+def _reconcile(req: ReconcileRequest) -> ReconcileResponse:
+    # ── Normalise the pickup report rows ────────────────────────────
+    report_rows: list[PickupReportRow] = list(req.pickupRows or [])
+    if not report_rows and req.pickupText:
+        report_rows = _parse_pickup_text(req.pickupText)
+    # Ensure shedNum on every row (derive from pickupNum if missing)
+    for r in report_rows:
+        if r.shedNum is None:
+            r.shedNum = _shed_from_pickup(r.pickupNum)
+    # Filter to rows with a resolvable shed
+    report_rows = [r for r in report_rows if r.shedNum is not None]
+
+    # ── Buckets ────────────────────────────────────────────────────
+    matched:    list[ReconcileDiffRow] = []
+    missing:    list[ReconcileDiffRow] = []
+    mismatched: list[ReconcileDiffRow] = []
+    # Track which app rows got claimed so we can surface unmatched app rows
+    claimed: set[int] = set()
+
+    def find_app_match(row: PickupReportRow) -> Optional[int]:
+        rdate = _norm_date(row.pickupDate)
+        for i, a in enumerate(req.appCatches):
+            if i in claimed:
+                continue
+            if a.shedNum != row.shedNum:
+                continue
+            # Match on same-shed AND (same date OR same age OR same-weight)
+            adate = _norm_date(a.date)
+            if rdate and adate and rdate == adate:
+                return i
+            if row.age is not None and a.age is not None and row.age == a.age:
+                return i
+            if row.aveWeightKg is not None and a.aveWgt is not None and abs(a.aveWgt - row.aveWeightKg) < 0.05:
+                return i
+        return None
+
+    for r in report_rows:
+        idx = find_app_match(r)
+        if idx is None:
+            missing.append(ReconcileDiffRow(
+                status="missing_in_app",
+                shedNum=r.shedNum or 0,
+                date=r.pickupDate,
+                age=r.age,
+                reportBirds=r.birdsCaught,
+                reportWeight=r.liveWeightKg,
+                reportAveKg=r.aveWeightKg,
+                note="Row on processor pickup report but no matching catch in the app.",
+            ))
+            continue
+        claimed.add(idx)
+        a = req.appCatches[idx]
+        birds_diff = None
+        weight_diff = None
+        if r.birdsCaught is not None and a.birds is not None:
+            birds_diff = r.birdsCaught - a.birds
+        if r.aveWeightKg is not None and a.aveWgt is not None:
+            weight_diff = r.aveWeightKg - a.aveWgt
+        # 5% birds tolerance, 0.05 kg avg-weight tolerance
+        is_mismatch = (
+            (birds_diff is not None  and abs(birds_diff)  > max(50, 0.05 * (a.birds or 0))) or
+            (weight_diff is not None and abs(weight_diff) > 0.05)
+        )
+        row_out = ReconcileDiffRow(
+            status="mismatch" if is_mismatch else "match",
+            shedNum=r.shedNum or 0,
+            date=r.pickupDate,
+            age=r.age,
+            reportBirds=r.birdsCaught,
+            reportWeight=r.liveWeightKg,
+            reportAveKg=r.aveWeightKg,
+            appBirds=a.birds,
+            appAveKg=a.aveWgt,
+            note=(
+                f"Birds Δ {int(birds_diff):+,} · Weight Δ {weight_diff:+.2f} kg"
+                if is_mismatch and birds_diff is not None and weight_diff is not None
+                else None
+            ),
+        )
+        (mismatched if is_mismatch else matched).append(row_out)
+
+    # Extra rows: app catches that never matched anything on the report
+    extra: list[ReconcileDiffRow] = []
+    for i, a in enumerate(req.appCatches):
+        if i in claimed:
+            continue
+        extra.append(ReconcileDiffRow(
+            status="extra_in_app",
+            shedNum=a.shedNum,
+            date=a.date,
+            age=a.age,
+            appBirds=a.birds,
+            appAveKg=a.aveWgt,
+            note="In the app but not on this processor pickup report — likely a stale row, a duplicate paste, or a pickup happening after the report was generated.",
+        ))
+
+    # ── Totals for a quick health read-out ─────────────────────────
+    def _sum(rows: list[Any], field: str) -> float:
+        return float(sum(getattr(r, field, 0) or 0 for r in rows))
+    totals = {
+        "reportRows":       len(report_rows),
+        "appRows":          len(req.appCatches),
+        "matched":          len(matched),
+        "missing":          len(missing),
+        "mismatched":       len(mismatched),
+        "extraInApp":       len(extra),
+        "reportBirds":      int(_sum(report_rows, "birdsCaught")),
+        "reportLiveKg":     int(_sum(report_rows, "liveWeightKg")),
+        "appBirds":         int(_sum(req.appCatches, "birds")),
+    }
+
+    return ReconcileResponse(
+        matched=matched,
+        missing=missing,
+        extra=extra,
+        mismatched=mismatched,
+        totals=totals,
+        narrative=None,
+        parsedReport=report_rows,
+    )
+
+
+async def _reconcile_narrative(resp: ReconcileResponse, farm_name: Optional[str]) -> Optional[str]:
+    """Ask the LLM for a plain-english audit summary of the reconciliation.
+    Falls back to a deterministic summary if the LLM is unavailable."""
+    t = resp.totals
+    baseline = (
+        f"🐤 Farm Buddy audit for {farm_name or 'your farm'} — "
+        f"{t['reportRows']} rows on processor report vs {t['appRows']} in app. "
+        f"✓ {t['matched']} matched · "
+        f"⚠ {t['mismatched']} mismatched · "
+        f"❌ {t['missing']} missing from app · "
+        f"➕ {t['extraInApp']} extra in app."
+    )
+    try:
+        from emergentintegrations.llm.chat import LlmChat, UserMessage
+        api_key = os.environ.get("EMERGENT_LLM_KEY")
+        if not api_key:
+            return baseline
+        payload = {
+            "farmName": farm_name,
+            "totals": t,
+            "sampleMismatches": [r.dict() for r in resp.mismatched[:8]],
+            "sampleMissing":    [r.dict() for r in resp.missing[:8]],
+            "sampleExtra":      [r.dict() for r in resp.extra[:8]],
+        }
+        prompt = (
+            "You are Farm Buddy auditing a broiler farm's records against a "
+            "processor 'Grower Pickup Report'. Write ONE short paragraph "
+            "(max 90 words) telling the grower plainly what the diff shows, "
+            "which sheds need attention, and one concrete next step. "
+            "No JSON, no bullet points — just plain honest text. "
+            f"Data: {json.dumps(payload)}"
+        )
+        chat = LlmChat(api_key=api_key, session_id=f"reconcile-{uuid.uuid4().hex[:8]}",
+                       system_message="You are Farm Buddy, a friendly poultry-farm assistant. Reply with plain english only.").with_model("gemini", "gemini-2.0-flash")
+        reply = await chat.send_message(UserMessage(text=prompt))
+        text = (getattr(reply, "text", None) or str(reply)).strip()
+        return text or baseline
+    except Exception as e:
+        log.warning("Reconcile narrative LLM failed (%s) — using deterministic summary", e)
+        return baseline
+
+
+def init_farm_buddy_reconcile(app: FastAPI, db) -> None:
+    @app.post("/api/farm-buddy/reconcile-pickup-report", response_model=ReconcileResponse)
+    async def reconcile_pickup_report(req: ReconcileRequest, request: Request):
+        resp = _reconcile(req)
+        if req.generateNarrative:
+            resp.narrative = await _reconcile_narrative(resp, req.farmName)
+        try:
+            await db["farm_buddy_reconcile_log"].insert_one({
+                "farmSlug":   req.farmSlug,
+                "farmName":   req.farmName,
+                "totals":     resp.totals,
+                "createdAt":  datetime.now(timezone.utc),
+            })
+        except Exception:
+            pass
+        return resp
+
+    @app.post("/api/farm-buddy/reconcile-pickup-report-upload", response_model=ReconcileResponse)
+    async def reconcile_pickup_report_upload(
+        file: UploadFile = File(...),
+        appCatches: str = Form(...),
+        farmName: Optional[str] = Form(None),
+        farmSlug: Optional[str] = Form(None),
+        generateNarrative: bool = Form(True),
+    ):
+        """File-upload variant so growers can drop the Baiada / mTech
+        Grower Pickup Report .docx (or a plain-text export) straight in
+        without pasting. Accepts .docx (parsed via python-docx tables) and
+        falls back to plain text for .txt / .csv / unknown formats."""
+        raw = await file.read()
+        fname = (file.filename or "").lower()
+
+        rows: list[PickupReportRow] = []
+        derived_farm: Optional[str] = None
+        if fname.endswith(".docx"):
+            rows, derived_farm = _parse_pickup_docx(raw)
+        else:
+            # Plain text / mTech CSV export → decode + regex parser
+            try:
+                text = raw.decode("utf-8", errors="ignore")
+            except Exception:
+                text = raw.decode("latin-1", errors="ignore")
+            rows = _parse_pickup_text(text)
+
+        if not rows:
+            raise HTTPException(400, "Could not read any pickup rows from that file. Try a .docx or paste the table text.")
+
+        try:
+            app_catches = [AppCatchRow.parse_obj(x) for x in json.loads(appCatches)]
+        except Exception as e:
+            raise HTTPException(400, f"appCatches must be valid JSON array of AppCatchRow objects: {e}")
+
+        req = ReconcileRequest(
+            pickupRows=rows,
+            appCatches=app_catches,
+            farmName=farmName or derived_farm,
+            farmSlug=farmSlug,
+            generateNarrative=generateNarrative,
+        )
+        resp = _reconcile(req)
+        if req.generateNarrative:
+            resp.narrative = await _reconcile_narrative(resp, req.farmName)
+        try:
+            await db["farm_buddy_reconcile_log"].insert_one({
+                "farmSlug":   req.farmSlug,
+                "farmName":   req.farmName,
+                "sourceFile": file.filename,
+                "totals":     resp.totals,
+                "createdAt":  datetime.now(timezone.utc),
+            })
+        except Exception:
+            pass
+        return resp
+
