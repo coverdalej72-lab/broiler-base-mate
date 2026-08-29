@@ -57,6 +57,9 @@ def test_list_locked_batches_scoped_per_farm(api):
     assert r_b.json() == []
 
 
-def test_get_locked_batch_404_when_missing(api):
+def test_get_locked_batch_requires_auth_before_404(api):
+    """SEC-001: the single-snapshot endpoint requires an authenticated session
+    now — even the 404 path is behind auth so anonymous callers can't probe
+    for existing snap IDs."""
     r = api.get(f"{BASE_URL}/api/eob/locked-batches/{uuid.uuid4().hex}")
-    assert r.status_code == 404
+    assert r.status_code == 401

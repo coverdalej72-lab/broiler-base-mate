@@ -221,6 +221,13 @@ def _render_eob_html(r: EobReport, farm_name: str, sender: str) -> str:
     All inline CSS (no external stylesheets) so Gmail/Outlook/Apple Mail all
     render it identically. ~700 px max width — looks great on phone + desktop.
     """
+    # SEC-005: HTML-escape any user-controlled string that lands inside the
+    # email markup. Prevents an attacker who controls farm name / batch name /
+    # feed type from injecting <a href="phish"> or images into the report.
+    import html as _html
+    def esc(s: Optional[str]) -> str:
+        return _html.escape(str(s), quote=True) if s is not None else ""
+
     def fmt_n(n: Optional[float], suffix: str = "") -> str:
         if n is None or n == 0:
             return "—"
@@ -237,9 +244,9 @@ def _render_eob_html(r: EobReport, farm_name: str, sender: str) -> str:
         if r.farmLogoData else
         "https://broilerbasemate.com.au/reader-assets/company-logo.png"
     )
-    batch = r.batchName or (f"Batch #{r.batchNumber}" if r.batchNumber else "Batch")
-    prev_batch_note = f" · Prev Batch #{r.lastBatchNumber}" if r.lastBatchNumber else ""
-    gen   = r.generatedDate or datetime.now(timezone.utc).strftime("%d %b %Y")
+    batch = esc(r.batchName or (f"Batch #{r.batchNumber}" if r.batchNumber else "Batch"))
+    prev_batch_note = f" · Prev Batch #{esc(r.lastBatchNumber)}" if r.lastBatchNumber else ""
+    gen   = esc(r.generatedDate or datetime.now(timezone.utc).strftime("%d %b %Y"))
 
     # ── HERO (Appcovi navy + gold) ─────────────────────────────────────
     # Note: farm-uploaded logos still show in the hero. The Appcovi brand mark
@@ -257,7 +264,7 @@ def _render_eob_html(r: EobReport, farm_name: str, sender: str) -> str:
           {hero_logo_cell}
           <td valign="middle">
             <div style="font-size:11px;letter-spacing:3px;color:#C9A227;font-weight:800;margin-bottom:2px;">END OF BATCH REPORT</div>
-            <div style="font-size:24px;font-weight:900;letter-spacing:-0.4px;line-height:1.15;">{r.farmName or farm_name}</div>
+            <div style="font-size:24px;font-weight:900;letter-spacing:-0.4px;line-height:1.15;">{esc(r.farmName or farm_name)}</div>
             <div style="font-size:13px;color:#bdd3ee;margin-top:4px;">{batch}{prev_batch_note} · Generated {gen}</div>
           </td>
         </tr></table>
@@ -303,8 +310,8 @@ def _render_eob_html(r: EobReport, farm_name: str, sender: str) -> str:
         color = ft.color or "#2b4266"
         rows_html = "".join(
             f"""<tr>
-              <td style="padding:7px 12px;border-bottom:1px solid #e5e9ee;font-size:13px;color:#1a2320;">{row.date or "—"}</td>
-              <td style="padding:7px 12px;border-bottom:1px solid #e5e9ee;font-size:13px;color:#5a6a86;">{row.docket or "—"}</td>
+              <td style="padding:7px 12px;border-bottom:1px solid #e5e9ee;font-size:13px;color:#1a2320;">{esc(row.date) or "—"}</td>
+              <td style="padding:7px 12px;border-bottom:1px solid #e5e9ee;font-size:13px;color:#5a6a86;">{esc(row.docket) or "—"}</td>
               <td style="padding:7px 12px;border-bottom:1px solid #e5e9ee;font-size:13px;color:#1a2320;text-align:right;font-weight:600;font-variant-numeric:tabular-nums;">{int(row.kg):,} kg</td>
             </tr>"""
             for row in ft.rows if row.kg > 0
@@ -312,7 +319,7 @@ def _render_eob_html(r: EobReport, farm_name: str, sender: str) -> str:
         return f"""
           <div style="margin-top:16px;border:1px solid #dce3ee;border-radius:10px;overflow:hidden;background:#fff;">
             <div style="background:{color};color:#fff;padding:9px 14px;font-weight:800;letter-spacing:0.5px;font-size:13px;display:flex;justify-content:space-between;align-items:center;">
-              <span style="text-transform:uppercase;">{ft.name}</span>
+              <span style="text-transform:uppercase;">{esc(ft.name)}</span>
               <span style="font-size:15px;background:rgba(255,255,255,0.18);padding:2px 10px;border-radius:99px;">{int(ft.total):,} kg</span>
             </div>
             <table width="100%" cellpadding="0" cellspacing="0" border="0">
@@ -392,7 +399,7 @@ def _render_eob_html(r: EobReport, farm_name: str, sender: str) -> str:
 
     # ── Final assembly (Appcovi navy palette) ─────────────────────────
     return f"""<!DOCTYPE html><html><head><meta charset="utf-8" />
-<title>End of Batch — {farm_name}</title></head>
+<title>End of Batch — {esc(farm_name)}</title></head>
 <body style="margin:0;padding:24px 12px;background:#eef2f9;font-family:-apple-system,BlinkMacSystemFont,'SF Pro Text','Segoe UI',Roboto,sans-serif;color:#1e2f4d;-webkit-font-smoothing:antialiased;">
   <div style="max-width:680px;margin:0 auto;background:#f7f9fc;border-radius:16px;overflow:hidden;box-shadow:0 8px 32px -12px rgba(15,26,47,0.28);">
     {hero}
@@ -415,7 +422,7 @@ def _render_eob_html(r: EobReport, farm_name: str, sender: str) -> str:
             <div style="font-size:11px;color:#8a99b8;font-weight:600;letter-spacing:1.4px;margin-top:3px;">POULTRY MANAGEMENT SOFTWARE</div>
             <div style="font-size:12px;color:#bdd3ee;margin-top:8px;">
               <a href="https://broilerbasemate.com.au" style="color:#C9A227;text-decoration:none;font-weight:700;">broilerbasemate.com.au</a>
-              &nbsp;·&nbsp; Sent by {sender}
+              &nbsp;·&nbsp; Sent by {esc(sender)}
             </div>
           </td>
         </tr></table>
@@ -737,17 +744,24 @@ async def lock_eob_batch(req: EobLockRequest, request: Request):
 async def list_locked_batches(farm: str = Query(default=DEFAULT_FARM_ID)):
     """Return metadata for closed batches on this farm. Excludes html/pdf/report
     blobs so the response stays small — client only needs to know which batches
-    are locked (to hide the End Batch button + show the badge)."""
+    are locked (to hide the End Batch button + show the badge).
+    SEC-001: also excludes `lockedBy` (owner email) to prevent PII disclosure
+    from the loginless reader endpoint."""
     cursor = eob_snapshots_col.find(
         {"farmId": farm},
-        {"_id": 0, "html": 0, "pdfBase64": 0, "report": 0, "fingerprint": 0},
+        {"_id": 0, "html": 0, "pdfBase64": 0, "report": 0, "fingerprint": 0, "lockedBy": 0, "email": 0},
     ).sort("lockedAt", -1).limit(200)
     return [doc async for doc in cursor]
 
 
 @app.get("/api/eob/locked-batches/{snap_id}")
-async def get_locked_batch(snap_id: str, farm: str = Query(default=DEFAULT_FARM_ID)):
-    """Return the full snapshot (report payload + optional PDF base64) for viewing."""
+async def get_locked_batch(snap_id: str, request: Request, farm: str = Query(default=DEFAULT_FARM_ID)):
+    """Return the full snapshot (report payload + optional PDF base64) for viewing.
+    SEC-001: requires authenticated session — the snapshot contains the owner's
+    email + rendered PDF and must not be readable via an anonymous slug lookup."""
+    user = await _user_from_request(request)
+    if not user:
+        raise HTTPException(401, "Authentication required to view a locked batch snapshot")
     doc = await eob_snapshots_col.find_one(
         {"id": snap_id, "farmId": farm},
         {"_id": 0},
@@ -3602,15 +3616,25 @@ async def stripe_webhook(request: Request):
     sig = request.headers.get("Stripe-Signature", "")
     secret = os.environ.get("STRIPE_WEBHOOK_SECRET", "")
 
+    # SEC-002: If STRIPE_WEBHOOK_SECRET is not configured, refuse to process
+    # events entirely — anyone could forge `checkout.session.completed` and
+    # get a paid farm provisioned. We still return 200 so Stripe stops
+    # retrying while an admin sets the secret. Log so the admin sees it.
+    if not secret:
+        try:
+            await log_error(
+                db, category="stripe_webhook",
+                message="Webhook REJECTED — STRIPE_WEBHOOK_SECRET not configured. Set it in the production env before this endpoint will provision farms.",
+                request=request,
+            )
+        except Exception:
+            pass
+        import logging as _log
+        _log.error("Stripe webhook rejected — STRIPE_WEBHOOK_SECRET missing")
+        return JSONResponse({"ok": False, "error": "webhook secret not configured"}, status_code=200)
+
     try:
-        if secret:
-            event = _stripe.Webhook.construct_event(raw, sig, secret)
-        else:
-            # No secret configured yet — parse unverified (safe: we only READ Stripe API
-            # to double-check any state before writing). Log a one-off warning.
-            event = _json.loads(raw.decode("utf-8"))
-            import logging as _log
-            _log.warning("Stripe webhook received without STRIPE_WEBHOOK_SECRET — signature NOT verified")
+        event = _stripe.Webhook.construct_event(raw, sig, secret)
     except Exception as e:
         # Bad signature or malformed payload — ack 200 so Stripe stops retrying,
         # but log for admin.

@@ -21,7 +21,8 @@ from fastapi.responses import RedirectResponse
 
 # REMINDER: DO NOT HARDCODE THE URL, OR ADD ANY FALLBACKS OR REDIRECT URLS, THIS BREAKS THE AUTH
 EMERGENT_SESSION_URL = "https://demobackend.emergentagent.com/auth/v1/env/oauth/session-data"
-SESSION_TTL_DAYS = 365
+SESSION_TTL_DAYS = 30              # SEC-004: was 365 — down to 30 days for defence-in-depth
+OWNER_MAGIC_TTL_DAYS = 7           # SEC-004: owner magic sessions shorter than Google-auth ones
 COOKIE_NAME = "session_token"
 
 
@@ -207,11 +208,15 @@ def build_router(db, app_url: Optional[str] = None) -> APIRouter:
         key effectively owns the app — keep it like a password.
         """
         import os as _os
+        import hmac as _hmac
         expected = (_os.environ.get("OWNER_MAGIC_KEY") or "").strip()
         owner_email = (_os.environ.get("OWNER_EMAIL") or "").strip().lower()
         if not expected or not owner_email:
             raise HTTPException(503, "Owner magic link not configured on this server")
-        if not key or key != expected:
+        # SEC-004: constant-time compare so an attacker can't time-side-channel
+        # guess the key one character at a time. Empty-key attempts get a
+        # fixed-time reject.
+        if not key or not _hmac.compare_digest(key.encode("utf-8"), expected.encode("utf-8")):
             raise HTTPException(401, "Invalid magic key")
 
         # Upsert owner user
@@ -232,9 +237,9 @@ def build_router(db, app_url: Optional[str] = None) -> APIRouter:
                 "last_login_at": datetime.now(timezone.utc),
             })
 
-        # Create session
+        # Create session (SEC-004: shorter TTL for the magic-link path)
         session_token = f"st_owner_{uuid.uuid4().hex}"
-        expires_at = datetime.now(timezone.utc) + timedelta(days=SESSION_TTL_DAYS)
+        expires_at = datetime.now(timezone.utc) + timedelta(days=OWNER_MAGIC_TTL_DAYS)
         await db["user_sessions"].insert_one({
             "user_id": user_id,
             "session_token": session_token,
@@ -246,7 +251,7 @@ def build_router(db, app_url: Optional[str] = None) -> APIRouter:
         safe_to = to if to.startswith("/") and not to.startswith("//") else "/"
         redirect = RedirectResponse(safe_to, status_code=303)
         redirect.set_cookie(
-            key=COOKIE_NAME, value=session_token, max_age=SESSION_TTL_DAYS * 86400,
+            key=COOKIE_NAME, value=session_token, max_age=OWNER_MAGIC_TTL_DAYS * 86400,
             httponly=True, secure=True, samesite="none", path="/",
         )
         return redirect

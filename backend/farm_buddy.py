@@ -443,8 +443,30 @@ async def _call_llm(req: FarmBuddyRequest) -> dict:
 def init_farm_buddy(app: FastAPI, db) -> None:
     """Mount /api/farm-buddy/recommend onto the FastAPI app."""
 
+    # ── SEC-003 — Per-IP rate limiter (in-memory, sliding window) ──────
+    # Prevents anonymous LLM cost bombs + upload DoS. 30 requests / min /
+    # IP is generous for a real grower using the app but crushes a bot.
+    _rate_state: dict[str, list[float]] = {}
+    _RATE_WINDOW_S = 60.0
+    _RATE_LIMIT = 30
+
+    def _rate_check(request: Request) -> None:
+        ip = (request.client.host if request.client else "?") or "?"
+        now = datetime.now(timezone.utc).timestamp()
+        bucket = _rate_state.get(ip, [])
+        bucket = [t for t in bucket if now - t < _RATE_WINDOW_S]
+        if len(bucket) >= _RATE_LIMIT:
+            raise HTTPException(429, "Too many requests — slow down for a minute.")
+        bucket.append(now)
+        _rate_state[ip] = bucket
+        if len(_rate_state) > 500:  # prune old
+            for k in list(_rate_state.keys()):
+                if not _rate_state[k] or now - _rate_state[k][-1] > _RATE_WINDOW_S * 3:
+                    _rate_state.pop(k, None)
+
     @app.post("/api/farm-buddy/recommend", response_model=FarmBuddyResponse)
     async def farm_buddy_recommend(req: FarmBuddyRequest, request: Request):
+        _rate_check(request)
         # Lightweight short-term cache so the proactive banner doesn't hammer the LLM
         key = _cache_key(req)
         now = datetime.now(timezone.utc).timestamp()
@@ -940,7 +962,7 @@ async def _reconcile_narrative(resp: ReconcileResponse, farm_name: Optional[str]
             f"Data: {json.dumps(payload)}"
         )
         chat = LlmChat(api_key=api_key, session_id=f"reconcile-{uuid.uuid4().hex[:8]}",
-                       system_message="You are Farm Buddy, a friendly poultry-farm assistant. Reply with plain english only.").with_model("gemini", "gemini-2.0-flash")
+                       system_message="You are Farm Buddy, a friendly poultry-farm assistant. Reply with plain english only.").with_model("gemini", "gemini-2.5-flash")
         reply = await chat.send_message(UserMessage(text=prompt))
         text = (getattr(reply, "text", None) or str(reply)).strip()
         return text or baseline
@@ -950,8 +972,25 @@ async def _reconcile_narrative(resp: ReconcileResponse, farm_name: Optional[str]
 
 
 def init_farm_buddy_reconcile(app: FastAPI, db) -> None:
+    # SEC-003: Independent rate limiter for the reconcile endpoints — same
+    # sliding-window pattern as the LLM recommender, per-IP.
+    _rr_state: dict[str, list[float]] = {}
+    _RR_WINDOW_S = 60.0
+    _RR_LIMIT = 20  # reconcile is heavier than /recommend — tighter cap
+    _MAX_UPLOAD_BYTES = 10 * 1024 * 1024  # SEC-003: 10 MB hard cap on .docx / text uploads
+
+    def _rr_rate_check(request: Request) -> None:
+        ip = (request.client.host if request.client else "?") or "?"
+        now = datetime.now(timezone.utc).timestamp()
+        bucket = [t for t in _rr_state.get(ip, []) if now - t < _RR_WINDOW_S]
+        if len(bucket) >= _RR_LIMIT:
+            raise HTTPException(429, "Too many reconcile requests — slow down for a minute.")
+        bucket.append(now)
+        _rr_state[ip] = bucket
+
     @app.post("/api/farm-buddy/reconcile-pickup-report", response_model=ReconcileResponse)
     async def reconcile_pickup_report(req: ReconcileRequest, request: Request):
+        _rr_rate_check(request)
         resp = _reconcile(req)
         if req.generateNarrative:
             resp.narrative = await _reconcile_narrative(resp, req.farmName)
@@ -968,6 +1007,7 @@ def init_farm_buddy_reconcile(app: FastAPI, db) -> None:
 
     @app.post("/api/farm-buddy/reconcile-pickup-report-upload", response_model=ReconcileResponse)
     async def reconcile_pickup_report_upload(
+        request: Request,
         file: UploadFile = File(...),
         appCatches: str = Form(...),
         farmName: Optional[str] = Form(None),
@@ -977,9 +1017,30 @@ def init_farm_buddy_reconcile(app: FastAPI, db) -> None:
         """File-upload variant so growers can drop the Baiada / mTech
         Grower Pickup Report .docx (or a plain-text export) straight in
         without pasting. Accepts .docx (parsed via python-docx tables) and
-        falls back to plain text for .txt / .csv / unknown formats."""
-        raw = await file.read()
+        falls back to plain text for .txt / .csv / unknown formats.
+
+        SEC-003 hardening: per-IP rate limit + 10 MB upload cap +
+        `.docx`/`.txt`/`.csv` extension allow-list so bots can't ship
+        arbitrary payloads."""
+        _rr_rate_check(request)
+
         fname = (file.filename or "").lower()
+        allowed = (".docx", ".txt", ".csv")
+        if not any(fname.endswith(ext) for ext in allowed):
+            raise HTTPException(415, "Only .docx, .txt, or .csv files are accepted.")
+
+        # Stream-read with a byte cap so a 5 GB "docx" doesn't OOM the pod.
+        raw_chunks: list[bytes] = []
+        total = 0
+        while True:
+            chunk = await file.read(64 * 1024)
+            if not chunk:
+                break
+            total += len(chunk)
+            if total > _MAX_UPLOAD_BYTES:
+                raise HTTPException(413, "File too large — max 10 MB.")
+            raw_chunks.append(chunk)
+        raw = b"".join(raw_chunks)
 
         rows: list[PickupReportRow] = []
         derived_farm: Optional[str] = None
