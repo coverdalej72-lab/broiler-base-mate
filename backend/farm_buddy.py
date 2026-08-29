@@ -827,19 +827,21 @@ def _reconcile(req: ReconcileRequest) -> ReconcileResponse:
     claimed: set[int] = set()
 
     def find_app_match(row: PickupReportRow) -> Optional[int]:
+        """Match a pickup-report row to an app catch. Rule: same shed + same date
+        is the ONLY reliable signal — the same shed can have multiple pickups
+        at similar ages/weights over a 2-week catch window, so matching on age
+        or weight alone over-matches and mis-flags rows as "missing" (which
+        led to duplicate imports in Batch Results — Feb 2026 Jason)."""
         rdate = _norm_date(row.pickupDate)
+        if not rdate:
+            return None
         for i, a in enumerate(req.appCatches):
             if i in claimed:
                 continue
             if a.shedNum != row.shedNum:
                 continue
-            # Match on same-shed AND (same date OR same age OR same-weight)
             adate = _norm_date(a.date)
-            if rdate and adate and rdate == adate:
-                return i
-            if row.age is not None and a.age is not None and row.age == a.age:
-                return i
-            if row.aveWeightKg is not None and a.aveWgt is not None and abs(a.aveWgt - row.aveWeightKg) < 0.05:
+            if adate and rdate == adate:
                 return i
         return None
 
