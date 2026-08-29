@@ -592,14 +592,23 @@ async def send_eob_report(req: EobEmailRequest, request: Request):
             failed_to.append(addr)
             continue
         try:
-            await send_email(
+            result = await send_email(
                 to=addr,
                 subject=req.subject,
                 html=html,
                 reply_to=user.get("email"),
                 attachments=[pdf_attachment] if pdf_attachment else None,
             )
-            sent_to.append(addr)
+            # `send_email` swallows Resend errors internally and returns
+            # {"ok": False, ...} instead of raising — checking only for a
+            # raised exception here meant every send was counted as
+            # delivered even when Resend rejected it (e.g. sandbox sender
+            # `onboarding@resend.dev` refusing non-owner recipients).
+            if result.get("ok") and not result.get("skipped"):
+                sent_to.append(addr)
+            else:
+                _log.warning("EOB email send failed for %s: %s", addr, result.get("error") or result.get("reason"))
+                failed_to.append(addr)
         except Exception as e:
             _log.warning("EOB email send failed for %s: %s", addr, e)
             failed_to.append(addr)
@@ -2536,7 +2545,6 @@ Important conversion rules:
 
 import base64
 import json
-import re
 import uuid as _uuid
 
 
