@@ -3661,37 +3661,61 @@ async def stripe_webhook(request: Request):
     sig = request.headers.get("Stripe-Signature", "")
     secret = os.environ.get("STRIPE_WEBHOOK_SECRET", "")
 
-    # SEC-002: If STRIPE_WEBHOOK_SECRET is not configured, refuse to process
-    # events entirely — anyone could forge `checkout.session.completed` and
-    # get a paid farm provisioned. We still return 200 so Stripe stops
-    # retrying while an admin sets the secret. Log so the admin sees it.
-    if not secret:
+    # ── Verification path A: signing secret configured → strict HMAC check
+    # ── Verification path B: no secret → parse payload, then double-check
+    #     the event by fetching it from Stripe's API (requires STRIPE_API_KEY).
+    #     Forged events won't exist in Stripe's own records, so the fetch
+    #     fails and we reject. Keeps the app secure while the deployer
+    #     hasn't wired STRIPE_WEBHOOK_SECRET yet.
+    event: Optional[Dict[str, Any]] = None
+    verification_mode: str = ""
+    if secret:
         try:
-            await log_error(
-                db, category="stripe_webhook",
-                message="Webhook REJECTED — STRIPE_WEBHOOK_SECRET not configured. Set it in the production env before this endpoint will provision farms.",
-                request=request,
-            )
-        except Exception:
-            pass
-        import logging as _log
-        _log.error("Stripe webhook rejected — STRIPE_WEBHOOK_SECRET missing")
-        return JSONResponse({"ok": False, "error": "webhook secret not configured"}, status_code=200)
+            event = _stripe.Webhook.construct_event(raw, sig, secret)
+            verification_mode = "hmac"
+        except Exception as e:
+            try:
+                await log_error(db, category="stripe_webhook",
+                                message=f"HMAC verify failed: {e}", request=request)
+            except Exception:
+                pass
+            return JSONResponse({"ok": False, "error": "signature check failed"}, status_code=200)
+    else:
+        # No secret — parse-then-verify-with-Stripe-API fallback.
+        if not _stripe.api_key:
+            try:
+                await log_error(db, category="stripe_webhook",
+                                message="Webhook REJECTED — neither STRIPE_WEBHOOK_SECRET nor STRIPE_API_KEY set. Cannot verify events.",
+                                request=request)
+            except Exception:
+                pass
+            return JSONResponse({"ok": False, "error": "server missing Stripe credentials"}, status_code=200)
+        try:
+            parsed = _json.loads(raw.decode("utf-8"))
+            event_id = parsed.get("id")
+            if not event_id or not str(event_id).startswith("evt_"):
+                raise ValueError("payload has no valid Stripe event id")
+            # Fetch the event fresh from Stripe using our secret key. A
+            # forged payload won't exist in Stripe's records → this throws.
+            authoritative = _stripe.Event.retrieve(event_id)
+            event = _json.loads(_json.dumps(authoritative))
+            verification_mode = "api-fetch"
+        except Exception as e:
+            try:
+                await log_error(db, category="stripe_webhook",
+                                message=f"API-fetch verify failed: {e}", request=request)
+            except Exception:
+                pass
+            import logging as _log
+            _log.warning("Stripe webhook API-fetch verify failed: %s", e)
+            return JSONResponse({"ok": False, "error": "event could not be verified against Stripe"}, status_code=200)
 
+    # Log successfully-verified events so admin can audit
     try:
-        event = _stripe.Webhook.construct_event(raw, sig, secret)
-    except Exception as e:
-        # Bad signature or malformed payload — ack 200 so Stripe stops retrying,
-        # but log for admin.
-        try:
-            await log_error(
-                db, category="stripe_webhook",
-                message=f"Webhook parse/verify failed: {e}",
-                request=request,
-            )
-        except Exception:
-            pass
-        return JSONResponse({"ok": False, "error": str(e)}, status_code=200)
+        import logging as _log
+        _log.info("Stripe webhook verified (%s): %s", verification_mode, event.get("type"))
+    except Exception:
+        pass
 
     event_type = event.get("type") if isinstance(event, dict) else event["type"]
     obj = (event.get("data") or {}).get("object") if isinstance(event, dict) else event["data"]["object"]

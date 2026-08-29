@@ -204,15 +204,52 @@ def build_router(db, app_url: Optional[str] = None) -> APIRouter:
 
         Bookmark `/api/auth/owner-magic?key=<OWNER_MAGIC_KEY>&to=/ops-dashboard`
         to be auto-logged-in as `OWNER_EMAIL` on any computer/browser.
-        The OWNER_MAGIC_KEY env var must be set on the server. Anyone with the
-        key effectively owns the app — keep it like a password.
+
+        The magic key can be provided two ways:
+          1. `OWNER_MAGIC_KEY` env var (deploys set this in prod)
+          2. Auto-generated + persisted to Mongo `app_config` on first hit
+             from a browser session that has already authenticated as
+             `OWNER_EMAIL` via Google. This means the owner never has to
+             hand-manage the env var — the first Google login mints a
+             stable magic key you can bookmark forever.
+        Anyone with the key effectively owns the app — keep it like a password.
         """
         import os as _os
         import hmac as _hmac
-        expected = (_os.environ.get("OWNER_MAGIC_KEY") or "").strip()
+        import secrets as _secrets
         owner_email = (_os.environ.get("OWNER_EMAIL") or "").strip().lower()
-        if not expected or not owner_email:
-            raise HTTPException(503, "Owner magic link not configured on this server")
+        if not owner_email:
+            raise HTTPException(503, "OWNER_EMAIL env var missing — set it before enabling the magic link")
+
+        # ── Resolve the current expected key: env > db > None ─────────
+        expected = (_os.environ.get("OWNER_MAGIC_KEY") or "").strip()
+        if not expected:
+            cfg = await db["app_config"].find_one({"key": "owner_magic_key"}, {"_id": 0, "value": 1})
+            if cfg and cfg.get("value"):
+                expected = str(cfg["value"]).strip()
+
+        # ── Bootstrap: no key set anywhere → mint one only if the caller
+        #    is already authenticated as the owner via Google session.
+        #    Redirects them straight to `to` with a fresh session too.
+        if not expected:
+            # Simple inline session check to avoid a circular import.
+            sess_token = request.cookies.get(COOKIE_NAME)
+            sess = await db["user_sessions"].find_one({"session_token": sess_token}) if sess_token else None
+            user = await db["users"].find_one({"user_id": sess["user_id"]}, {"_id": 0}) if sess else None
+            if not user or (user.get("email") or "").lower() != owner_email:
+                raise HTTPException(
+                    503,
+                    "Owner magic link not yet set up. Log in as the owner via Google once "
+                    "(https://broilerbasemate.com.au/api/auth/emergent) then hit this URL again "
+                    "and it'll mint a persistent magic key you can bookmark.",
+                )
+            expected = _secrets.token_urlsafe(32)
+            await db["app_config"].update_one(
+                {"key": "owner_magic_key"},
+                {"$set": {"value": expected, "updatedAt": datetime.now(timezone.utc), "createdBy": user["user_id"]}},
+                upsert=True,
+            )
+
         # SEC-004: constant-time compare so an attacker can't time-side-channel
         # guess the key one character at a time. Empty-key attempts get a
         # fixed-time reject.
