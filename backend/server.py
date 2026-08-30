@@ -3286,14 +3286,47 @@ async def start_free_trial(body: TrialStartRequest):
         (package_id or "").lower(), "A$20"
     )
     _tier_label = (package_id or "bronze").capitalize()
-    html = _render_trial_welcome_html(
-        name=name, farm_name=farm_name, program_url=program_url, reader_url=reader_url,
-        trial_end_fmt=trial_end_fmt, tier_label=_tier_label, tier_price=_tier_price,
-    )
+    html = f"""
+    <div style="font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;max-width:600px;margin:0 auto;padding:24px;background:#f7fbf4;">
+      <div style="background:#0f3d24;color:#fff;padding:28px 26px;border-radius:14px 14px 0 0;border-bottom:3px solid #C9A227;">
+        <div style="color:#C9A227;letter-spacing:2px;font-size:11px;font-weight:900;margin-bottom:6px;">APPCOVI · BROILER BASE MATE</div>
+        <h1 style="margin:0;font-size:24px;font-weight:900;">G'day {name} — welcome to Broiler Base Mate 🎉</h1>
+      </div>
+      <div style="background:#fff;padding:24px 26px;border-radius:0 0 14px 14px;border:1px solid #e0e8dd;border-top:0;">
+        <p style="font-size:15px;color:#1a3d24;line-height:1.6;margin:0 0 14px;">
+          Your farm <b style="color:#0f3d24;">{farm_name}</b> is ready. You've got full access to every feature for the next <b>30 days</b> — <b>no card, no charge</b>.
+        </p>
+        <div style="background:#f0f5eb;border-left:4px solid #C9A227;padding:14px 16px;border-radius:8px;margin:18px 0;">
+          <div style="color:#0f3d24;font-weight:800;font-size:13px;letter-spacing:0.5px;margin-bottom:4px;">📅 YOUR FREE TRIAL</div>
+          <div style="font-size:14px;color:#1a3d24;">Runs until <b>{trial_end_fmt}</b>. After that, keep going for just <b>{_tier_price}/month</b> on the <b>{_tier_label}</b> plan (only if you love it).</div>
+        </div>
+        <h3 style="color:#0f3d24;margin:24px 0 8px;font-size:15px;letter-spacing:0.5px;">🚀 OPEN YOUR FARM</h3>
+        <p style="margin:0 0 12px;">
+          <a href="{program_url}" style="background:#0f3d24;color:#C9A227;text-decoration:none;padding:13px 26px;border-radius:99px;font-weight:900;font-size:14px;display:inline-block;letter-spacing:0.3px;">📊 Open Feed Program (desktop)</a>
+        </p>
+        <p style="margin:0 0 20px;">
+          <a href="{reader_url}" style="background:#C9A227;color:#0f3d24;text-decoration:none;padding:13px 26px;border-radius:99px;font-weight:900;font-size:14px;display:inline-block;letter-spacing:0.3px;">📱 Open Field Reader (phone)</a>
+        </p>
+        <div style="background:#fffbe6;border:1px solid #ffe08a;padding:12px 14px;border-radius:8px;font-size:13px;color:#4a3800;line-height:1.55;">
+          💡 <b>Tip:</b> Open the Field Reader on your phone and tap "Add to Home Screen" — it lives on your phone like a real app, works offline, and syncs the moment you get reception.
+        </div>
+        <h3 style="color:#0f3d24;margin:24px 0 8px;font-size:15px;letter-spacing:0.5px;">✅ WHAT'S IN YOUR TRIAL</h3>
+        <p style="font-size:13px;color:#3d5450;line-height:1.7;margin:0;">
+          Silo Tracker · AI Docket Scanner · Feed Program dashboard · Farm Buddy AI advisor · AI Weigh Birds · AI Mort Sheet parser · AI Chick Counter · Real-time FCR &amp; cFCR · One-tap End-of-Batch reports. All 15 languages available.
+        </p>
+        <div style="margin-top:26px;padding-top:18px;border-top:1px solid #e0e8dd;font-size:13px;color:#5a7268;line-height:1.6;">
+          <b>Reply to this email anytime</b> — it comes to my personal inbox and I'll get back to you fast.<br>
+          — <b>Jason Coverdale</b><br>
+          <span style="color:#8aa094;font-size:12px;">Founder, Appcovi · 3rd-generation Aussie broiler grower</span>
+        </div>
+      </div>
+    </div>
+    """
     email_result = await send_email(
         to=email,
-        subject=f"🎉 Welcome to Broiler Base Mate · Your 30-day free trial is live",
+        subject=f"🎉 Welcome to Broiler Base Mate — your 30-day free trial for {farm_name} is live",
         html=html,
+        reply_to="appcovi2026@gmail.com",
     )
 
     # Notify admin
