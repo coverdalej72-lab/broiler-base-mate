@@ -192,9 +192,12 @@
         document.getElementById("primary-cta").href = "javascript:void(0)";
         return;
       }
-      // Wire primary CTA
-      const primaryHref = o.createdFarms.length > 1 ? (o.opsDashboardUrl || "/ops-dashboard") : o.createdFarms[0].readerUrl;
-      const primaryLabel = o.createdFarms.length > 1 ? "Open Ops Dashboard →" : "Open My Farm →";
+      // Wire primary CTA — single-farm buyers land on the Feed Program (desktop dashboard),
+      // multi-farm buyers land on Ops Dashboard. Reader stays as a secondary link.
+      const primaryHref = o.createdFarms.length > 1
+        ? (o.opsDashboardUrl || "/ops-dashboard")
+        : (o.createdFarms[0].programUrl || "/");
+      const primaryLabel = o.createdFarms.length > 1 ? "Open Ops Dashboard →" : "Open Feed Program →";
       document.getElementById("cta-title").textContent = o.createdFarms.length > 1
         ? `${o.createdFarms.length} farms ready` : `${o.createdFarms[0].name} — ready`;
       const primary = document.getElementById("primary-cta");
@@ -208,7 +211,8 @@
         list.innerHTML = o.createdFarms.map(f => `
           <div class="farm-row">
             <div class="name">${escapeHtml(f.name)}${f.tier ? `<span class='tier'>${escapeHtml(f.tier)}</span>` : ''}</div>
-            <a class="open" href="${escapeHtml(f.readerUrl)}">📲 Field Reader</a>
+            <a class="open" href="${escapeHtml(f.programUrl || '/')}">📊 Feed Program</a>
+            <a class="open" href="${escapeHtml(f.readerUrl)}" style="margin-left:6px;">📲 Field Reader</a>
           </div>
         `).join("");
       }
