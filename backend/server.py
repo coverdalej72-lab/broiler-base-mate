@@ -10,6 +10,7 @@ from __future__ import annotations
 import asyncio
 import os
 import re
+import secrets
 import uuid
 from datetime import datetime, timedelta, timezone
 from typing import Annotated, Any, Dict, List, Optional
@@ -741,7 +742,8 @@ async def lock_eob_batch(req: EobLockRequest, request: Request):
 
 
 @app.get("/api/eob/locked-batches")
-async def list_locked_batches(farm: str = Query(default=DEFAULT_FARM_ID)):
+async def list_locked_batches(request: Request, farm: str = Query(default=DEFAULT_FARM_ID)):
+    await _require_farm_access(request, farm)   # SEC-006 read isolation
     """Return metadata for closed batches on this farm. Excludes html/pdf/report
     blobs so the response stays small — client only needs to know which batches
     are locked (to hide the End Batch button + show the badge).
@@ -757,11 +759,9 @@ async def list_locked_batches(farm: str = Query(default=DEFAULT_FARM_ID)):
 @app.get("/api/eob/locked-batches/{snap_id}")
 async def get_locked_batch(snap_id: str, request: Request, farm: str = Query(default=DEFAULT_FARM_ID)):
     """Return the full snapshot (report payload + optional PDF base64) for viewing.
-    SEC-001: requires authenticated session — the snapshot contains the owner's
+    SEC-006: requires session OR farmToken — the snapshot contains the owner's
     email + rendered PDF and must not be readable via an anonymous slug lookup."""
-    user = await _user_from_request(request)
-    if not user:
-        raise HTTPException(401, "Authentication required to view a locked batch snapshot")
+    await _require_farm_access(request, farm)
     doc = await eob_snapshots_col.find_one(
         {"id": snap_id, "farmId": farm},
         {"_id": 0},
@@ -1143,7 +1143,26 @@ app.include_router(_build_outreach_router(db, _require_outreach_admin))
 
 
 async def _require_farm_access(request: Request, farm_slug: str) -> dict:
-    """Ensure the current user can access this farm slug. Returns user dict; raises 401/403."""
+    """Ensure caller can access this farm slug. Returns user dict; raises 401/403.
+
+    Accepts EITHER:
+      1. A logged-in session cookie whose email owns / is invited to the farm
+      2. A `?t=<farmToken>` query param OR `x-farm-token` header matching the
+         farm's stored `farmToken` (per-farm secret set at signup). This is the
+         "scan-and-go" path — the QR/URL IS the auth, no login round-trip.
+
+    SEC-006 (Feb 28, 2026, Jason): "bulletproof no fail for users — each user
+    only sees their farm data".
+    """
+    # ─── Path 2: farmToken match ────────────────────────────────────────
+    token = request.query_params.get("t") or request.headers.get("x-farm-token") or ""
+    if token:
+        farm_doc = await farms_col.find_one({"slug": farm_slug}, {"farmToken": 1, "ownerEmail": 1})
+        if farm_doc and farm_doc.get("farmToken") and secrets.compare_digest(farm_doc["farmToken"], token):
+            # Token match — grant read/write access as the farm owner (no user session created).
+            return {"email": farm_doc.get("ownerEmail", "unknown"), "auth": "farm-token"}
+
+    # ─── Path 1: session cookie ─────────────────────────────────────────
     user = await _user_from_request(request)
     if not user:
         raise HTTPException(401, "Authentication required")
@@ -1289,6 +1308,13 @@ async def seed_if_empty() -> None:
 @app.on_event("startup")
 async def _startup():
     await seed_if_empty()
+    # SEC-006 migration: backfill farmToken on every existing farm so the
+    # per-farm read-access mechanism works retroactively.
+    async for f in farms_col.find({"$or": [{"farmToken": {"$exists": False}}, {"farmToken": ""}, {"farmToken": None}]}, {"slug": 1}):
+        await farms_col.update_one(
+            {"slug": f["slug"]},
+            {"$set": {"farmToken": secrets.token_urlsafe(24)}},
+        )
     # Background scheduler — last-Friday-of-month auto-send
     asyncio.create_task(_maybe_send_monthly_reports())
     await _ensure_indexes()
@@ -1451,7 +1477,8 @@ async def onedrive_status():
 
 # ── Shed groups ──────────────────────────────────────────────────────────
 @api.get("/shed-groups", response_model=List[ShedGroup])
-async def list_shed_groups(farm: str = Query(default=DEFAULT_FARM_ID)):
+async def list_shed_groups(request: Request, farm: str = Query(default=DEFAULT_FARM_ID)):
+    await _require_farm_access(request, farm)   # SEC-006 read isolation
     groups = await shed_groups_col.find(_farm_filter(farm)).sort("displayOrder", 1).to_list(length=200)
     silos = await silos_col.find(_farm_filter(farm)).sort("letter", 1).to_list(length=1000)
     out: List[ShedGroup] = []
@@ -1475,7 +1502,8 @@ async def list_shed_groups(farm: str = Query(default=DEFAULT_FARM_ID)):
 
 # ── Silos ────────────────────────────────────────────────────────────────
 @api.get("/silos")
-async def list_silos(farm: str = Query(default=DEFAULT_FARM_ID)):
+async def list_silos(request: Request, farm: str = Query(default=DEFAULT_FARM_ID)):
+    await _require_farm_access(request, farm)   # SEC-006 read isolation
     silos = await silos_col.find(_farm_filter(farm)).sort("letter", 1).to_list(length=1000)
     return [clean(s) for s in silos]
 
@@ -1532,7 +1560,8 @@ async def delete_silo(silo_id: str, request: Request):
 
 # ── Readings ─────────────────────────────────────────────────────────────
 @api.get("/readings/today")
-async def readings_today(localDate: Optional[str] = Query(default=None), farm: str = Query(default=DEFAULT_FARM_ID)):
+async def readings_today(request: Request, localDate: Optional[str] = Query(default=None), farm: str = Query(default=DEFAULT_FARM_ID)):
+    await _require_farm_access(request, farm)   # SEC-006 read isolation
     """Today's readings, grouped by shed for the Feed Program auto-sync."""
     if localDate and len(localDate) == 10:
         d = datetime.fromisoformat(localDate)
@@ -1589,7 +1618,8 @@ async def readings_today(localDate: Optional[str] = Query(default=None), farm: s
 # straight to the field manager's phone so they don't have to remember to
 # check the Feed Program on the desktop.
 @api.get("/farm-buddy/alerts")
-async def farm_buddy_alerts(farm: str = Query(default=DEFAULT_FARM_ID)):
+async def farm_buddy_alerts(request: Request, farm: str = Query(default=DEFAULT_FARM_ID)):
+    await _require_farm_access(request, farm)   # SEC-006 read isolation
     groups = await shed_groups_col.find(_farm_filter(farm)).sort("displayOrder", 1).to_list(length=200)
     silos = await silos_col.find(_farm_filter(farm)).sort("letter", 1).to_list(length=1000)
 
@@ -1841,7 +1871,8 @@ async def batch_create_readings(body: BatchCreateReadingsBody, request: Request,
 
 
 @api.get("/readings")
-async def list_readings(limit: int = Query(default=100, le=1000), siloId: Optional[str] = None, farm: str = Query(default=DEFAULT_FARM_ID)):
+async def list_readings(request: Request, limit: int = Query(default=100, le=1000), siloId: Optional[str] = None, farm: str = Query(default=DEFAULT_FARM_ID)):
+    await _require_farm_access(request, farm)   # SEC-006 read isolation
     q: dict = dict(_farm_filter(farm))
     if siloId:
         q = _and(q, {"siloId": siloId})
@@ -1885,7 +1916,8 @@ async def delete_reading(reading_id: str, request: Request):
 
 # ── Deliveries ───────────────────────────────────────────────────────────
 @api.get("/deliveries")
-async def list_deliveries(limit: int = Query(default=100, le=1000), farm: str = Query(default=DEFAULT_FARM_ID)):
+async def list_deliveries(request: Request, limit: int = Query(default=100, le=1000), farm: str = Query(default=DEFAULT_FARM_ID)):
+    await _require_farm_access(request, farm)   # SEC-006 read isolation
     rows = await deliveries_col.find(_farm_filter(farm)).sort("deliveryDate", -1).limit(limit).to_list(length=limit)
     silos = await silos_col.find(_farm_filter(farm)).to_list(length=1000)
     groups = await shed_groups_col.find(_farm_filter(farm)).to_list(length=200)
@@ -2660,7 +2692,8 @@ class FarmConfigBody(BaseModel):
 
 
 @api.get("/farm-config")
-async def get_farm_config(farm: str = Query(default=DEFAULT_FARM_ID)):
+async def get_farm_config(request: Request, farm: str = Query(default=DEFAULT_FARM_ID)):
+    await _require_farm_access(request, farm)   # SEC-006 read isolation
     doc = await farm_config_col.find_one({"id": farm})
     if not doc:
         # Back-compat: migrate the legacy single-tenant "default" config if it has the old id="default" and no farmId
@@ -2721,7 +2754,8 @@ _FEED_STATE_HISTORY_LIMIT = 30  # keep last 30 snapshots per farm
 
 
 @api.get("/feed-program/state")
-async def get_feed_program_state(farm: str = Query(default=DEFAULT_FARM_ID)):
+async def get_feed_program_state(request: Request, farm: str = Query(default=DEFAULT_FARM_ID)):
+    await _require_farm_access(request, farm)   # SEC-006 read isolation
     doc = await feed_program_state_col.find_one({"farmId": farm})
     if not doc:
         return {"edits": None, "sheetNames": None, "updatedAt": None}
@@ -2807,7 +2841,8 @@ async def put_feed_program_state(body: FeedProgramStateBody, request: Request, f
 
 
 @api.get("/feed-program/history")
-async def list_feed_program_history(farm: str = Query(default=DEFAULT_FARM_ID)):
+async def list_feed_program_history(request: Request, farm: str = Query(default=DEFAULT_FARM_ID)):
+    await _require_farm_access(request, farm)   # SEC-006 read isolation
     """Return metadata for up to 30 recent snapshots (excludes the edits blob to keep response small)."""
     snaps = await feed_program_state_history_col.find(
         {"farmId": farm},
@@ -2826,7 +2861,8 @@ async def list_feed_program_history(farm: str = Query(default=DEFAULT_FARM_ID)):
 
 
 @api.get("/feed-program/history/{snap_id}")
-async def get_feed_program_history_item(snap_id: str, farm: str = Query(default=DEFAULT_FARM_ID)):
+async def get_feed_program_history_item(snap_id: str, request: Request, farm: str = Query(default=DEFAULT_FARM_ID)):
+    await _require_farm_access(request, farm)   # SEC-006 read isolation
     """Return the full snapshot (edits + sheetNames) so the client can preview or restore."""
     snap = await feed_program_state_history_col.find_one({"id": snap_id, "farmId": farm})
     if not snap:
@@ -2891,7 +2927,8 @@ class CreatePhotoBody(BaseModel):
 
 
 @api.get("/photos")
-async def list_photos(category: Optional[str] = None, shedNumber: Optional[int] = None, farm: str = Query(default=DEFAULT_FARM_ID)):
+async def list_photos(request: Request, category: Optional[str] = None, shedNumber: Optional[int] = None, farm: str = Query(default=DEFAULT_FARM_ID)):
+    await _require_farm_access(request, farm)   # SEC-006 read isolation
     q: dict = dict(_farm_filter(farm))
     if category:
         q = _and(q, {"category": category})
@@ -3317,12 +3354,17 @@ async def start_free_trial(body: TrialStartRequest):
             "createdAt": now,
             "isDefault": False,
             "source": "trial-signup",
+            "farmToken": secrets.token_urlsafe(24),  # SEC-006: bulletproof per-farm read-access token
         })
         await _seed_farm(slug, farm_name)
 
+    # Fetch back to get farmToken for URL-building
+    farm_doc = await farms_col.find_one({"slug": slug})
+    farm_token = farm_doc.get("farmToken") if farm_doc else ""
     public_url = os.environ.get("APP_PUBLIC_URL", "").rstrip("/")
-    reader_url = f"{public_url}/reader?farm={slug}" if public_url else f"/reader?farm={slug}"
-    program_url = f"{public_url}/?farm={slug}&onboarding=1" if public_url else f"/?farm={slug}&onboarding=1"
+    _q = f"farm={slug}&t={farm_token}" if farm_token else f"farm={slug}"
+    reader_url = f"{public_url}/reader?{_q}" if public_url else f"/reader?{_q}"
+    program_url = f"{public_url}/?{_q}&onboarding=1" if public_url else f"/?{_q}&onboarding=1"
 
     # Welcome email — magic-link style (login by clicking the reader URL)
     trial_end_fmt = trial_expires.strftime("%A %d %B %Y")
