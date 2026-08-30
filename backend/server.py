@@ -3282,28 +3282,17 @@ async def start_free_trial(body: TrialStartRequest):
 
     # Welcome email — magic-link style (login by clicking the reader URL)
     trial_end_fmt = trial_expires.strftime("%A %d %B %Y")
-    html = f"""
-    <div style="font-family:system-ui,-apple-system,sans-serif;max-width:580px;margin:0 auto;padding:20px;">
-      <h2 style="color:#1e2f4d;margin:0 0 10px;">G'day {name} — your 30-day free trial is live 🎉</h2>
-      <p style="font-size:15px;color:#1a1a1a;line-height:1.6;">
-        We've created your farm <b>{farm_name}</b> on Broiler Base Mate.
-        Full access to every feature — <b>no card, no charge</b> — until <b>{trial_end_fmt}</b>.
-      </p>
-      <h3 style="color:#1e2f4d;margin:24px 0 8px;font-size:16px;">Your quick-start links:</h3>
-      <p style="margin:0 0 10px;"><a href="{program_url}" style="background:#1e2f4d;color:#C9A227;text-decoration:none;padding:12px 24px;border-radius:99px;font-weight:900;font-size:14px;display:inline-block;">📊 Open Feed Program</a></p>
-      <p style="margin:0 0 20px;"><a href="{reader_url}" style="background:#C9A227;color:#1e2f4d;text-decoration:none;padding:12px 24px;border-radius:99px;font-weight:900;font-size:14px;display:inline-block;">📱 Open Mobile Reader (bookmark on your phone)</a></p>
-      <p style="font-size:13px;color:#5a6a86;line-height:1.6;">
-        <b>What's in your trial:</b> Silo Tracker · AI Docket Scanner · Feed Program · Farm Buddy AI · Weigh Birds · Mort Sheet AI · Chick Counter · End-of-Batch reporting. All 15 languages available.
-      </p>
-      <p style="font-size:12px;color:#5a6a86;border-top:1px solid #dce3ee;padding-top:14px;margin-top:24px;">
-        You'll get a friendly nudge 5 days before your trial ends — no auto-charge, no card on file. Reply to this email if you need a hand.<br>
-        — Jason (founder, and yes I'm still in the shed)
-      </p>
-    </div>
-    """
+    _tier_price = {"bronze": "A$20", "silver": "A$25", "gold": "A$30", "platinum": "A$40"}.get(
+        (package_id or "").lower(), "A$20"
+    )
+    _tier_label = (package_id or "bronze").capitalize()
+    html = _render_trial_welcome_html(
+        name=name, farm_name=farm_name, program_url=program_url, reader_url=reader_url,
+        trial_end_fmt=trial_end_fmt, tier_label=_tier_label, tier_price=_tier_price,
+    )
     email_result = await send_email(
         to=email,
-        subject=f"🎉 Your Broiler Base Mate free trial is live · 30 days · no card needed",
+        subject=f"🎉 Welcome to Broiler Base Mate · Your 30-day free trial is live",
         html=html,
     )
 
