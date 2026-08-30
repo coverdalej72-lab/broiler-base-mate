@@ -97,6 +97,13 @@
       <div class="title" id="cta-title">Open your dashboard</div>
       <a class="big-cta" id="primary-cta" href="/">Open the App →</a>
       <div class="no-email-note">No email needed — this link is your direct entry.</div>
+
+      <!-- Copyable login URL — save/share via text or WhatsApp -->
+      <div id="copyable-url-block" style="display:none;margin:14px auto 0;max-width:520px;background:#0f3d24;border:1.5px solid #C9A227;border-radius:10px;padding:10px 12px;display:flex;gap:10px;align-items:center;">
+        <div id="copyable-url-text" data-testid="success-login-url-text" style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12px;font-weight:700;color:#C9A227;text-align:left;"></div>
+        <button type="button" id="copy-login-url" data-testid="success-copy-login-url" style="background:#C9A227;color:#1a1000;border:0;border-radius:7px;padding:7px 12px;font-weight:900;font-size:12px;cursor:pointer;white-space:nowrap;">📋 Copy</button>
+      </div>
+      <div id="copy-hint" style="display:none;margin-top:6px;font-size:11px;color:#8a99b8;">Text it, WhatsApp it, bookmark it — this link is your farm's front door.</div>
     </div>
 
     <!-- Farms list -->
@@ -203,6 +210,27 @@
       const primary = document.getElementById("primary-cta");
       primary.href = primaryHref;
       primary.textContent = primaryLabel;
+
+      // Populate the copyable-login-URL block so growers can share it directly
+      // (email delivery can be unreliable via Resend sandbox — this is the fallback).
+      try {
+        const absUrl = new URL(primaryHref, window.location.origin).href;
+        document.getElementById("copyable-url-text").textContent = absUrl;
+        document.getElementById("copyable-url-block").style.display = "flex";
+        document.getElementById("copy-hint").style.display = "block";
+        const copyBtn = document.getElementById("copy-login-url");
+        copyBtn.onclick = async () => {
+          try {
+            await navigator.clipboard.writeText(absUrl);
+            copyBtn.textContent = "✓ Copied";
+            copyBtn.style.background = "#137847";
+            copyBtn.style.color = "#fff";
+            setTimeout(() => { copyBtn.textContent = "📋 Copy"; copyBtn.style.background = "#C9A227"; copyBtn.style.color = "#1a1000"; }, 1800);
+          } catch (e) {
+            prompt("Copy this login link:", absUrl);
+          }
+        };
+      } catch (_) { /* URL parse failed — hide block silently */ }
 
       // Render farms list (secondary)
       if (o.createdFarms.length > 1 || o.createdFarms.length === 1) {

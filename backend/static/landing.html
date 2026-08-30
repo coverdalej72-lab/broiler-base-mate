@@ -1759,10 +1759,42 @@
           if (!res.ok) throw new Error(data.detail || "Signup failed");
           localStorage.setItem("bbm-buyer-email", document.getElementById("trial-email").value.trim());
           localStorage.setItem("bbm-buyer-name",  document.getElementById("trial-name").value.trim());
-          msg.innerHTML = `<div style="color:#1a7a40;font-weight:800;font-size:14px;line-height:1.6;">✅ Your farm is ready!<br>Check <b>${document.getElementById("trial-email").value.trim()}</b> for your login link — opens straight into the Feed Program.</div>
-          <p style="margin-top:14px;font-size:12px;color:#8a99b8;">Redirecting you now…</p>`;
+          const loginUrl = data.programUrl || data.readerUrl || "/";
+          const readerBookmark = data.readerUrl || "";
+          msg.innerHTML = `
+            <div style="color:#1a7a40;font-weight:900;font-size:16px;line-height:1.4;margin-bottom:10px;">
+              ✅ Your farm is ready!
+            </div>
+            <div style="font-size:13px;color:#4a5a6e;line-height:1.55;margin-bottom:14px;">
+              Save this login link — bookmark it, text it to whoever's running the farm, or paste it into WhatsApp.
+              It opens straight into the Feed Program on desktop and the Field Reader on a phone.
+            </div>
+            <div style="background:#0f3d24;color:#fff;border:1.5px solid #C9A227;border-radius:10px;padding:12px 14px;display:flex;gap:10px;align-items:center;margin-bottom:10px;">
+              <div style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12px;font-weight:700;color:#C9A227;" data-testid="trial-login-url-text">${loginUrl}</div>
+              <button
+                type="button"
+                data-testid="trial-copy-login-url"
+                onclick="(async ()=>{ try{ await navigator.clipboard.writeText('${loginUrl}'); this.textContent='✓ Copied'; this.style.background='#137847'; setTimeout(()=>{ this.textContent='📋 Copy'; this.style.background='#C9A227'; }, 1800); }catch(e){ prompt('Copy this login link:', '${loginUrl}'); } })()"
+                style="background:#C9A227;color:#1a1000;border:0;border-radius:7px;padding:7px 12px;font-weight:900;font-size:12px;cursor:pointer;white-space:nowrap;">
+                📋 Copy
+              </button>
+            </div>
+            ${readerBookmark ? `
+            <details style="font-size:12px;color:#5a6a86;margin-bottom:12px;">
+              <summary style="cursor:pointer;font-weight:700;color:#4a5a6e;">Also grab the Field Reader link (mobile PWA)</summary>
+              <div style="margin-top:8px;background:#f0f3f9;border:1px solid #d1d9e6;border-radius:8px;padding:9px 12px;display:flex;gap:8px;align-items:center;">
+                <div style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-family:ui-monospace,monospace;font-size:11px;color:#3d5070;" data-testid="trial-reader-url-text">${readerBookmark}</div>
+                <button type="button" data-testid="trial-copy-reader-url" onclick="(async ()=>{ try{ await navigator.clipboard.writeText('${readerBookmark}'); this.textContent='✓'; setTimeout(()=>{ this.textContent='📋'; }, 1500); }catch(e){ prompt('Copy this Reader link:', '${readerBookmark}'); } })()" style="background:#0f3d24;color:#C9A227;border:0;border-radius:6px;padding:5px 10px;font-weight:800;font-size:11px;cursor:pointer;">📋</button>
+              </div>
+            </details>
+            ` : ""}
+            <a href="${loginUrl}" data-testid="trial-open-now-btn" style="display:block;text-align:center;background:linear-gradient(135deg,#C9A227,#e6b93a);color:#1a1000;text-decoration:none;padding:13px 20px;border-radius:99px;font-weight:900;font-size:14px;letter-spacing:0.3px;box-shadow:0 4px 12px rgba(201,162,39,0.35);">
+              🚀 Open Feed Program now →
+            </a>
+            <div style="margin-top:10px;font-size:11px;color:#8a99b8;text-align:center;">
+              We've also emailed the link to <b>${document.getElementById("trial-email").value.trim()}</b>. If it doesn't arrive within a minute, check spam — or just use the link above.
+            </div>`;
           btn.style.display = "none";
-          setTimeout(() => { window.location.href = data.programUrl || data.readerUrl; }, 2500);
         } catch (err) {
           msg.innerHTML = `<span style="color:#a12222;">${err.message}</span>`;
           btn.disabled = false; btn.textContent = "🌱 Start My 30-Day Trial";
