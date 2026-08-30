@@ -1419,6 +1419,80 @@ async def batch_reset(request: Request, farm: str = Query(default=DEFAULT_FARM_I
     return {"ok": True, "readingsDeleted": r.deleted_count, "deliveriesDeleted": d.deleted_count, "photosDeleted": p.deleted_count}
 
 
+@api.delete("/admin/delete-user")
+async def admin_delete_user(request: Request,
+                            email: str = Query(...),
+                            confirm: str = Query(...)):
+    """
+    ⚠️  DESTRUCTIVE — hard-delete a user account by email:
+      · every farm they own (record + shed groups + silos + readings + deliveries
+        + photos + feed program state + history + EOB snapshots)
+      · their user document
+      · every active session token they hold (so any open browser is logged out)
+      · any farm invites addressed to them
+
+    Admin-only. Requires ?confirm=DELETE-USER-<email> to prevent a fat-finger
+    click nuking the wrong account.
+
+    Feb 28, 2026 (Jason): "just my broilerbasemate account as signing 2 user
+    in appcovi2026@gmail.com and doublebb@baqerifarming.com.au".
+    """
+    await _require_admin(request)
+    email_l = (email or "").strip().lower()
+    if not email_l or "@" not in email_l:
+        raise HTTPException(400, "email required")
+    expected = f"DELETE-USER-{email_l}"
+    if confirm != expected:
+        raise HTTPException(400, f"Missing/invalid confirm token — pass ?confirm={expected}")
+
+    # Owned farms
+    owned = await farms_col.find({"ownerEmail": {"$regex": f"^{email_l}$", "$options": "i"}}, {"slug": 1, "name": 1}).to_list(length=None)
+    total_readings = total_deliveries = total_photos = 0
+    total_state = total_hist = total_eob = total_sheds = total_silos = 0
+    farm_slugs = []
+    for f in owned:
+        slug = f["slug"]
+        farm_slugs.append(slug)
+        ff = _farm_filter(slug)
+        r  = await readings_col.delete_many(ff);          total_readings += r.deleted_count
+        d  = await deliveries_col.delete_many(ff);        total_deliveries += d.deleted_count
+        p  = await photos_col.delete_many(ff);            total_photos += p.deleted_count
+        fp = await feed_program_state_col.delete_many({"farmId": slug});          total_state += fp.deleted_count
+        fh = await feed_program_state_history_col.delete_many({"farmId": slug});  total_hist += fh.deleted_count
+        e  = await eob_snapshots_col.delete_many({"farmId": slug});               total_eob += e.deleted_count
+        sg = await shed_groups_col.delete_many(ff);       total_sheds += sg.deleted_count
+        sl = await silos_col.delete_many(ff);             total_silos += sl.deleted_count
+    farms_deleted = await farms_col.delete_many({"ownerEmail": {"$regex": f"^{email_l}$", "$options": "i"}})
+    invites_deleted = await db["farm_invites"].delete_many({"operatorEmail": {"$regex": f"^{email_l}$", "$options": "i"}})
+    sessions_deleted = 0
+    users_deleted = 0
+    user = await db["users"].find_one({"email": {"$regex": f"^{email_l}$", "$options": "i"}}, {"user_id": 1})
+    if user:
+        sess = await db["user_sessions"].delete_many({"user_id": user.get("user_id")})
+        sessions_deleted = sess.deleted_count
+        ud = await db["users"].delete_many({"email": {"$regex": f"^{email_l}$", "$options": "i"}})
+        users_deleted = ud.deleted_count
+
+    return {
+        "ok": True,
+        "email": email_l,
+        "farmsDeleted": farms_deleted.deleted_count,
+        "farmSlugs": farm_slugs,
+        "shedGroupsDeleted": total_sheds,
+        "silosDeleted": total_silos,
+        "readingsDeleted": total_readings,
+        "deliveriesDeleted": total_deliveries,
+        "photosDeleted": total_photos,
+        "feedProgramStateDeleted": total_state,
+        "feedProgramHistoryDeleted": total_hist,
+        "eobSnapshotsDeleted": total_eob,
+        "invitesDeleted": invites_deleted.deleted_count,
+        "userRecordsDeleted": users_deleted,
+        "sessionsDeleted": sessions_deleted,
+        "note": "Account fully purged. Env-configured OWNER_EMAIL may auto-recreate on next magic-link visit.",
+    }
+
+
 @api.delete("/farm/factory-reset")
 async def farm_factory_reset(request: Request,
                              farm: str = Query(...),

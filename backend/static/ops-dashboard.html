@@ -305,6 +305,7 @@
         <span id="live-label">Live · just now</span>
       </span>
       <button class="pill" id="refresh-btn" data-testid="refresh-btn">🔄 Refresh</button>
+      <button class="pill" id="delete-user-btn" data-testid="delete-user-btn" style="background:#7a1e1e;color:#fff;border-color:#ff6b6b;">🚫 Delete User…</button>
     </div>
   </div>
 </header>
@@ -761,6 +762,36 @@
   loadAll();
   // Wire refresh button
   document.getElementById("refresh-btn").addEventListener("click", () => loadAll());
+
+  // Wire delete-user button — hard-delete an entire user account + all owned farms
+  document.getElementById("delete-user-btn").addEventListener("click", async () => {
+    const email = prompt("Enter the email address to fully delete:\n\nThis nukes their user record, every farm they own, and all readings/deliveries/photos/EOB snapshots for those farms. Cannot be undone.");
+    if (!email) return;
+    const emailTrim = email.trim().toLowerCase();
+    if (!emailTrim.includes("@")) { alert("Not a valid email address."); return; }
+    const typed = prompt(`Type "${emailTrim}" exactly to confirm deletion:`);
+    if (typed !== emailTrim) { alert("Email didn't match — cancelled."); return; }
+    try {
+      const res = await fetch(`/api/admin/delete-user?email=${encodeURIComponent(emailTrim)}&confirm=DELETE-USER-${encodeURIComponent(emailTrim)}`, {
+        method: "DELETE", credentials: "include",
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.detail || `HTTP ${res.status}`);
+      alert(
+        `✅ Deleted "${emailTrim}":\n\n` +
+        `  · ${data.farmsDeleted} farm(s): ${data.farmSlugs.join(", ") || "—"}\n` +
+        `  · ${data.shedGroupsDeleted} shed groups + ${data.silosDeleted} silos\n` +
+        `  · ${data.readingsDeleted} readings + ${data.deliveriesDeleted} deliveries + ${data.photosDeleted} photos\n` +
+        `  · ${data.feedProgramStateDeleted} feed program state + ${data.feedProgramHistoryDeleted} history + ${data.eobSnapshotsDeleted} EOB snapshots\n` +
+        `  · ${data.invitesDeleted} pending invite(s) revoked\n` +
+        `  · ${data.userRecordsDeleted} user record + ${data.sessionsDeleted} active session(s) invalidated\n\n` +
+        `${data.note}`
+      );
+      await loadAll();
+    } catch (e) {
+      alert("Delete failed: " + e.message);
+    }
+  });
 
   // ── Auto-refresh silo readings + dashboard data every 30 s ─────────────
   // Pauses when the tab is hidden (no Chrome battery drain when you've left
