@@ -27,6 +27,9 @@
 <meta name="ai-content-declaration" content="human-authored-with-ai-assistance" />
 <meta name="author" content="Jason Coverdale, Appcovi" />
 
+<!-- QRCode.js — used to render per-user login QRs on the signup success panel -->
+<script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
+
 <!-- JSON-LD Structured Data — SoftwareApplication + Organization + FAQ + Breadcrumbs -->
 <script type="application/ld+json">
 {
@@ -133,9 +136,8 @@
       "itemListElement": [
         { "@type": "ListItem", "position": 1, "name": "Home",           "item": "https://broilerbasemate.com.au/" },
         { "@type": "ListItem", "position": 2, "name": "Plans & Pricing","item": "https://broilerbasemate.com.au/#plans" },
-        { "@type": "ListItem", "position": 3, "name": "Ops Manager Pack","item": "https://broilerbasemate.com.au/#ops" },
-        { "@type": "ListItem", "position": 4, "name": "Feed Program",   "item": "https://broilerbasemate.com.au/feed-program" },
-        { "@type": "ListItem", "position": 5, "name": "Field Reader",   "item": "https://broilerbasemate.com.au/reader" }
+        { "@type": "ListItem", "position": 3, "name": "Feed Program",   "item": "https://broilerbasemate.com.au/feed-program" },
+        { "@type": "ListItem", "position": 4, "name": "Field Reader",   "item": "https://broilerbasemate.com.au/reader" }
       ]
     },
     {
@@ -542,7 +544,7 @@
       <div class="logo"><img src="/reader-assets/logo.svg" alt="Broiler Base Mate logo" /> BROILER BASE MATE</div>
       <div class="links">
         <a href="#plans">Plans</a>
-        <a href="#ops">Ops Pack</a>
+        <a href="#pricing">Pricing</a>
         <a href="#partners">Partners</a>
         <a href="#charity">Charity</a>
         <a href="#" id="login-link" style="color:var(--gold)">Login</a>
@@ -555,7 +557,7 @@
       <button class="m-close" id="m-close" data-testid="m-close" aria-label="Close menu">✕</button>
       <div class="m-panel-title">Broiler Base Mate</div>
       <a class="m-link" href="#plans" data-mnav>Plans &amp; Pricing</a>
-      <a class="m-link" href="#ops" data-mnav>Ops Pack</a>
+      <a class="m-link" href="#pricing" data-mnav>Pricing</a>
       <a class="m-link" href="#partners" data-mnav>Partners</a>
       <a class="m-link" href="#charity" data-mnav>Charity</a>
       <a class="m-link m-link-primary" href="#" id="m-login-link" data-mnav>Login</a>
@@ -1076,56 +1078,9 @@
 
 
   <!-- OPERATION MANAGER PACK -->
-  <section style="background:linear-gradient(180deg,#fff,#f7fbf4);" id="ops">
-    <div class="wrap">
-      <h2>🏢 Operation Manager <span class="accent">Pack.</span></h2>
-      <p class="sub">Running multiple farms? Build a bundle: name each farm, pick the tier, and see the total before you commit. Manage them all from one dashboard.</p>
 
-      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px;margin-top:40px;max-width:920px;margin-left:auto;margin-right:auto;">
-        <div class="sponsor-card" style="text-align:left;"><div class="amt" style="font-size:26px;">🥉 $20<span style="font-size:13px;color:var(--muted);">/farm/mo</span></div><div class="split">Bronze — up to <b>6 sheds</b></div></div>
-        <div class="sponsor-card" style="text-align:left;border-color:var(--green-500);"><div class="amt" style="font-size:26px;color:var(--green-700);">🥈 $25<span style="font-size:13px;color:var(--muted);">/farm/mo</span></div><div class="split">Silver — <b>7–12 sheds</b></div></div>
-        <div class="sponsor-card" style="text-align:left;"><div class="amt" style="font-size:26px;">🥇 $30<span style="font-size:13px;color:var(--muted);">/farm/mo</span></div><div class="split">Gold — <b>13–30 sheds</b></div></div>
-        <div class="sponsor-card" style="text-align:left;border-color:#7C4DFF;"><div class="amt" style="font-size:26px;color:#7C4DFF;">💎 $40<span style="font-size:13px;color:var(--muted);">/farm/mo</span></div><div class="split">Platinum — <b>30+ sheds</b></div></div>
-        <div class="sponsor-card" style="text-align:left;opacity:0.85;border:2px dashed #C9A227;"><div class="amt" style="font-size:22px;color:#C9A227;">🐣 Coming Soon</div><div class="split">Breeders — waitlist open</div></div>
-      </div>
+  <!-- Ops Manager Pack section removed Feb 28, 2026 (Jason): each user gets their own single-farm program with own QR code, no multi-farm bundle offered. -->
 
-      <!-- Volume discount tiers -->
-      <div style="background:#fff8e0;border:1px solid #e8d070;border-radius:12px;padding:14px 20px;margin-top:22px;max-width:920px;margin-left:auto;margin-right:auto;">
-        <div style="font-weight:800;color:#7a6000;font-size:13px;margin-bottom:8px;">⚡ Volume discount — the more farms you bundle, the more you save</div>
-        <div style="display:flex;gap:12px;flex-wrap:wrap;font-size:12px;color:#5a4a00;">
-          <span><b>2–3 farms</b> save 10%</span>
-          <span>·</span>
-          <span><b>4–6 farms</b> save 15%</span>
-          <span>·</span>
-          <span><b>7–9 farms</b> save 20%</span>
-          <span>·</span>
-          <span><b>10+ farms</b> save 25%</span>
-        </div>
-      </div>
-
-      <div style="margin-top:36px;background:#fff;border:1px solid var(--line);border-radius:20px;padding:28px;max-width:760px;margin-left:auto;margin-right:auto;box-shadow:0 4px 20px rgba(0,0,0,.04);">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px;">
-          <div style="font-weight:800;font-size:17px;">Build your bundle</div>
-          <div style="display:flex;gap:6px;background:var(--paper);padding:4px;border-radius:99px;">
-            <button class="bill-toggle active" data-bill="monthly" style="padding:6px 14px;border:0;border-radius:99px;font-weight:700;font-size:13px;cursor:pointer;background:var(--green-700);color:#fff;">Monthly</button>
-            <button class="bill-toggle" data-bill="annual" style="padding:6px 14px;border:0;border-radius:99px;font-weight:700;font-size:13px;cursor:pointer;background:transparent;color:var(--muted);">Annual (save 15%)</button>
-          </div>
-        </div>
-        <div id="ops-farms"></div>
-        <button id="ops-add" style="width:100%;padding:11px;background:transparent;border:2px dashed var(--line);border-radius:10px;color:var(--green-700);font-weight:800;font-size:13px;cursor:pointer;margin-top:10px;">+ Add another farm</button>
-
-        <div id="ops-discount-banner" style="margin-top:14px;padding:10px 14px;background:#f0faf4;border:1px solid #a8ddb8;border-radius:10px;font-size:13px;text-align:center;"></div>
-
-        <div style="margin-top:22px;padding-top:18px;border-top:1px solid var(--line);display:flex;justify-content:space-between;align-items:center;">
-          <div>
-            <div style="font-size:11px;letter-spacing:1.5px;color:var(--muted);font-weight:700;">TOTAL</div>
-            <div style="font-size:34px;font-weight:900;letter-spacing:-1px;color:var(--green-700);"><span id="ops-total">0</span><span style="font-size:14px;color:var(--muted);font-weight:600;letter-spacing:0;"> /<span id="ops-period">month</span></span></div>
-          </div>
-          <button id="ops-checkout" class="btn btn-gold">Subscribe Bundle →</button>
-        </div>
-      </div>
-    </div>
-  </section>
 
   <!-- ── PARTNER PROGRAM (Resellers / Bulk / Equipment) ─────────────────── -->
   <section style="background:linear-gradient(180deg,#1e2f4d 0%,#0f1a2f 100%);color:#fff;padding:80px 24px;" id="partners">
@@ -1287,7 +1242,7 @@
         <details style="background:#fff;border:1px solid var(--line);border-radius:12px;"><summary style="padding:18px 22px;cursor:pointer;font-weight:800;font-size:15px;list-style:none;display:flex;justify-content:space-between;align-items:center;">Can I cancel anytime?<span style="color:var(--green-700);font-size:20px;">+</span></summary><div style="padding:0 22px 18px;color:var(--muted);font-size:14px;line-height:1.7;">Yes. One-click cancel from your account page. Your data stays accessible for 90 days afterwards so you can export it.</div></details>
         <details style="background:#fff;border:1px solid var(--line);border-radius:12px;"><summary style="padding:18px 22px;cursor:pointer;font-weight:800;font-size:15px;list-style:none;display:flex;justify-content:space-between;align-items:center;">Does it work on iPhone AND Android?<span style="color:var(--green-700);font-size:20px;">+</span></summary><div style="padding:0 22px 18px;color:var(--muted);font-size:14px;line-height:1.7;">Yes. Both work the same way — no app store install needed. Open the link in any browser, tap 'Add to Home Screen', and it lives on your phone like a real app.</div></details>
         <details style="background:#fff;border:1px solid var(--line);border-radius:12px;"><summary style="padding:18px 22px;cursor:pointer;font-weight:800;font-size:15px;list-style:none;display:flex;justify-content:space-between;align-items:center;">Is my data secure?<span style="color:var(--green-700);font-size:20px;">+</span></summary><div style="padding:0 22px 18px;color:var(--muted);font-size:14px;line-height:1.7;">Yes. All data is encrypted in transit (HTTPS) and at rest in MongoDB Atlas. Payments are processed entirely by Stripe — we never see your card details.</div></details>
-        <details style="background:#fff;border:1px solid var(--line);border-radius:12px;"><summary style="padding:18px 22px;cursor:pointer;font-weight:800;font-size:15px;list-style:none;display:flex;justify-content:space-between;align-items:center;">What if I have more than 30 sheds?<span style="color:var(--green-700);font-size:20px;">+</span></summary><div style="padding:0 22px 18px;color:var(--muted);font-size:14px;line-height:1.7;">Grab the <b style="color:#7C4DFF;">💎 Platinum plan — $40/farm/mo</b>. It covers 30+ sheds with no cap, priority AI processing and a dedicated onboarding call. Running multiple farms? Use the <a href="#ops" style="color:var(--green-700);font-weight:700;text-decoration:none;">Operation Manager bundle</a> to stack up to 25% volume discount on top.</div></details>
+        <details style="background:#fff;border:1px solid var(--line);border-radius:12px;"><summary style="padding:18px 22px;cursor:pointer;font-weight:800;font-size:15px;list-style:none;display:flex;justify-content:space-between;align-items:center;">What if I have more than 30 sheds?<span style="color:var(--green-700);font-size:20px;">+</span></summary><div style="padding:0 22px 18px;color:var(--muted);font-size:14px;line-height:1.7;">Grab the <b style="color:#7C4DFF;">💎 Platinum plan — $40/farm/mo</b>. It covers 30+ sheds with no cap, priority AI processing and a dedicated onboarding call.</div></details>
         <details style="background:#fff;border:1px solid var(--line);border-radius:12px;"><summary style="padding:18px 22px;cursor:pointer;font-weight:800;font-size:15px;list-style:none;display:flex;justify-content:space-between;align-items:center;">Do you support Ingham's, Baiada, AND BPL Adelaide dockets?<span style="color:var(--green-700);font-size:20px;">+</span></summary><div style="padding:0 22px 18px;color:var(--muted);font-size:14px;line-height:1.7;">Yes — all three. The AI auto-detects the supplier from the docket header. If you've got a docket from a smaller mill, send us a photo and we'll add it.</div></details>
         <details style="background:#fff;border:1px solid var(--line);border-radius:12px;"><summary style="padding:18px 22px;cursor:pointer;font-weight:800;font-size:15px;list-style:none;display:flex;justify-content:space-between;align-items:center;">Can my workers use it without an account?<span style="color:var(--green-700);font-size:20px;">+</span></summary><div style="padding:0 22px 18px;color:var(--muted);font-size:14px;line-height:1.7;">Yes. You share a private reader link with them — no login needed on the phone. Just open and tap silo readings.</div></details>
         <details style="background:#fff;border:1px solid var(--line);border-radius:12px;"><summary style="padding:18px 22px;cursor:pointer;font-weight:800;font-size:15px;list-style:none;display:flex;justify-content:space-between;align-items:center;">Do I keep my data if I cancel?<span style="color:var(--green-700);font-size:20px;">+</span></summary><div style="padding:0 22px 18px;color:var(--muted);font-size:14px;line-height:1.7;">Always. Export to CSV/Excel anytime. After cancelling, your data stays exportable for 90 days.</div></details>
@@ -1769,6 +1724,18 @@
               Save this login link — bookmark it, text it to whoever's running the farm, or paste it into WhatsApp.
               It opens straight into the Feed Program on desktop and the Field Reader on a phone.
             </div>
+
+            <!-- QR code — scan with your phone to open the farm directly -->
+            <div style="display:flex;gap:14px;align-items:center;background:#f7fbf4;border:1px solid #d4e2c5;border-radius:12px;padding:14px;margin-bottom:12px;">
+              <div id="trial-qr" data-testid="trial-qr" data-url="${loginUrl}" style="background:#fff;border-radius:8px;padding:8px;flex-shrink:0;width:120px;height:120px;display:flex;align-items:center;justify-content:center;">
+                <div style="font-size:11px;color:#8a99b8;text-align:center;">Generating QR…</div>
+              </div>
+              <div style="font-size:13px;color:#3d5450;line-height:1.55;">
+                <div style="font-weight:900;color:#0f3d24;font-size:14px;margin-bottom:4px;">📱 Scan with your phone</div>
+                <div>Point your phone camera at the QR code — it opens the app instantly, no typing.</div>
+              </div>
+            </div>
+
             <div style="background:#0f3d24;color:#fff;border:1.5px solid #C9A227;border-radius:10px;padding:12px 14px;display:flex;gap:10px;align-items:center;margin-bottom:10px;">
               <div style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12px;font-weight:700;color:#C9A227;" data-testid="trial-login-url-text">${loginUrl}</div>
               <button
@@ -1795,6 +1762,16 @@
               We've also emailed the link to <b>${document.getElementById("trial-email").value.trim()}</b>. If it doesn't arrive within a minute, check spam — or just use the link above.
             </div>`;
           btn.style.display = "none";
+          // Render the QR code now that the DOM node exists
+          try {
+            const qrEl = document.getElementById("trial-qr");
+            if (qrEl && window.QRCode) {
+              qrEl.innerHTML = "";
+              new window.QRCode(qrEl, { text: loginUrl, width: 108, height: 108, correctLevel: window.QRCode.CorrectLevel.M });
+            } else if (qrEl) {
+              qrEl.innerHTML = '<img src="https://api.qrserver.com/v1/create-qr-code/?size=108x108&data=' + encodeURIComponent(loginUrl) + '" width="108" height="108" alt="Login QR" style="display:block;" />';
+            }
+          } catch (e) { console.warn("QR render failed", e); }
         } catch (err) {
           msg.innerHTML = `<span style="color:#a12222;">${err.message}</span>`;
           btn.disabled = false; btn.textContent = "🌱 Start My 30-Day Trial";

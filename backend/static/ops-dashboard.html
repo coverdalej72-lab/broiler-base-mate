@@ -6,6 +6,7 @@
 <title>Ops Dashboard · Broiler Base Mate</title>
 <link rel="icon" href="/api/static-asset/favicon.svg" type="image/svg+xml">
 <script src="/api/static-asset/auth-guard.js" defer></script>
+<script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
 <style>
   :root, [data-theme="light"] {
     --bg:         #f4f6f5;
@@ -609,6 +610,13 @@
             <div style="display:flex;gap:8px;align-items:center;">
               <button
                 class="btn-open"
+                style="background:#0f3d24;color:#C9A227;border:1px solid #0f3d24;font-weight:800;cursor:pointer;padding:4px 10px;border-radius:6px;font-size:11px;"
+                data-testid="btn-qr-${farm.slug}"
+                onclick="showFarmQr('${farm.slug.replace(/'/g,"\\'")}', '${(farm.name || '').replace(/'/g,"\\'")}')">
+                📱 QR
+              </button>
+              <button
+                class="btn-open"
                 style="background:transparent;color:#b02a2a;border:1px solid #e5c9c9;font-weight:700;cursor:pointer;padding:4px 10px;border-radius:6px;font-size:11px;"
                 data-testid="btn-factory-reset-${farm.slug}"
                 onclick="factoryResetFarm('${farm.slug.replace(/'/g,"\\'")}', '${(farm.name || '').replace(/'/g,"\\'")}')">
@@ -622,8 +630,57 @@
       </div>`;
   }
 
-  // ── Wire UI ───────────────────────────────────────────────────
-  document.getElementById("refresh-btn").addEventListener("click", () => loadAll());
+  // ── Show a printable QR code modal for a farm's login URL ──────
+  window.showFarmQr = function(slug, name) {
+    const programUrl = new URL("/?farm=" + encodeURIComponent(slug), window.location.origin).href;
+    const readerUrl  = new URL("/reader?farm=" + encodeURIComponent(slug), window.location.origin).href;
+    // Build a full-screen modal
+    let modal = document.getElementById("farm-qr-modal");
+    if (modal) modal.remove();
+    modal = document.createElement("div");
+    modal.id = "farm-qr-modal";
+    modal.dataset.testid = "farm-qr-modal";
+    modal.style.cssText = "position:fixed;inset:0;z-index:9999;background:rgba(15,25,45,0.85);display:flex;align-items:center;justify-content:center;padding:24px;backdrop-filter:blur(6px);";
+    modal.innerHTML = `
+      <div style="background:#fff;border:2px solid #C9A227;border-radius:20px;padding:28px 30px;max-width:520px;width:100%;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,0.4);">
+        <div style="font-size:11px;color:#C9A227;letter-spacing:2px;font-weight:900;margin-bottom:8px;">SCAN &amp; GO · ${slug.toUpperCase()}</div>
+        <h2 style="margin:0 0 6px;color:#0f3d24;font-size:22px;font-weight:900;">${name}</h2>
+        <p style="color:#5a6a86;font-size:13px;margin-bottom:20px;">Point any phone camera at the QR code — it opens the app instantly, no typing.</p>
+        <div id="farm-qr-canvas-program" style="display:inline-block;background:#fff;padding:14px;border-radius:12px;border:1px solid #e0e8dd;margin-bottom:12px;"></div>
+        <div style="font-family:ui-monospace,monospace;font-size:11px;color:#8a99b8;word-break:break-all;padding:0 20px;margin-bottom:20px;">${programUrl}</div>
+        <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap;">
+          <button id="farm-qr-copy" data-testid="farm-qr-copy" style="background:#C9A227;color:#1a1000;border:0;border-radius:8px;padding:9px 16px;font-weight:900;font-size:13px;cursor:pointer;">📋 Copy Link</button>
+          <button id="farm-qr-print" data-testid="farm-qr-print" style="background:#0f3d24;color:#C9A227;border:0;border-radius:8px;padding:9px 16px;font-weight:900;font-size:13px;cursor:pointer;">🖨 Print QR</button>
+          <button id="farm-qr-close" data-testid="farm-qr-close" style="background:#e0e0e0;color:#333;border:0;border-radius:8px;padding:9px 16px;font-weight:800;font-size:13px;cursor:pointer;">Close</button>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(modal);
+    // Render QR
+    const canvas = modal.querySelector("#farm-qr-canvas-program");
+    try {
+      if (window.QRCode) {
+        new window.QRCode(canvas, { text: programUrl, width: 220, height: 220, correctLevel: window.QRCode.CorrectLevel.M });
+      } else {
+        canvas.innerHTML = `<img src="https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=${encodeURIComponent(programUrl)}" width="220" height="220" alt="Login QR" />`;
+      }
+    } catch (e) { canvas.innerHTML = `<img src="https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=${encodeURIComponent(programUrl)}" width="220" height="220" alt="Login QR" />`; }
+    // Wire buttons
+    modal.querySelector("#farm-qr-close").onclick = () => modal.remove();
+    modal.onclick = (e) => { if (e.target === modal) modal.remove(); };
+    modal.querySelector("#farm-qr-copy").onclick = async (e) => {
+      try { await navigator.clipboard.writeText(programUrl); e.target.textContent = "✓ Copied"; setTimeout(() => { e.target.textContent = "📋 Copy Link"; }, 1500); }
+      catch { prompt("Copy this link:", programUrl); }
+    };
+    modal.querySelector("#farm-qr-print").onclick = () => {
+      const w = window.open("", "_blank", "width=520,height=720");
+      if (!w) { alert("Popup blocked — allow popups to print the QR."); return; }
+      w.document.write(`<!doctype html><html><head><title>${name} · Broiler Base Mate</title><style>body{font-family:system-ui,sans-serif;text-align:center;padding:40px;}h1{color:#0f3d24;margin-bottom:6px;}.sub{color:#5a6a86;font-size:13px;margin-bottom:24px;}img{margin:20px auto;display:block;}.url{font-family:ui-monospace,monospace;font-size:11px;color:#5a6a86;word-break:break-all;margin-top:14px;}</style></head><body><h1>${name}</h1><div class="sub">Broiler Base Mate — Scan to open your farm</div><img src="https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(programUrl)}" width="300" height="300" /><div class="url">${programUrl}</div><script>window.onload=()=>{window.print();};</` + `script></body></html>`);
+      w.document.close();
+    };
+  };
+
+
 
   // ── DESTRUCTIVE — factory-reset a farm (admin-only) ────────────
   // Called from the "🗑 Wipe Data" button on each farm card. Double-confirms,
@@ -702,6 +759,8 @@
 
   // Initial load
   loadAll();
+  // Wire refresh button
+  document.getElementById("refresh-btn").addEventListener("click", () => loadAll());
 
   // ── Auto-refresh silo readings + dashboard data every 30 s ─────────────
   // Pauses when the tab is hidden (no Chrome battery drain when you've left
