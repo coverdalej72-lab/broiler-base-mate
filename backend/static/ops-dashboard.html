@@ -613,7 +613,7 @@
                 class="btn-open"
                 style="background:#0f3d24;color:#C9A227;border:1px solid #0f3d24;font-weight:800;cursor:pointer;padding:4px 10px;border-radius:6px;font-size:11px;"
                 data-testid="btn-qr-${farm.slug}"
-                onclick="showFarmQr('${farm.slug.replace(/'/g,"\\'")}', '${(farm.name || '').replace(/'/g,"\\'")}')">
+                onclick="showFarmQr('${farm.slug.replace(/'/g,"\\'")}', '${(farm.name || '').replace(/'/g,"\\'")}', '${(farm.farmToken || '').replace(/'/g,"\\'")}')">
                 📱 QR
               </button>
               <button
@@ -623,8 +623,8 @@
                 onclick="factoryResetFarm('${farm.slug.replace(/'/g,"\\'")}', '${(farm.name || '').replace(/'/g,"\\'")}')">
                 🗑 Wipe Data
               </button>
-              <a href="/?farm=${encodeURIComponent(farm.slug)}" class="btn-open" data-testid="link-program-${farm.slug}">📊 Feed Program ↗</a>
-              <a href="/reader?farm=${encodeURIComponent(farm.slug)}" class="btn-open" data-testid="link-open-${farm.slug}">📱 Reader ↗</a>
+              <a href="/?farm=${encodeURIComponent(farm.slug)}${farm.farmToken ? '&t=' + encodeURIComponent(farm.farmToken) : ''}" class="btn-open" data-testid="link-program-${farm.slug}">📊 Feed Program ↗</a>
+              <a href="/reader?farm=${encodeURIComponent(farm.slug)}${farm.farmToken ? '&t=' + encodeURIComponent(farm.farmToken) : ''}" class="btn-open" data-testid="link-open-${farm.slug}">📱 Reader ↗</a>
             </div>
           </div>
         </div>
@@ -632,9 +632,14 @@
   }
 
   // ── Show a printable QR code modal for a farm's login URL ──────
-  window.showFarmQr = function(slug, name) {
-    const programUrl = new URL("/?farm=" + encodeURIComponent(slug), window.location.origin).href;
-    const readerUrl  = new URL("/reader?farm=" + encodeURIComponent(slug), window.location.origin).href;
+  // Each farm gets its OWN unique QR because the URL contains both the
+  // farm slug AND the per-farm `farmToken` (SEC-006). Without the token
+  // the QR would just land on the login gate — with it, scanning the QR
+  // opens the correct farm instantly, no typing.
+  window.showFarmQr = function(slug, name, farmToken) {
+    const tokenPart = farmToken ? "&t=" + encodeURIComponent(farmToken) : "";
+    const programUrl = new URL("/?farm=" + encodeURIComponent(slug) + tokenPart, window.location.origin).href;
+    const readerUrl  = new URL("/reader?farm=" + encodeURIComponent(slug) + tokenPart, window.location.origin).href;
     // Build a full-screen modal
     let modal = document.getElementById("farm-qr-modal");
     if (modal) modal.remove();

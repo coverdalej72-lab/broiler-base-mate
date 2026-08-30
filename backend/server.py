@@ -4257,6 +4257,7 @@ async def list_farms(request: Request):
             "slug": slug,
             "name": r.get("name"),
             "ownerEmail": r.get("ownerEmail"),
+            "farmToken": r.get("farmToken"),  # SEC-006: needed by ops-dashboard to build /?farm=…&t=… login QR
             "isDefault": bool(r.get("isDefault")),
             "createdAt": r["createdAt"].isoformat() if r.get("createdAt") else None,
             "stats": {"readings": readings_count, "deliveries": deliveries_count},

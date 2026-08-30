@@ -95,6 +95,9 @@ Jason Coverdale (Appcovi, 3rd-gen Aussie broiler grower on a Baiada contract) ne
 
 ## Backlog / future
 
+- P0 (recurring): Shed Tabs UI Mismatch — Feed Program renders default 6 groups instead of user's configured count
+- P1: Track AI prediction accuracy — log predicted vs actual EOB when a batch closes
+- P1: Trial-end conversion flow (day-25 email + day-30 read-only soft-lock)
 - P2: Custom-domain email sender (switch Resend from `onboarding@resend.dev` to `jason@appcovi.com.au` via DNS)
 - P3: Refactor server.py and App.tsx into smaller modules (both are monolithic)
 - P3: Multi-worker uvicorn + CDN for 10k+ user scale
@@ -102,6 +105,11 @@ Jason Coverdale (Appcovi, 3rd-gen Aussie broiler grower on a Baiada contract) ne
 - P3: Day-3 no-login founder alert
 - P3: Carousel video demo — 20-sec docket-scan → silo-update autoplay muted video slide
 - P3: Weekly Playwright screenshot refresh cron
+
+## Recent fixes (Feb 28, 2026)
+
+- **30-Shed End-of-Batch** — Bird Summary table now renders one row per configured shed (up to 30), driven by `totalSheds` from `/api/farm-config`, previously capped at 12. Row mapping updated so sheds 13-30 write to xlsx rows 100-117 to avoid clashing with the template's totals row and feed-summary block.
+- **Unique per-farm QR codes on Ops Dashboard** — QR URLs now include the farm's `farmToken` (SEC-006). Previously the QR-generated link was `/?farm=<slug>` only; anyone scanning it hit the login gate. Now `/?farm=<slug>&t=<farmToken>` opens the correct farm instantly. `/api/farms` returns `farmToken` for each row so ops-dashboard can build the correct URL.
 
 ## Test credentials
 - Admin magic link: appcovi2026@gmail.com
