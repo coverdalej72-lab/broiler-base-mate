@@ -3670,11 +3670,14 @@ async def _provision_purchase(session_id: str) -> Optional[dict]:
                 "createdAt": datetime.now(timezone.utc),
                 "isDefault": False,
                 "stripeSessionId": session_id,
+                "farmToken": secrets.token_urlsafe(24),  # SEC-006: unique per-farm read token so each buyer's QR/link is theirs alone
             }
             await farms_col.insert_one(doc)
             await _seed_farm(slug, name)
-            reader_url = f"{public_url}/reader?farm={slug}" if public_url else f"/reader?farm={slug}"
-            program_url = f"{public_url}/?farm={slug}&onboarding=1" if public_url else f"/?farm={slug}&onboarding=1"
+            farm_token = doc["farmToken"]
+            _q = f"farm={slug}&t={farm_token}"
+            reader_url = f"{public_url}/reader?{_q}" if public_url else f"/reader?{_q}"
+            program_url = f"{public_url}/?{_q}&onboarding=1" if public_url else f"/?{_q}&onboarding=1"
             created_farms.append({"slug": slug, "name": name, "tier": f.get("tier"), "readerUrl": reader_url, "programUrl": program_url})
 
     elif kind == "subscription":
@@ -3694,11 +3697,14 @@ async def _provision_purchase(session_id: str) -> Optional[dict]:
             "createdAt": datetime.now(timezone.utc),
             "isDefault": False,
             "stripeSessionId": session_id,
+            "farmToken": secrets.token_urlsafe(24),  # SEC-006: unique per-farm read token so each buyer's QR/link is theirs alone
         }
         await farms_col.insert_one(doc)
         await _seed_farm(slug, doc["name"])
-        reader_url = f"{public_url}/reader?farm={slug}" if public_url else f"/reader?farm={slug}"
-        program_url = f"{public_url}/?farm={slug}&onboarding=1" if public_url else f"/?farm={slug}&onboarding=1"
+        farm_token = doc["farmToken"]
+        _q = f"farm={slug}&t={farm_token}"
+        reader_url = f"{public_url}/reader?{_q}" if public_url else f"/reader?{_q}"
+        program_url = f"{public_url}/?{_q}&onboarding=1" if public_url else f"/?{_q}&onboarding=1"
         created_farms.append({"slug": slug, "name": doc["name"], "tier": doc["tier"], "readerUrl": reader_url, "programUrl": program_url})
 
     ops_dashboard_url = f"{public_url}/ops-dashboard" if public_url else "/ops-dashboard"
