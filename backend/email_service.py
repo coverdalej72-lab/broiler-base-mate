@@ -1,62 +1,170 @@
-"""Resend email helper for Broiler Base Mate.
+"""Email helper for Broiler Base Mate.
 
-Graceful degrade: if RESEND_API_KEY is missing/blank, log + skip (don't crash).
-Once the user pastes their Resend API key into /app/backend/.env, emails go live
-automatically — no other code changes needed.
+Provider priority — first one with credentials wins:
+  1. Gmail SMTP (App Password) via aiosmtplib — GMAIL_USER + GMAIL_APP_PASSWORD
+  2. Resend API — RESEND_API_KEY (legacy fallback)
+  3. No-op with warning if neither is set
+
+Chosen at each send call so a live-swap of env vars takes effect on next email
+without a server restart. Both paths return the same shape:
+  {"ok": bool, "id": str|None, "skipped": bool, "provider": "gmail"|"resend"|"none"}
 """
 from __future__ import annotations
 
 import asyncio
+import base64
 import logging
 import os
+from email.message import EmailMessage
 from typing import Optional
 
+import aiosmtplib
 import resend
 
 logger = logging.getLogger("email_service")
 
 
-def _key() -> Optional[str]:
+# ─── Provider selection ─────────────────────────────────────────────────
+
+def _gmail_creds() -> Optional[tuple[str, str]]:
+    user = os.environ.get("GMAIL_USER", "").strip()
+    pwd  = os.environ.get("GMAIL_APP_PASSWORD", "").strip().replace(" ", "")
+    if user and pwd:
+        return user, pwd
+    return None
+
+
+def _resend_key() -> Optional[str]:
     k = os.environ.get("RESEND_API_KEY", "").strip()
     return k or None
 
 
 def _sender() -> str:
+    """Preferred From header. Defaults to Gmail user if set (so From matches auth
+    and Gmail won't rewrite it), otherwise falls back to SENDER_EMAIL or Resend
+    sandbox address."""
+    gmail = _gmail_creds()
+    if gmail:
+        env_sender = os.environ.get("SENDER_EMAIL", "").strip()
+        # If SENDER_EMAIL is set to something Gmail-compatible (contains @gmail
+        # or matches the auth user), honour it — Gmail requires From to match
+        # the authenticated account, so anything else would get rewritten.
+        if env_sender and (gmail[0] in env_sender):
+            return env_sender
+        return f"Broiler Base Mate <{gmail[0]}>"
     return os.environ.get("SENDER_EMAIL", "onboarding@resend.dev").strip() or "onboarding@resend.dev"
 
 
-def _reply_to() -> Optional[str]:
-    """Optional Reply-To address — when set, replies go here instead of the sender.
-    Lets the platform send from a verified Resend domain but route grower replies
-    to the owner's personal Gmail."""
+def _reply_to_default() -> Optional[str]:
     r = os.environ.get("REPLY_TO_EMAIL", "").strip()
     return r or None
 
 
-async def send_email(*, to: str, subject: str, html: str, reply_to: Optional[str] = None, attachments: Optional[list] = None) -> dict:
-    """Send an email via Resend. Returns {"ok": bool, "id": str|None, "skipped": bool}.
-    If `reply_to` is omitted, falls back to the REPLY_TO_EMAIL env var.
+# ─── Gmail SMTP path ────────────────────────────────────────────────────
 
-    `attachments` is an optional list of dicts, each: {"filename": str, "content": base64 str}
-    (Resend expects base64-encoded content, matching their API spec)."""
-    key = _key()
-    if not key:
-        logger.warning("RESEND_API_KEY missing — skipping email to %s (subject=%r)", to, subject)
-        return {"ok": True, "id": None, "skipped": True, "reason": "RESEND_API_KEY not set"}
+async def _send_via_gmail(*, to: str, subject: str, html: str, reply_to: Optional[str],
+                          attachments: Optional[list]) -> dict:
+    user, pwd = _gmail_creds()  # type: ignore[misc]
+    host = os.environ.get("SMTP_HOST", "smtp.gmail.com")
+    port = int(os.environ.get("SMTP_PORT", "587"))
 
-    resend.api_key = key
+    msg = EmailMessage()
+    msg["From"] = _sender()
+    msg["To"] = to
+    msg["Subject"] = subject
+    if reply_to:
+        msg["Reply-To"] = reply_to
+    # Plain-text fallback — strip tags cheaply so a text-only client still shows
+    # something sensible.
+    import re
+    plain = re.sub(r"<[^>]+>", "", html)
+    plain = re.sub(r"\s+\n", "\n", plain).strip()
+    msg.set_content(plain or "See HTML version.")
+    msg.add_alternative(html, subtype="html")
+
+    # Attachments: same shape as before {filename, content} where content is
+    # base64-encoded bytes.
+    if attachments:
+        for a in attachments:
+            fn = a.get("filename") or "attachment"
+            raw = a.get("content")
+            if not raw:
+                continue
+            try:
+                data = base64.b64decode(raw) if isinstance(raw, str) else raw
+            except Exception:
+                data = raw if isinstance(raw, (bytes, bytearray)) else b""
+            # Best-effort MIME guess by extension
+            import mimetypes
+            ctype, _ = mimetypes.guess_type(fn)
+            maintype, subtype = (ctype or "application/octet-stream").split("/", 1)
+            msg.add_attachment(data, maintype=maintype, subtype=subtype, filename=fn)
+
+    try:
+        await aiosmtplib.send(
+            msg,
+            hostname=host,
+            port=port,
+            username=user,
+            password=pwd,
+            start_tls=True,
+            timeout=30,
+        )
+        return {"ok": True, "id": None, "skipped": False, "provider": "gmail"}
+    except aiosmtplib.SMTPAuthenticationError as e:
+        logger.exception("Gmail SMTP authentication failed for %s: %s", user, e)
+        return {"ok": False, "id": None, "skipped": False, "provider": "gmail",
+                "error": "gmail_auth_failed"}
+    except aiosmtplib.SMTPException as e:
+        logger.exception("Gmail SMTP rejected/failed to %s: %s", to, e)
+        return {"ok": False, "id": None, "skipped": False, "provider": "gmail",
+                "error": str(e)}
+    except Exception as e:
+        logger.exception("Gmail SMTP unexpected error to %s: %s", to, e)
+        return {"ok": False, "id": None, "skipped": False, "provider": "gmail",
+                "error": str(e)}
+
+
+# ─── Resend path (legacy) ───────────────────────────────────────────────
+
+async def _send_via_resend(*, to: str, subject: str, html: str, reply_to: Optional[str],
+                           attachments: Optional[list]) -> dict:
+    resend.api_key = _resend_key()
     params: dict = {"from": _sender(), "to": [to], "subject": subject, "html": html}
-    rt = reply_to or _reply_to()
-    if rt:
-        params["reply_to"] = rt
+    if reply_to:
+        params["reply_to"] = reply_to
     if attachments:
         params["attachments"] = attachments
     try:
         email = await asyncio.to_thread(resend.Emails.send, params)
-        return {"ok": True, "id": email.get("id") if isinstance(email, dict) else None, "skipped": False}
+        return {"ok": True, "id": email.get("id") if isinstance(email, dict) else None,
+                "skipped": False, "provider": "resend"}
     except Exception as e:
         logger.exception("Resend send failed to %s: %s", to, e)
-        return {"ok": False, "id": None, "skipped": False, "error": str(e)}
+        return {"ok": False, "id": None, "skipped": False, "provider": "resend",
+                "error": str(e)}
+
+
+# ─── Public API ─────────────────────────────────────────────────────────
+
+async def send_email(*, to: str, subject: str, html: str, reply_to: Optional[str] = None,
+                     attachments: Optional[list] = None) -> dict:
+    """Send an email using the first configured provider (Gmail SMTP → Resend).
+    Returns {"ok": bool, "id": str|None, "skipped": bool, "provider": str}."""
+    rt = reply_to or _reply_to_default()
+
+    if _gmail_creds():
+        return await _send_via_gmail(to=to, subject=subject, html=html,
+                                     reply_to=rt, attachments=attachments)
+
+    if _resend_key():
+        return await _send_via_resend(to=to, subject=subject, html=html,
+                                      reply_to=rt, attachments=attachments)
+
+    logger.warning("No email provider configured (set GMAIL_APP_PASSWORD or "
+                   "RESEND_API_KEY) — skipping email to %s (subject=%r)", to, subject)
+    return {"ok": True, "id": None, "skipped": True, "provider": "none",
+            "reason": "no email provider credentials configured"}
 
 
 def render_demo_request_email(*, name: str, email: str, farm: Optional[str], sheds: Optional[str], message: Optional[str]) -> str:
