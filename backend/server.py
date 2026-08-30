@@ -1393,6 +1393,50 @@ async def batch_reset(request: Request, farm: str = Query(default=DEFAULT_FARM_I
     return {"ok": True, "readingsDeleted": r.deleted_count, "deliveriesDeleted": d.deleted_count, "photosDeleted": p.deleted_count}
 
 
+@api.delete("/farm/factory-reset")
+async def farm_factory_reset(request: Request,
+                             farm: str = Query(...),
+                             confirm: str = Query(...)):
+    """
+    ⚠️  DESTRUCTIVE — wipes ALL operational data for a farm so it starts as clean
+    slate: silo readings, deliveries, docket photos, feed-program state + history,
+    locked EOB snapshots. Preserves the farm record itself + shed/silo setup.
+
+    Admin-only. Requires ?confirm=WIPE-EVERYTHING to prevent accidental clicks
+    (query-string works even from a simple curl or admin-panel button).
+
+    Feb 28, 2026 (Jason): "my feed load delivers and showing my silo readings on
+    a shed page — needs to be a clean slate".
+    """
+    await _require_admin(request)  # admin-only, stricter than farm access
+    if confirm != "WIPE-EVERYTHING":
+        raise HTTPException(400, "Missing/invalid confirm token — pass ?confirm=WIPE-EVERYTHING to proceed")
+
+    farm_doc = await farms_col.find_one({"slug": farm})
+    if not farm_doc:
+        raise HTTPException(404, f"Farm '{farm}' not found")
+
+    ff = _farm_filter(farm)
+    r  = await readings_col.delete_many(ff)
+    d  = await deliveries_col.delete_many(ff)
+    p  = await photos_col.delete_many(ff)
+    fp = await feed_program_state_col.delete_many({"farmId": farm})
+    fh = await feed_program_state_history_col.delete_many({"farmId": farm})
+    e  = await eob_snapshots_col.delete_many({"farmId": farm})
+    return {
+        "ok": True,
+        "farmSlug": farm,
+        "farmName": farm_doc.get("name"),
+        "readingsDeleted": r.deleted_count,
+        "deliveriesDeleted": d.deleted_count,
+        "photosDeleted": p.deleted_count,
+        "feedProgramStateDeleted": fp.deleted_count,
+        "feedProgramHistoryDeleted": fh.deleted_count,
+        "eobSnapshotsDeleted": e.deleted_count,
+        "note": "Farm record, shed groups, silos and users kept. Operational data cleared.",
+    }
+
+
 @api.get("/onedrive/status")
 async def onedrive_status():
     return {

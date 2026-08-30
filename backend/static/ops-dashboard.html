@@ -606,7 +606,17 @@
 
           <div class="farm-card__footer">
             <span>Synced ${today ? fmtRelative(today.date ? today.date + "T00:00:00Z" : null) : "—"}</span>
-            <a href="/reader?farm=${encodeURIComponent(farm.slug)}" class="btn-open" data-testid="link-open-${farm.slug}">Open Reader ↗</a>
+            <div style="display:flex;gap:8px;align-items:center;">
+              <button
+                class="btn-open"
+                style="background:transparent;color:#b02a2a;border:1px solid #e5c9c9;font-weight:700;cursor:pointer;padding:4px 10px;border-radius:6px;font-size:11px;"
+                data-testid="btn-factory-reset-${farm.slug}"
+                onclick="factoryResetFarm('${farm.slug.replace(/'/g,"\\'")}', '${(farm.name || '').replace(/'/g,"\\'")}')">
+                🗑 Wipe Data
+              </button>
+              <a href="/?farm=${encodeURIComponent(farm.slug)}" class="btn-open" data-testid="link-program-${farm.slug}">📊 Feed Program ↗</a>
+              <a href="/reader?farm=${encodeURIComponent(farm.slug)}" class="btn-open" data-testid="link-open-${farm.slug}">📱 Reader ↗</a>
+            </div>
           </div>
         </div>
       </div>`;
@@ -614,6 +624,55 @@
 
   // ── Wire UI ───────────────────────────────────────────────────
   document.getElementById("refresh-btn").addEventListener("click", () => loadAll());
+
+  // ── DESTRUCTIVE — factory-reset a farm (admin-only) ────────────
+  // Called from the "🗑 Wipe Data" button on each farm card. Double-confirms,
+  // then hits DELETE /api/farm/factory-reset with the WIPE-EVERYTHING token.
+  window.factoryResetFarm = async function(slug, name) {
+    const step1 = confirm(
+      `⚠️  DANGER — Wipe ALL operational data for "${name}" (${slug})?\n\n` +
+      `This deletes: silo readings, delivery dockets + photos, Feed Program state, ` +
+      `Feed Program history, locked End-of-Batch snapshots.\n\n` +
+      `KEPT: farm record, shed groups, silo setup, users.\n\n` +
+      `This CANNOT be undone. Continue?`
+    );
+    if (!step1) return;
+    const typed = prompt(`Type the farm slug "${slug}" to confirm the wipe:`);
+    if (typed !== slug) { alert("Slug didn't match — wipe cancelled."); return; }
+    try {
+      const res = await fetch(`/api/farm/factory-reset?farm=${encodeURIComponent(slug)}&confirm=WIPE-EVERYTHING`, {
+        method: "DELETE", credentials: "include",
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.detail || `HTTP ${res.status}`);
+      alert(
+        `✅ Wiped "${data.farmName}":\n\n` +
+        `  · ${data.readingsDeleted} silo readings\n` +
+        `  · ${data.deliveriesDeleted} deliveries\n` +
+        `  · ${data.photosDeleted} docket photos\n` +
+        `  · ${data.feedProgramStateDeleted} feed program state\n` +
+        `  · ${data.feedProgramHistoryDeleted} feed program history\n` +
+        `  · ${data.eobSnapshotsDeleted} EOB snapshots\n\n` +
+        `Farm setup preserved. Clean slate ready.`
+      );
+      // Also nuke this browser's cached farm state so the Feed Program doesn't
+      // restore old catches/morts/weigh data from localStorage on next visit.
+      // (Same origin — clears any SPA state stored here.)
+      try {
+        const patterns = /^(bbm-|silo-|feedmate-|BATCH_CATCHES|MORTS_LOG|CULLS_LOG|WEIGH_PLAN|FLOCK_WEIGHIN|editSnapshots|batchHistory|allocRates|farmConfig)/;
+        const toKill = [];
+        for (let i = 0; i < localStorage.length; i++) {
+          const k = localStorage.key(i);
+          if (k && patterns.test(k)) toKill.push(k);
+        }
+        toKill.forEach(k => localStorage.removeItem(k));
+        console.log(`[factory-reset] cleared ${toKill.length} localStorage keys on this browser.`);
+      } catch (_) { /* localStorage may be disabled — noop */ }
+      await loadAll();
+    } catch (e) {
+      alert("Wipe failed: " + e.message);
+    }
+  };
 
   document.getElementById("add-farm-btn").addEventListener("click", async () => {
     const name  = document.getElementById("add-farm-name").value.trim();
