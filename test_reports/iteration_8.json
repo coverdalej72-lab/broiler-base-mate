@@ -1,0 +1,44 @@
+{
+  "summary": "End-to-end test of the NEW Batch Accuracy Tracker feature (GET /api/eob/batch-accuracy, predictedEob fingerprint round-trip via POST /api/eob/lock-batch, localStorage snapshot write on Flock Forecast, new 🎯 Accuracy tab + BatchAccuracyView). Backend: 6/6 pytest cases pass (auth guard, list shape, lock-with-prediction -> accuracy round-trip, lock-without-prediction -> predicted:null, farm isolation, unknown farm). Frontend: full real flow exercised on farm 'default' — entered a weigh-in via Flock Forecast UI (predicted-eob-card rendered, localStorage 'feedmate-predicted-eob-snapshot' written with all 9 fields), locked the batch via 🏁 End Batch & Lock (Batch Locked confirmation + locked banner + button hidden), then the 🎯 Accuracy tab rendered a card for that batch with the Predicted column populated. Also seeded two synthetic locked snapshots on farm north-creek to validate the fully-populated comparison card (predicted vs actual vs Diff % + '✓ Nailed it' grade match) and the graceful 'No Flock Forecast prediction was on record...' fallback — both render correctly. Zero console errors on Accuracy / Flock Forecast / Batch Results / End of Batch. Smoke check confirms no kg-units regression (Feed Deliveries + Feed Summary in kg, no 'tonnes' on Batch Results).",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "BatchAccuracyView - MetricRow 'Finish Age'", "issue": "Finish Age is rendered with decimals=0 so predicted 40 vs actual 40.1 both display '40d', yet the Diff badge shows '+0.3%' — looks like a bug to the grower. Either show 1 decimal for actual age or compute the diff on the rounded values.", "selector": "[data-testid^='batch-accuracy-card-']", "priority": "LOW"},
+      {"component": "FlockForecastView snapshot write vs Predicted EOB card", "issue": "The card suppresses an implausible cFCR (rendered '—') but the localStorage snapshot still stores it (observed cfcr:-9.971), so the Accuracy tab later shows 'cFCR -9.971' as the prediction. Sanitize before persisting: skip non-finite / <=0 / clearly out-of-range values (same guard the card uses).", "selector": "[data-testid='predicted-eob-card']", "priority": "MEDIUM"},
+      {"component": "BatchAccuracyView error state", "issue": "Error state has no retry affordance (only '⚠️ HTTP xxx'); a transient 5xx leaves the tab permanently empty until a tab switch.", "selector": "[data-testid='batch-accuracy-error']", "priority": "LOW"},
+      {"component": "Accuracy tab visibility", "issue": "The 🎯 Accuracy tab is always shown for broiler farms even when the grower has turned Flock Forecast off (showFlockForecast === false), although the whole feature depends on the Flock Forecast card writing the snapshot.", "selector": "[data-testid='tab-batch-accuracy']", "priority": "LOW"}
+    ],
+    "integration_issues": [
+      {"flow": "Predicted snapshot -> lock-batch fingerprint", "issue": "'feedmate-predicted-eob-snapshot' is a single GLOBAL localStorage key with no farm / batch / shed identity. Whatever forecast was last viewed (possibly a different farm, or the previous batch weeks ago) is silently attached as fingerprint.predictedEob to the next batch that is locked, and Batch Accuracy will present it as that batch's forecast. Recommend keying per farm+batchIdentifier (or storing farmSlug+batchIdentifier+capturedAt in the snapshot and only sending it when they match the batch being locked).", "affected_selectors": ["[data-testid='predicted-eob-card']", "[data-testid='eob-end-batch-confirm']"]}
+    ],
+    "design_issues": [
+      {"screen": "🎯 Accuracy tab", "issues": ["Layout, contrast and spacing are clean at 1920px; predicted (purple) / actual (black) / diff colour coding reads well. No issues found.", "On the real locked batch the Actual column is all '—' because that seeded farm has no catch/weight data — data condition, not a rendering bug."]}
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_batch_accuracy.py",
+    "/app/test_reports/pytest/batch_accuracy.xml"
+  ],
+  "action_items": [
+    "Scope the 'feedmate-predicted-eob-snapshot' localStorage key per farm+batch (or validate identity before sending it as fingerprint.predictedEob) so a stale/other-farm forecast can't be recorded as a batch's prediction.",
+    "Sanitize the predicted snapshot before persisting (skip non-finite / implausible cFCR & FCR) so the Accuracy tab never shows a value the Predicted EOB card itself hid as '—'.",
+    "Move the localStorage.setItem out of the FlockForecastView render body into a useEffect — writing during render runs on every re-render and is double-invoked under React StrictMode.",
+    "Optional: show Finish Age with 1 decimal (or round the diff basis) so 'both 40d' doesn't display a +0.3% diff."
+  ],
+  "critical_code_review_comments": [
+    "App.tsx ~line 8917: localStorage.setItem is performed inside the render function of the Predicted-EOB IIFE (side-effect during render). Functionally works but is a React anti-pattern — move to useEffect keyed on the computed forecast values.",
+    "The snapshot has no farm/batch identity (see integration issue) — server-side there is also no validation that fingerprint.predictedEob relates to the batch being locked.",
+    "GET /api/eob/batch-accuracy correctly projects away _id/html/pdfBase64/lockedBy and enforces _require_farm_access — verified 401 anonymously and cross-farm isolation."
+  ],
+  "updated_files": ["/app/backend/tests/test_batch_accuracy.py"],
+  "success_rate": {"backend": "100%", "frontend": "95%"},
+  "seed_data_creation": "1) Real E2E: locked batch 'end of batch' on farm 'default' (created via UI, contains fingerprint.predictedEob; left in place as evidence — delete the eob_snapshots doc if you need to re-lock that sheet). 2) Two synthetic eob_snapshots on farm north-creek (TEST_SEED_BATCH_A with predictedEob, TEST_SEED_BATCH_B without) — used to validate the populated comparison card and the no-prediction fallback; both DELETED after verification.",
+  "should_call_test_agent_after_fix": false,
+  "should_main_agent_self_test": true,
+  "test_credentials": "owner-magic link from /app/memory/test_credentials.md (appcovi2026@gmail.com) — works, session_token cookie issued.",
+  "context_for_next_testing_agent": "Feed Program UI lives at /feed-program/ (Vite dev server, hot reload). Login: owner-magic link with to=/feed-program/. Dismiss the FirstLoginWizard ('Skip · I'll do this later') and the 3-step tour ('Skip tour') first, otherwise overlays intercept clicks; also close the 'Batch Locked' modal before clicking other tabs. Weigh-ins are localStorage-only (key 'feedmate-flock-weighins'), so each fresh browser session must re-enter one via Flock Forecast: click [data-testid='shed-card-toggle-1'] to expand, click the first td containing '— tap', type grams, Enter — the Predicted EOB card then renders and writes the snapshot. Farm slug for accuracy/EOB comes from the ?farm= query param (or localStorage 'bbm-active-farm'), while the spreadsheet state itself is NOT farm-scoped (/api/feed-program/state has no farm param) — pre-existing architecture, so the header can say 'Double B Farm' while ?farm=north-creek accuracy data loads. Backend regression suite: /app/backend/tests/test_batch_accuracy.py (self-cleaning; note lock-batch really sends Gmail email + renders a PDF).",
+  "rca_of_the_issue": "No functional defect in the new feature. The two data-quality findings both stem from the prediction snapshot being a single un-scoped, un-sanitized localStorage blob: (a) it is written on every Flock Forecast render regardless of farm/batch, so lock-batch may attach an unrelated forecast; (b) it stores raw computed values (including a negative cFCR produced by the seeded farm's 168-day flock age) that the UI card itself masks as '—'."
+}

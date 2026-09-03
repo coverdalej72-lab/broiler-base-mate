@@ -775,6 +775,41 @@ async def get_locked_batch(snap_id: str, request: Request, farm: str = Query(def
     return doc
 
 
+@app.get("/api/eob/batch-accuracy")
+async def get_batch_accuracy(request: Request, farm: str = Query(default=DEFAULT_FARM_ID)):
+    """Predicted-vs-actual EOB accuracy for every locked batch on this farm.
+    Feb 2026 — Jason: "Batch Accuracy Tracker ... so growers can see how
+    accurate the AI forecast really was". `predicted` comes from the Flock
+    Forecast "Predicted End-of-Batch" snapshot saved client-side at lock time
+    (fingerprint.predictedEob); `actual` is the locked EOB report's KPIs.
+    Only exposes KPI numbers — no html/pdf/PII, safe for the loginless reader."""
+    await _require_farm_access(request, farm)   # SEC-006 read isolation
+    cursor = eob_snapshots_col.find(
+        {"farmId": farm},
+        {"_id": 0, "batchIdentifier": 1, "lockedAt": 1, "report": 1, "fingerprint.predictedEob": 1},
+    ).sort("lockedAt", -1).limit(200)
+    out = []
+    async for doc in cursor:
+        report = doc.get("report") or {}
+        predicted = (doc.get("fingerprint") or {}).get("predictedEob")
+        out.append({
+            "batchIdentifier": doc.get("batchIdentifier"),
+            "lockedAt": doc.get("lockedAt"),
+            "predicted": predicted,
+            "actual": {
+                "aveWeight":         report.get("aveWeight"),
+                "fcr":               report.get("fcr"),
+                "cfcr":              report.get("cfcr"),
+                "cageRating":        report.get("cageRating"),
+                "correctedAge":      report.get("correctedAge"),
+                "actualAge":         report.get("actualAge"),
+                "totalCaught":       report.get("totalCaught"),
+                "totalLiveWeightKg": report.get("totalLiveWeightKg"),
+            },
+        })
+    return out
+
+
 # ─── Share-history email — Reader → head office ──────────────────────────
 # Lets a grower email the recent silo + delivery history straight from the
 # Reader app. Renders the same premium look as the EOB report so anything
