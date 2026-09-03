@@ -1,0 +1,53 @@
+{
+  "summary": "Tested the new Stripe 'Upgrade & Pay Now' path end-to-end (17/17 pytest assertions pass). Backend POST /api/farm/upgrade-checkout returns a genuine cs_live_... Stripe Checkout session (mode=subscription, AUD, immediate charge, correct metadata, payment_transactions doc persisted) and enforces SEC-006 (401 no/bad token, 403 cross-farm token, 400 no ownerEmail). _provision_purchase's kind=='upgrade' branch was exercised directly via a simulated paid payment doc (email_service.send_email monkeypatched, no real charge/email): it updates the EXISTING farm to subscriptionStatus=active + tier + stripeSubscriptionId, creates no new farm, sends the owner confirmation email, and is idempotent on a second call. Frontend: Settings drawer BILLING card button (settings-upgrade-pay-now) redirects to real Stripe checkout showing 'Broiler Base Mate - Bronze A$20.00/month, Total due today A$20.00' (no trial) - stopped without entering card details. Also force-aged a temp trial farm to day 27 to make the TrialNudgeBanner appear: banner rendered (trial-nudge-banner-soft) and its 'Upgrade Now' button (trial-nudge-upgrade-link) redirected to a real Gold-plan Stripe session. Regression smoke on /api/trial/start (idempotent, no card), /api/checkout (sponsor), /api/eob/locked-batches, /api/farm-config, /api/feed-program/state + token auth all pass. One HIGH pre-existing bug found: opening a second farm in the same browser overwrites that farm's server-side feed-program state with the previously-opened farm's grid data. All test data cleaned up (temp farm + upgrade payment docs deleted).",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "POST /api/farm/upgrade-checkout", "issue": "Farms with no `tier` field (e.g. legacy seeded 'default') silently fall back to bronze_monthly ($20). Trial farms created via /api/trial/start do store tier so this is only a legacy-farm risk, but a grower on a legacy farm could be charged the wrong (cheapest) plan."},
+      {"endpoint": "POST /api/farm/upgrade-checkout", "issue": "The documented 404 'Farm not found' is unreachable for non-admins: _require_farm_access runs first, so an unknown slug returns 401 (auth) not 404. Only an admin session gets 404. Behaviour is safe (no slug enumeration) but doesn't match the stated spec."},
+      {"endpoint": "POST /api/farm/upgrade-checkout", "issue": "Every button click creates a new Stripe Checkout session + a payment_transactions doc; no reuse/expiry of the previous 'open' session and no guard against re-upgrading a farm already on subscriptionStatus='active' (a paying farm can create a second subscription and be double-billed). Recommend blocking/warning when subscriptionStatus=='active' and an active stripeSubscriptionId exists."},
+      {"endpoint": "Stripe account config", "issue": "Stripe Adaptive Pricing is enabled: from a non-AU IP the hosted page displayed 'US$22.40/month' for the A$30 Gold plan. Correct AUD for AU growers, but confirm this is intended presentment behaviour."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "App.tsx header settings gear", "issue": "No data-testid on the settings gear button (had to select by text 'Settings'); dist is prebuilt so I did not add it. Add data-testid=\"open-settings-drawer\".", "selector": "button:has-text(\"Settings\")", "priority": "LOW"},
+      {"component": "App.tsx header / feed grid", "issue": "Farm name shown in the header ('Double B Farm') came from localStorage, not from /api/farm-config (which returned 'My Farm' for the newly opened farm) - stale farm identity displayed after switching farms.", "selector": "header title", "priority": "MEDIUM"}
+    ],
+    "integration_issues": [
+      {"flow": "Multi-farm switching (open farm A then farm B in the same browser)", "issue": "HIGH / pre-existing: feed-program edits are cached in non-namespaced localStorage keys (feedmate-edits-autosave-v2, feedmate-edits-sheet-names, feedmate-edits-saved-at-v2). Opening /?farm=test-nudge-farm&t=... after previously opening /?farm=default caused the app to render default's grid AND autosave it to the new farm - GET /api/feed-program/state?farm=test-nudge-farm went from 49 bytes (empty) to 68KB of default's data. Clearing localStorage did not help because the in-memory state re-autosaved. Backend isolation is correct; the bleed is client-side. Fix: key the autosave/localStorage caches by farm slug and drop the cache when window.__BBM_FARM__ changes.", "affected_selectors": ["localStorage:feedmate-edits-autosave-v2"]},
+      {"flow": "Token-only (QR) access", "issue": "Console noise: GET /api/auth/me?farm=default returns 401 on every load when using farm-token access (no session). Harmless but pollutes the console/error logs.", "affected_selectors": ["/api/auth/me"]}
+    ],
+    "design_issues": [
+      {"screen": "Settings drawer BILLING card", "issues": ["Renders fine (gold border, readable contrast, clear copy). No issues found."]}
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_upgrade_checkout.py",
+    "/app/backend/tests/test_provision_upgrade_unit.py",
+    "/app/test_reports/pytest/upgrade_results.xml"
+  ],
+  "action_items": [
+    "HIGH: namespace the feed-program localStorage autosave keys per farm slug - switching farms in one browser currently overwrites the second farm's server-side feed-program state with the first farm's grid.",
+    "MEDIUM: block/warn on /api/farm/upgrade-checkout when the farm is already subscriptionStatus='active' with a stripeSubscriptionId, to prevent duplicate subscriptions / double billing.",
+    "LOW: store/derive a real tier for legacy farms (or return 400) instead of silently defaulting to bronze_monthly in upgrade-checkout.",
+    "LOW: source the header farm name from /api/farm-config rather than localStorage; add data-testid to the settings gear button."
+  ],
+  "critical_code_review_comments": [
+    "/api/farm/upgrade-checkout: correct - SEC-006 guard first, no trial_period_days (Stripe page confirmed 'Total due today A$20.00'), metadata kind=upgrade + upgrade_farm_slug on both session and subscription, payment doc written before returning.",
+    "_provision_purchase kind=='upgrade': verified by direct call - atomic provisioned claim gives idempotency, updates the existing farm only, emails owner + ADMIN_EMAIL. `from email_service import send_email` is re-imported 3x inside the branch (already imported at function top) - dead code, harmless.",
+    "TrialNudgeBanner.tsx / App.tsx omit the &t= token in their fetches, but the index.html fetch monkey-patch injects farm+t for all /api/* calls, so token-only (QR) users work - verified live.",
+    "server.py is 4929 lines - well past the 700-line guidance; billing/Stripe should be split into its own module."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_upgrade_checkout.py",
+    "/app/backend/tests/test_provision_upgrade_unit.py"
+  ],
+  "success_rate": {"backend": "100%", "frontend": "100% for the new upgrade flow (1 HIGH pre-existing multi-farm data-bleed bug found outside this turn's scope)"},
+  "seed_data_creation": "Temporarily created trial farm 'test-nudge-farm' (owner test_nudge_bbm@example.com) with trialStartedAt back-dated 27 days to surface the day-25 nudge banner, plus a throwaway 'TEST_ No Email Farm' and a simulated paid upgrade payment doc. All deleted (farms, farm_config, silos, shed_groups, feed_program_state/catches, all kind='upgrade' payment_transactions). DB back to the 4 original farms.",
+  "should_call_test_agent_after_fix": true,
+  "should_main_agent_self_test": false,
+  "test_credentials": "farm 'default' token o3JM8FS-wuEDbZE634lWm_5m_GrZx9rq (owner appcovi2026@gmail.com) - from /app/memory/test_credentials.md",
+  "context_for_next_testing_agent": "New tests: /app/backend/tests/test_upgrade_checkout.py (API + regression smoke; auto-cleans its payment docs) and test_provision_upgrade_unit.py (calls server._provision_purchase directly with a fake paid doc and a patched send_email - safe, no Stripe/email side effects). Run with `python -m pytest tests/... -o addopts=\"\"`. NOTE: STRIPE_API_KEY is LIVE - creating sessions is safe, never submit card details. To surface the TrialNudgeBanner: create a trial farm via /api/trial/start then back-date trialStartedAt 27 days in mongo. Correct route prefixes: app-data endpoints live on the /api APIRouter (e.g. /api/feed-program/state, /api/farm-config, /api/farm/trial-status); locked batches is /api/eob/locked-batches. /api/checkout requires originUrl; /api/trial/start requires name+email. The multi-farm localStorage bleed described above will corrupt any farm you open in the same browser session as another farm - use a fresh context per farm.",
+  "rca_of_the_issue": "Multi-farm bleed RCA: the feed-program grid autosaves to localStorage under global keys (feedmate-edits-autosave-v2 etc.) with no farm-slug namespace, while the fetch monkey-patch in dist/public/index.html swaps the ?farm= target the moment a new farm URL is opened. Result: farm A's cached edits are rendered for farm B and then POSTed to /api/feed-program/state?farm=B, overwriting B's (empty) state. Reproduced: opened /?farm=default&t=..., then /?farm=test-nudge-farm&t=... in the same browser; GET /api/feed-program/state?farm=test-nudge-farm grew from 49 bytes to 68KB of default's edits. Mitigation: suffix the localStorage keys with the active farm slug and clear in-memory sheet state on farm change before the autosave effect fires."
+}

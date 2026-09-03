@@ -1,0 +1,36 @@
+{
+  "summary": "Frontend-only verification of this turn's 2 App.tsx changes plus independent confirmation of the 'Feed Program Settings are localStorage-only' finding. (1) bbmFarmScopedCacheGuard VERIFIED: seeded all 13 guarded localStorage keys with DUMMY_FARM_A on /?farm=default&t=..., then navigated to /?farm=north-creek&t=... — all 13 keys were wiped, feedmate-active-farm-slug updated to 'north-creek', no console errors from the guard (only pre-existing 401s on /api/auth/me). (2) Header fallback VERIFIED: with cleared localStorage, farm 'default' header renders 'My Farm — Broiler Base Mate' (no literal 'Double B Farm'); the only remaining 'Double B Farm' strings in the served bundle are two input placeholders. (3) NEW FINDING CONFIRMED — Feed Program Settings (farmName/shedGroups/farmType/theme) are localStorage-ONLY: saving Farm Name 'TEST SYNC CHECK' produced ZERO POST/PATCH/PUT API requests (network captured); header updated locally; after localStorage.clear() + reload of the SAME farm URL the header reverted to 'My Farm' and the Settings Farm Name field was EMPTY, even though the server's farm_config doc for farm 'default' holds farmName='Double B Farm'. So a grower's QR link opened on a second device shows generic farm identity and their Settings do not follow them. Server DB was never touched by the test (verified farm_config.default still 'Double B Farm', 0 docs named TEST SYNC CHECK) so no restore was required. Regression: Archive tab (data-testid=tab-locked-batches-archive) renders 'Locked Batches Archive' with the closed batch + View Report/Resend Email, settings-upgrade-pay-now visible in the Settings drawer, anonymous QR /?farm=default&t=... loads the real app (not /landing).",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "OnboardingNudge ('FIRST 3 THINGS' card)", "issue": "The nudge container intercepts pointer events across the app while shown — Playwright normal clicks on the top tab bar ([data-testid=tab-locked-batches-archive]) and on the Settings drawer 'Save & Close' button both timed out with '<div> intercepts pointer events' until 'Skip tour' was clicked. A real user on desktop may be unable to hit controls under/over that overlay region.", "selector": "text=FIRST 3 THINGS / Skip tour", "priority": "HIGH"},
+      {"component": "Settings drawer", "issue": "Misleading badge: Farm Name (and Total Sheds / Batch Number / Default Silo Unit) are labelled 'Synced with Silo Base Mate' but saving writes to localStorage only — nothing is sent to the server.", "selector": "input[placeholder='e.g. Double B Farm']", "priority": "HIGH"},
+      {"component": "Settings drawer", "issue": "Testability gap: Farm Name input, Total Sheds input and 'Save & Close' / 'Cancel' buttons have no data-testid (had to select by placeholder/text).", "selector": "n/a", "priority": "LOW"}
+    ],
+    "integration_issues": [
+      {"flow": "Feed Program Settings persistence / cross-device farm identity", "issue": "CONFIRMED: saveFarmConfig() (App.tsx ~167) only does localStorage.setItem + a synthetic storage event — no fetch/PATCH. farmConfig state is initialised solely from readFarmConfig() (localStorage); the server value from GET /api/farm-config (farmName, which for 'default' is 'Double B Farm') is only used to auto-dismiss the first-login wizard (line ~9324) and to read logoData (line ~10317), never to hydrate farmName/shedGroups/farmType/theme. Net effect: farm identity, shed-group activation, farm type and theme are per-browser, not per-farm.", "affected_selectors": ["input[placeholder='e.g. Double B Farm']", "header span 'My Farm — Broiler Base Mate'"]},
+      {"flow": "/api/farm-config calls", "issue": "App.tsx lines 9324 and 10317 (and components/EndOfBatchContent.tsx:77) call fetch('/api/farm-config') with NO ?farm= param. Backend defaults farm=DEFAULT_FARM_ID ('default'), so for any non-default farm these calls read/authorise against the WRONG farm — observed 401s on north-creek (anon token) and, for an owner session, would return farm 'default's logo/config. Cross-farm read bug.", "affected_selectors": ["/api/farm-config"]}
+    ],
+    "design_issues": []
+  },
+  "test_report_links": [],
+  "action_items": [
+    "Persist Feed Program Settings server-side: PATCH /api/farm-config?farm=<slug> on saveFarmConfig (farmName, shedGroups/enabledGroupIds, farmType, theme) and hydrate farmConfig from GET /api/farm-config?farm=<slug> on mount (server wins when local cache is empty). Until then remove the 'Synced with Silo Base Mate' badges — they are false.",
+    "Add ?farm=<active slug> to every fetch('/api/farm-config') call (App.tsx 9324, 10317; EndOfBatchContent.tsx 77) — currently they always hit farm 'default'.",
+    "Fix OnboardingNudge overlay so it does not intercept pointer events outside its own card (pointer-events:none on the wrapper, pointer-events:auto on the card).",
+    "Add data-testid to Settings drawer farm-name input, total-sheds input and Save & Close / Cancel buttons."
+  ],
+  "critical_code_review_comments": [
+    "saveFarmConfig() is the single write path for all farm identity/config and is localStorage-only — this is the root cause of the 'different device shows a different farm name' behaviour; it is a data-durability issue too (clearing browser data loses shed-group config).",
+    "The cache guard clears FARM_CONFIG_KEY on farm switch, which is correct for isolation but, combined with no server sync, means switching farms permanently destroys the previous farm's Settings on that browser.",
+    "App.tsx is ~12.7k lines — well past the 700-line guideline; extract farm-config, settings drawer and archive into modules."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "not tested (frontend-only request)", "frontend": "100% of requested verifications executed; 2/2 changes PASS, new finding CONFIRMED, 3/3 regression checks PASS"},
+  "seed_data_creation": "None persisted. Temporarily set localStorage farmName='TEST SYNC CHECK' in the test browser then cleared localStorage; server farm_config for 'default' verified unchanged ('Double B Farm'). No test farms created.",
+  "should_call_test_agent_after_fix": true,
+  "should_main_agent_self_test": false,
+  "test_credentials": "farm 'default' token o3JM8FS-wuEDbZE634lWm_5m_GrZx9rq; farm 'north-creek' token JA-018MvYOhNc8hBnbfJ1DU0dxeaIiQ_ (from mongo farms.farmToken)",
+  "context_for_next_testing_agent": "Served bundle is dist/public/assets/index-BXy3nmu_.js and contains both this turn's changes (grep 'feedmate-active-farm-slug' = 1 hit, 'My Farm' present, 'Double B Farm' only as 2 input placeholders). Dismiss the 'FIRST 3 THINGS' nudge ('Skip tour') before clicking tabs/drawer buttons or clicks are intercepted. Settings drawer save button label = 'Save & Close'.",
+  "rca_of_the_issue": "readFarmConfig()/saveFarmConfig() (App.tsx 151-170) use only localStorage under key 'silo-farm-config'; the backend GET/PATCH /api/farm-config endpoints exist and already store farmName per farm, but the Feed Program never PATCHes them and never reads farmName from them. Therefore the same farm URL opened in a fresh browser/device falls back to the (now-corrected) 'My Farm' placeholder instead of the grower's real configured farm name."
+}

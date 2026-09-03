@@ -95,17 +95,17 @@ Jason Coverdale (Appcovi, 3rd-gen Aussie broiler grower on a Baiada contract) ne
 
 ## Backlog / future
 
-- P1: Flock Forecast "Live Birds" KPI still doesn't deduct Morts-tab-logged mortality (only placement − caught) — same class of bug just fixed in Batch Results, not yet applied there. Found by testing_agent iteration_11, not yet fixed.
-- P1: Catches persistence — localStorage-only catchMap doesn't sync server-side; imported catches lost on new device/browser
-- P1: Add data-testid attributes across Batch Results / Catches / Email-import UI for testability
-- P2: Custom-domain email sender (switch Resend from `onboarding@resend.dev` to `jason@appcovi.com.au` via DNS)
-- P2: Wizard-suppression flag (`feedmate-wizard-done`) is global per-browser, not per-farm-slug — a genuinely new farm started in the same browser as a previously-visited configured farm would never see the wizard. Low real-world impact (most growers only ever have one farm per device) but worth a slug-scoped key if it recurs.
-- P3: Refactor server.py and App.tsx into smaller modules (both are monolithic) — explicitly deferred by Jason until after features are done/tested
-- P3: Multi-worker uvicorn + CDN for 10k+ user scale
-- P3: Live price ticker in Ops builder
-- P3: Day-3 no-login founder alert
-- P3: Carousel video demo — 20-sec docket-scan → silo-update autoplay muted video slide
-- P3: Weekly Playwright screenshot refresh cron
+- P0: Sync remaining Feed Program settings (shedGroups active/inactive, farmType, theme) to the server too — only farmName was fixed this session; shed-tab count/theme are still per-browser/localStorage-only.
+- P1: Flock Forecast "Live Birds" KPI still doesn't deduct Morts-tab-logged mortality (only placement − caught) — same class of bug just fixed in Batch Results, not yet applied there.
+- P1: Catches persistence — localStorage-only catchMap doesn't sync server-side; imported catches lost on new device/browser.
+- P1: Add data-testid attributes across Settings drawer inputs, EOB Bird Summary table, Batch Results / Catches / Email-import UI for testability.
+- P2: Custom-domain email sender (switch Resend from `onboarding@resend.dev` to `jason@appcovi.com.au` via DNS).
+- P3: Refactor server.py and App.tsx into smaller modules (both are monolithic) — explicitly deferred by Jason until after features are done/tested.
+- P3: Multi-worker uvicorn + CDN for 10k+ user scale.
+- P3: Live price ticker in Ops builder.
+- P3: Day-3 no-login founder alert.
+- P3: Carousel video demo — 20-sec docket-scan → silo-update autoplay muted video slide.
+- P3: Weekly Playwright screenshot refresh cron.
 
 ## Recent fixes (Mar 1, 2026)
 
@@ -147,6 +147,24 @@ Jason Coverdale (Appcovi, 3rd-gen Aussie broiler grower on a Baiada contract) ne
 - 🎯 **Onboarding wizard suppressed for already-configured farms** — found by testing_agent: an anonymous QR guest opening an already-running farm on a fresh browser saw the full-screen "Welcome to Broiler Base Mate" 5-step setup wizard, because the wizard's only signal was a localStorage flag (always empty on a fresh browser). Fixed with a mount-time `GET /api/farm-config` check that dismisses the wizard for good if the farm already has `farmName`/`totalSheds`/`enabledGroupIds` on record. The lightweight non-blocking "FIRST 3 THINGS" tour banner still shows (not a bug, wasn't flagged).
 - 🎣 **Whole-farm chart catch tooltip** — finished an in-progress edit: the Growth Curve chart's tooltip had a dead-code branch for showing "−N birds caught" on hover, but no chart series actually fed it data. Added the missing invisible `<Line dataKey="catchBirds" name="Pickup" stroke="none">` series so hovering a pickup day now surfaces the catch info. Code path confirmed present in the built bundle; not visually verified since no seeded farm currently has catch rows recorded.
 - 🔍 **Double B settlement accuracy re-investigated** — re-checked the linear corrected-age formula (`avgAge × 2.45/aveWgt`) against Jason's real Batch 2603 numbers: cFCR formula matches almost exactly (1.415 calculated vs 1.416 actual); corrected age is close but not exact (34.19 calculated vs 34.41 actual, ~0.6% gap) — within plausible rounding tolerance of the reported figures. Confirmed no `sqrt`-based or other inconsistent formula remains anywhere in the app (all corrected-age formulas are now the single linear one). As previously documented, the actual "End of Batch" EOB report reads its numbers from cells the grower fills into the xlsx sheet directly, not from this JS formula — so this residual gap is not an app calculation bug on the primary settlement path.
+
+## Recent fixes (Mar 3, 2026)
+
+- 💳 **Root cause found & fixed — nothing ever showed up in Stripe for BBM.** Jason: "in stripe i have notice for other programs... but i dont see nothing for broilerbase mate." Investigated and found: the landing page's Bronze/Silver/Gold/Platinum pricing buttons AND the in-app trial-nudge "Upgrade Now" banner both only ever opened the free 30-day-trial (no card) signup — never real Stripe checkout. Only the old (now UI-removed) Ops Bundle path touched Stripe. So no BBM customer, including Jason's own test signup, could ever actually pay — by design of the no-card trial, Stripe was never called. Built the missing link:
+  - New `POST /api/farm/upgrade-checkout?farm=<slug>` — real Stripe Checkout (mode=subscription, no trial period, card charged immediately since they already had 30 free days), 409 guard against double-billing an already-active farm, SEC-006 gated.
+  - `_provision_purchase`'s new `kind=="upgrade"` branch flips the SAME existing farm to `subscriptionStatus=active` (never creates a new farm) and auto-emails the owner + admin — fully automated, no manual invoicing.
+  - Wired into a new "💳 Upgrade & Pay Now" button in Settings, and the existing TrialNudgeBanner "Upgrade Now" button (previously just linked to `/landing`).
+  - Verified end-to-end via testing_agent (17/17 pytest): real `cs_live_...` Stripe session returned, correct AUD amount/plan shown on Stripe's hosted page, idempotent provisioning, error handling (401/404/400/409) all correct.
+- 🚨 **Also found & fixed — QR scan-and-go never actually worked for anonymous visitors** (surfaced while investigating the Stripe gap, directly relevant to Jason's "please fix beaufort's QR" ask). Two client-side gates that run before the backend is ever called were both broken:
+  1. `index.html` had an uncommitted, unconditional `/` → `/landing` redirect before React mounts — stripped every `?farm=slug&t=token` QR param. Fixed: only redirects when there's no `?farm=` param.
+  2. `auth-guard.js` (loaded on every page) only checked session-cookie auth and bounced ANY anonymous visitor — including QR/token holders — to `/landing` or OAuth. Fixed: added farm-token detection, skips the bounce for `app`/`reader` pages when a valid token is present.
+  - Every farm's QR code was broken for true anonymous scanning, not just Beaufort's. Verified end-to-end with cleared cookies/localStorage. **Still needs a production Deploy click** before this reaches broilerbasemate.com.au / Beaufort's real QR — cannot deploy from this session.
+- 🗄 **Locked Batches Archive** — finished the partially-built feature: new "🗄 Archive" tab, `LockedBatchesArchiveView.tsx`, view-PDF + resend-email endpoints, all tested.
+- 📉 **Batch Results false 100% mortality fixed** — was computing `placement − caught`, misclassifying every uncaught (still-alive) bird as dead. Now `MAX(real xlsx morts, Morts-tab log, implied-only-when-shed-actually-emptied)`. Likely a real contributor to the earlier "results were wrong" complaint.
+- 🎯 Onboarding wizard no longer shown to QR guests on already-configured farms.
+- 🎣 Whole-farm chart catch-birds tooltip finished (invisible series wired up).
+- 🏷️ **Farm identity not syncing across devices — found & fixed.** Deep-dived a "cross-farm bleed" scare that turned out to be 2 separate real bugs, not data leakage: (1) a hardcoded `?? "Double B Farm"` header fallback that coincidentally matched a real farm's name, masking the real issue; (2) Feed Program's own settings (farm name, shed config) were `saveFarmConfig()`-to-**localStorage-only**, never sent to the server — so the same farm opened on a second device/browser (e.g. Beaufort's friend testing on a different phone) showed a generic "My Farm" instead of the real farm identity. Fixed: `saveFarmConfig()` now also PATCHes `/api/farm-config?farm=<slug>` with the farm name; a dedicated mount-time effect hydrates `farmConfig.farmName` from the server (local wins only once actually set on that device); fixed 4 call sites that were missing `?farm=<slug>` entirely (always silently reading/writing farm "default"); fixed a dead fallback-key typo (`bbm-active-farm` → `bbm-farm-slug`) across 9 call sites. Verified via testing_agent through a full farm-switch repro (default → north-creek → default, all correct) after an initial fix attempt was found incomplete (hydration was gated behind the one-time wizard-dismiss flag).
+- Note: shed-group activation / farm type / theme settings are STILL localStorage-only (only farmName was wired to the server this session) — same-device-only for now, flagged as follow-up below.
 
 ## Test credentials
 - Admin magic link: appcovi2026@gmail.com

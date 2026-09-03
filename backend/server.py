@@ -3401,6 +3401,69 @@ def _ensure_stripe_price(package_id: str) -> str:
     return price.id
 
 
+@app.post("/api/farm/upgrade-checkout")
+async def upgrade_farm_checkout(request: Request, farm: str = Query(default=DEFAULT_FARM_ID)):
+    """Real Stripe checkout for an EXISTING trial farm to convert to paid —
+    Mar 2026, Jason: the landing-page tier buttons + trial-nudge "Upgrade Now"
+    only ever opened the no-card trial signup again, so no customer could
+    ever actually pay; nothing showed up in Stripe. This is the missing link:
+    one click from inside the app → real Stripe Checkout → card charged NOW
+    (no free-trial period here — the grower already had 30 free days) →
+    webhook/status-poll flips this SAME farm to subscriptionStatus=active.
+    """
+    await _require_farm_access(request, farm)   # SEC-006
+    api_key = os.environ.get("STRIPE_API_KEY")
+    if not api_key:
+        raise HTTPException(503, "STRIPE_API_KEY not configured")
+    farm_doc = await farms_col.find_one({"slug": farm})
+    if not farm_doc:
+        raise HTTPException(404, "Farm not found")
+    if farm_doc.get("subscriptionStatus") == "active" and farm_doc.get("stripeSubscriptionId"):
+        raise HTTPException(409, "This farm is already on a paid, active subscription")
+    package_id = farm_doc.get("tier") if farm_doc.get("tier") in _SUB_PRICE_MAP else "bronze_monthly"
+    owner_email = farm_doc.get("ownerEmail")
+    if not owner_email:
+        raise HTTPException(400, "No owner email on file for this farm — can't start checkout")
+
+    import stripe
+    stripe.api_key = api_key
+    price_id = _ensure_stripe_price(package_id)
+    public_url = os.environ.get("APP_PUBLIC_URL", "").rstrip("/")
+    token = farm_doc.get("farmToken", "")
+    _q = f"farm={farm}&t={token}" if token else f"farm={farm}"
+    success_url = f"{(public_url or '')}/?{_q}&upgraded=1"
+    cancel_url = f"{(public_url or '')}/?{_q}"
+
+    meta = {"upgrade_farm_slug": farm, "package_id": package_id, "kind": "upgrade"}
+    session = stripe.checkout.Session.create(
+        mode="subscription",
+        line_items=[{"price": price_id, "quantity": 1}],
+        subscription_data={"metadata": meta},  # no trial_period_days — charged immediately, they already had 30 free days
+        success_url=success_url,
+        cancel_url=cancel_url,
+        metadata=meta,
+        customer_email=owner_email,
+        allow_promotion_codes=True,
+    )
+    await payments_col.insert_one({
+        "id": str(uuid.uuid4()),
+        "session_id": session.id,
+        "package_id": package_id,
+        "amount": PACKAGES[package_id]["amount"],
+        "currency": "aud",
+        "kind": "upgrade",
+        "mode": "subscription",
+        "stripe_price_id": price_id,
+        "email": owner_email,
+        "farm_slug": farm,
+        "provisioned": False,
+        "payment_status": "initiated",
+        "status": "open",
+        "createdAt": datetime.now(timezone.utc),
+    })
+    return {"url": session.url, "session_id": session.id}
+
+
 @app.post("/api/checkout")
 async def create_checkout(body: CheckoutRequest):
     if body.packageId not in PACKAGES:
@@ -3814,6 +3877,57 @@ async def _provision_purchase(session_id: str) -> Optional[dict]:
     buyer_name = cur.get("buyerName") or "there"
     public_url = os.environ.get("APP_PUBLIC_URL", "").rstrip("/")
     created_farms: List[dict] = []
+
+    if kind == "upgrade":
+        # Existing trial farm converting to paid — update the SAME farm,
+        # never create a new one. Mar 2026 fix (see /api/farm/upgrade-checkout).
+        slug = cur.get("farm_slug")
+        sub_id = cur.get("stripe_subscription_id")
+        farm_doc = await farms_col.find_one({"slug": slug}) if slug else None
+        if not farm_doc:
+            return None
+        await farms_col.update_one(
+            {"slug": slug},
+            {"$set": {
+                "subscriptionStatus": "active",
+                "tier": cur.get("package_id"),
+                "stripeSubscriptionId": sub_id,
+                "upgradedAt": datetime.now(timezone.utc),
+            }},
+        )
+        email_result = None
+        if buyer_email:
+            plan_label = PACKAGES.get(cur.get("package_id"), {}).get("label", "your plan")
+            html = f"""
+            <div style="font-family:system-ui,-apple-system,sans-serif;max-width:580px;margin:0 auto;padding:20px;">
+              <h2 style="color:#0f3d24;margin:0 0 10px;">🎉 You're upgraded, {buyer_name}!</h2>
+              <p style="font-size:15px;color:#1a3d24;line-height:1.6;">
+                <b>{farm_doc.get('name', 'Your farm')}</b> is now on the <b>{plan_label}</b> plan — thanks for sticking with Broiler Base Mate.
+                Everything keeps running exactly as it was, no re-setup needed.
+              </p>
+              <p style="text-align:center;margin:28px 0;">
+                <a href="{public_url or ''}/?farm={slug}" style="background:#C9A227;color:#000;text-decoration:none;padding:14px 28px;border-radius:99px;font-weight:900;font-size:15px;display:inline-block;">📊 Open Feed Program</a>
+              </p>
+            </div>
+            """
+            from email_service import send_email
+            email_result = await send_email(to=buyer_email, subject=f"🎉 You're upgraded — {plan_label} is live", html=html)
+        await payments_col.update_one(
+            {"session_id": session_id},
+            {"$set": {"provisionedAt": datetime.now(timezone.utc)}},
+        )
+        admin = os.environ.get("ADMIN_EMAIL")
+        if admin:
+            try:
+                from email_service import send_email
+                await send_email(
+                    to=admin,
+                    subject=f"💰 Trial upgraded to paid: {slug} · {buyer_email} · ${cur.get('amount')}",
+                    html=f"<p>Farm <b>{slug}</b> ({buyer_email}) upgraded to {cur.get('package_id')}. Session: {session_id}</p>",
+                )
+            except Exception:
+                pass
+        return {"upgradedFarm": slug, "emailSent": (email_result or {}).get("ok", False) if email_result else False}
 
     if kind == "ops_bundle" and cur.get("farms"):
         # Multi-farm Ops Pack: create one farm per configured name
