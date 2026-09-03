@@ -1,0 +1,58 @@
+{
+  "summary": "Tested the 4 new features. BACKEND: 13/13 pytest pass (/app/backend/tests/test_trial_and_catches.py) — GET /api/farm/trial-status (401 anon, nulls for non-trial 'default', correct trialing payload for seeded day-26 + day-31 farms, no _id leak, unknown farm) and GET/PUT /api/feed-program/catches (auth guards, PUT->GET round-trip with exact data assertions, replace-not-merge semantics, farm isolation, empty shape for unseeded farm). FRONTEND (real owner session via owner-magic, /feed-program/): (1) SHED TABS FIX PASSES — completed the First Login Wizard choosing 6 sheds: localStorage 'silo-farm-config' now stores the full 15-group FarmShedConfig[] with shedGroupId+active (groups 1-3 active), tabs show exactly ['1 & 2','3 & 4','5 & 6'] and STAY at 3 groups after reload; repeated with 4 sheds -> ['1 & 2','3 & 4'] before and after reload. (2) CATCHES CLOUD SYNC PASSES — seeded a catch server-side, opened the app in a brand-new browser context (empty localStorage) and it hydrated into 'silo-batch-catches' and rendered on Batch Results (SHED 1 -> 4,200 caught); added a catch via [data-testid=catch-add-row-1] and the debounced PUT persisted it within ~2s (verified via GET). (3) TRIAL NUDGE works but has a HIGH overlay bug (see below): soft banner on day-26 farm ('ends in 4 days', Upgrade Now href=/landing), dismiss writes sessionStorage 'bbm-trial-nudge-dismissed-<date>' and stays hidden after reload; strong banner on day-31 farm with NO dismiss button; writes are NOT locked with the strong banner up (cell edit -> PUT /api/feed-program/state 200 + '✓ Auto-saved'); no banner at all on non-trial farm 'default'. (4) BEST/WORST CALLOUT PASSES — 3 seeded locked batches (constructed scores 100/90/80): [data-testid=batch-accuracy-best-worst] shows '🏆 Best: TEST_ACC_A (100%)' + '📉 Needs a look: TEST_ACC_C (80%)', dots are #137847 r=6 (best), #c0392b r=6 (worst), #7b3fc4 r=4 (other), avg badge 90%. Regression smoke on Accuracy / Flock Forecast / Batch Results: renders fine, zero console errors, no 'tonnes' text.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "GET /api/farm/trial-status", "issue": "trialStartedAt/trialExpiresAt are stored as naive datetimes, so .isoformat() emits no timezone ('2026-08-08T05:19:04.203000'). The browser parses that as LOCAL time, so the day-25/day-30 thresholds can flip a day early/late for AEST growers. Emit UTC-aware ISO ('...+00:00'/'Z')."},
+      {"endpoint": "PUT /api/feed-program/catches", "issue": "Full-document replace with no merge and no guard against an empty payload — a client that PUTs {} (see the frontend mount race below) silently wipes the farm's cloud catches. Consider rejecting/ignoring an empty payload when a non-empty doc exists, or version/timestamp checking."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "TrialNudgeBanner", "issue": "HIGH: the fixed auth badge (#bbm-auth-badge with the avatar + Logout link) sits on top of the banner's right side. document.elementFromPoint at the centre of [data-testid=trial-nudge-upgrade-link] returns DIV#bbm-auth-badge and at [data-testid=trial-nudge-dismiss] returns A#bbm-logout, so a normal Playwright/real click times out (blocked). Worse: a click at the ✕ coordinates actually hits Logout — the user gets signed out (observed: session dropped, 401s, redirect to /landing). Fix by reserving right padding on the banner (e.g. padding-right ~180px), raising the banner z-index above the badge, or offsetting #bbm-auth-badge downward while a banner is mounted.", "selector": "[data-testid='trial-nudge-dismiss'], [data-testid='trial-nudge-upgrade-link']", "priority": "HIGH"},
+      {"component": "Catches cloud sync — '+ Add Catch'", "issue": "LOW: '+ Add Catch' inserts a fully blank row {date:'',age:'',birds:'',aveWgt:'',totalWgt:''} which is immediately synced to Mongo, so the cloud copy accumulates empty rows. Consider skipping all-empty rows in the sync payload.", "selector": "[data-testid='catch-add-row-1']", "priority": "LOW"},
+      {"component": "TrialNudgeBanner mount condition", "issue": "LOW: the banner is only rendered when !showWizard, so a brand-new trial grower who still has the First Login Wizard open sees no nudge until it is completed/skipped. Probably intended — flagging for confirmation.", "selector": "[data-testid='trial-nudge-banner-soft']", "priority": "LOW"}
+    ],
+    "integration_issues": [
+      {"flow": "Catches cloud sync — hydrate vs debounced autosave race", "issue": "MEDIUM data-loss risk: the debounced PUT effect has no 'hydrated' guard, so it fires 2s after mount with whatever is in localStorage. On a new phone/browser (empty local maps) the GET normally wins the race and resets the timer (verified working on a fast connection), but if GET /api/feed-program/catches takes >2s or fails, the empty {} is PUT and the farm's cloud catches are wiped — the exact scenario the feature exists to protect. Evidence: every fresh load issues GET then PUT, and empty {} docs were created server-side for farms whose browsers had no local data. Fix: only run the autosave once hydration has resolved (set a ref in .then/.catch) and skip PUTs of empty maps.", "affected_selectors": ["[data-testid='catch-add-row-1']"]}
+    ],
+    "design_issues": [
+      {"screen": "Trial nudge banner (soft + strong)", "issues": ["Colour/contrast and copy read well (white on amber/red gradients); but the right end of the banner is visually clipped by the floating auth badge — 'Upgrade Now' renders as 'Upgra…' at 1920px (see overlay bug above)."]},
+      {"screen": "🎯 Accuracy tab — best/worst callout", "issues": ["No issues: green/red callout line above the chart is legible, dot colouring (green best / red worst / purple others) matches the callout, Finish Age now shows 1 decimal so the iteration_8 '+0.3% on 40d vs 40d' confusion is gone."]}
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_trial_and_catches.py",
+    "/app/test_reports/pytest/trial_catches.xml",
+    "/app/tests/seed_trial_farms.py",
+    "/app/tests/seed_accuracy_batches.py"
+  ],
+  "action_items": [
+    "FIX (HIGH): stop the floating #bbm-auth-badge from covering the trial banner's 'Upgrade Now' link and ✕ dismiss button — right now clicking the ✕ logs the user out.",
+    "FIX (MEDIUM): gate the debounced PUT /api/feed-program/catches on hydration completing (and never PUT empty maps) so a slow first load can't wipe the cloud catches.",
+    "FIX (MINOR): return timezone-aware ISO timestamps from /api/farm/trial-status so the day-25/day-30 thresholds are not shifted by the browser's local timezone.",
+    "FIX (MINOR): don't sync all-blank catch rows created by '+ Add Catch'.",
+    "REBUILD NOTE: /feed-program is served from the prebuilt /app/silo/artifacts/feed-program/dist/public (frontend start.js), NOT a Vite dev server — source edits need a rebuild. I added data-testid=\"shed-tab-<groupId>\" to the shed tab buttons in App.tsx; it will only be usable after the next build.",
+    "HOUSEKEEPING: 6 leftover farms from earlier iterations still have subscriptionStatus='trialing' (trial-test-farm, redirect-test-farm-2, nudge-test-farm, gmail-live-test-farm, diag-farm, iso-test-farm) — they will now show trial banners; delete if they are stale test data."
+  ],
+  "critical_code_review_comments": [
+    "App.tsx ~9789: the catches autosave useEffect runs on mount with no hydration guard — classic 'empty local state overwrites the server' race. catchesHydratedRef only prevents duplicate GETs, it does not block the PUT.",
+    "server.py PUT /api/feed-program/catches replaces the whole document unconditionally; no size/emptiness sanity check and no history/backup, unlike /api/feed-program/state which snapshots into feed_program_state_history before writing. Consider the same safety net for catches.",
+    "TrialNudgeBanner computes dayInTrial from a timestamp the API returns without a timezone — combine with the naive datetime storage and the boundary is ambiguous by up to ~11h (AEST).",
+    "The wizard->FarmShedConfig conversion in App.tsx onComplete is correct and verified (writes all 15 groups with shedGroupId + active flags), so readFarmConfig()'s merge no longer falls back to the 6-group default.",
+    "App.tsx is ~12k lines — long-standing file-size violation; the new sync effects make it harder still to reason about mount-order side effects. Extracting a useCatchesSync() hook would isolate the race described above."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_trial_and_catches.py",
+    "/app/tests/seed_trial_farms.py",
+    "/app/tests/seed_accuracy_batches.py",
+    "/app/silo/artifacts/feed-program/src/App.tsx (added data-testid=\"shed-tab-<groupId>\" to shed tab buttons only — needs a frontend rebuild to take effect)"
+  ],
+  "success_rate": {"backend": "100% (13/13)", "frontend": "90% (4/4 features functional; 1 HIGH overlay bug on the trial banner controls)"},
+  "seed_data_creation": "Temporary Mongo seeds, ALL CLEANED UP: farms 'test-trial-soft' (trialing, day 26) and 'test-trial-expired' (trialing, day 31); eob_snapshots TEST_ACC_A/B/C on farm 'southridge'; a TEST_cloudsync catch in feed_program_catches for 'north-creek'. Also deleted the empty/blank feed_program_catches docs and the feed_program_state(+history) docs the test browser sessions created for the temp farms. Re-seed with /app/tests/seed_trial_farms.py and /app/tests/seed_accuracy_batches.py (both take seed|clean).",
+  "should_call_test_agent_after_fix": true,
+  "should_main_agent_self_test": false,
+  "test_credentials": "owner-magic link from /app/memory/test_credentials.md (appcovi2026@gmail.com) — works, session_token cookie issued.",
+  "context_for_next_testing_agent": "IMPORTANT ENV FACT: /feed-program/ is served from the PREBUILT dist (supervisor frontend -> /app/frontend/start.js -> /app/silo/artifacts/feed-program/dist/public). There is NO hot reload for the feed-program UI — any source change (including data-testid additions) requires a rebuild before the browser sees it. Playwright runs get a FRESH browser profile each time, so the First Login Wizard always appears: click [data-testid='wizard-skip-btn'] then 'Skip tour' before interacting. Note the trial banner is only rendered once the wizard is dismissed. Shed tabs have no data-testid in the current build — count buttons whose text matches '<n> & <n>'. To test the trial banners, seed farms with /app/tests/seed_trial_farms.py seed then open /feed-program/?farm=test-trial-soft (or -expired) and clean up afterwards. Best/worst callout: /app/tests/seed_accuracy_batches.py seed puts 3 batches (scores 100/90/80) on farm 'southridge'. Backend regression suite for these features: /app/backend/tests/test_trial_and_catches.py (self-cleaning).",
+  "rca_of_the_issue": "1) Trial banner controls unclickable: the banner is a normal in-flow element at the top of the document with z-index 40, while the auth badge (#bbm-auth-badge, injected outside the React tree) is position:fixed top-right with a higher stacking priority, so it hit-tests above the banner's right-hand controls; a click at the ✕ coordinates lands on A#bbm-logout and logs the user out. 2) Catches wipe risk: the autosave useEffect is keyed on [catchMap, weighPlanMap] and executes on mount, so the initial (possibly empty) local state is scheduled for a PUT 2s later, independent of whether the hydrating GET has returned. The hydrate path itself is correct (server updatedAt is always later than the client-written feedmate-catches-saved-at, so a fresh browser does re-hydrate), but nothing prevents the empty PUT from landing first on a slow connection."
+}

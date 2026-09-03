@@ -39,6 +39,7 @@ photos_col = db["photos"]
 farm_config_col = db["farm_config"]
 feed_program_state_col = db["feed_program_state"]
 feed_program_state_history_col = db["feed_program_state_history"]
+feed_program_catches_col = db["feed_program_catches"]
 payments_col = db["payment_transactions"]
 farms_col = db["farms"]
 eob_snapshots_col = db["eob_snapshots"]
@@ -2804,6 +2805,30 @@ class FarmConfigBody(BaseModel):
     logoData: Optional[str] = None  # base64 PNG/JPEG, or empty string to reset
 
 
+@api.get("/farm/trial-status")
+async def get_farm_trial_status(request: Request, farm: str = Query(default=DEFAULT_FARM_ID)):
+    """Lightweight trial/subscription status for the day-25/day-30 in-app nudge
+    banners. Mar 2026 — Jason: banner-only, never locks anything; auto-hides
+    once the Stripe webhook marks the farm subscriptionStatus 'active'."""
+    await _require_farm_access(request, farm)   # SEC-006 read isolation
+    doc = await farms_col.find_one({"slug": farm}, {"_id": 0, "subscriptionStatus": 1, "trialStartedAt": 1, "trialExpiresAt": 1})
+    if not doc:
+        return {"subscriptionStatus": None, "trialStartedAt": None, "trialExpiresAt": None}
+    def _iso_utc(dt):
+        # Mongo stores naive UTC datetimes — stamp tzinfo back on before
+        # formatting so the client never mis-parses this as local time.
+        if not dt:
+            return None
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=timezone.utc)
+        return dt.isoformat()
+    return {
+        "subscriptionStatus": doc.get("subscriptionStatus"),
+        "trialStartedAt": _iso_utc(doc.get("trialStartedAt")),
+        "trialExpiresAt": _iso_utc(doc.get("trialExpiresAt")),
+    }
+
+
 @api.get("/farm-config")
 async def get_farm_config(request: Request, farm: str = Query(default=DEFAULT_FARM_ID)):
     await _require_farm_access(request, farm)   # SEC-006 read isolation
@@ -2941,6 +2966,42 @@ async def put_feed_program_state(body: FeedProgramStateBody, request: Request, f
     await feed_program_state_col.update_one(
         {"farmId": farm},
         {"$set": {"edits": body.edits, "sheetNames": body.sheetNames, "updatedAt": now},
+         "$setOnInsert": {"farmId": farm}},
+        upsert=True,
+    )
+    return {"ok": True, "updatedAt": now}
+
+
+# ── Catches cloud sync ────────────────────────────────────────────────────
+# Mar 2026 — Jason: "Save imported pickup catches to the server so they
+# survive a new phone or browser." catchMap/weighPlanMap previously lived in
+# localStorage only (BATCH_CATCHES_KEY / WEIGH_PLAN_KEY) — this mirrors them
+# to Mongo the same way /api/feed-program/state already does for edits.
+class FeedProgramCatchesBody(BaseModel):
+    catchMap: Dict[str, Any] = {}
+    weighPlanMap: Dict[str, Any] = {}
+
+
+@api.get("/feed-program/catches")
+async def get_feed_program_catches(request: Request, farm: str = Query(default=DEFAULT_FARM_ID)):
+    await _require_farm_access(request, farm)   # SEC-006 read isolation
+    doc = await feed_program_catches_col.find_one({"farmId": farm})
+    if not doc:
+        return {"catchMap": {}, "weighPlanMap": {}, "updatedAt": None}
+    return {
+        "catchMap": doc.get("catchMap") or {},
+        "weighPlanMap": doc.get("weighPlanMap") or {},
+        "updatedAt": doc.get("updatedAt"),
+    }
+
+
+@api.put("/feed-program/catches")
+async def put_feed_program_catches(body: FeedProgramCatchesBody, request: Request, farm: str = Query(default=DEFAULT_FARM_ID)):
+    await _require_farm_access(request, farm)   # SEC-001
+    now = datetime.now(timezone.utc).isoformat()
+    await feed_program_catches_col.update_one(
+        {"farmId": farm},
+        {"$set": {"catchMap": body.catchMap, "weighPlanMap": body.weighPlanMap, "updatedAt": now},
          "$setOnInsert": {"farmId": farm}},
         upsert=True,
     )
