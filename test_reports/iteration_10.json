@@ -1,0 +1,47 @@
+{
+  "summary": "Tested the Mar-2026 QR scan-and-go auth fixes (index.html root redirect + auth-guard.js farmToken bypass), the new Locked Batches Archive feature (backend + full E2E UI), SEC-006 farm isolation on the 3 new endpoints, logged-in owner/admin regressions on /, /ops-dashboard, /reader, /admin, and a smoke test of Batch Results / Flock Forecast / Accuracy / Archive tabs. New pytest suite: 17/17 passed. Anonymous QR access now genuinely works end-to-end (verified in a browser with cleared cookies+localStorage) and no isolation leak was found. Two data/UX problems found in areas near the change: Batch Results whole-farm + per-shed KPIs report 100% mortality (morts = placed - caught) while Flock Forecast simultaneously says 527,309 birds live, and the 5-step onboarding wizard + tour is shown to anonymous QR guests on an already-configured farm.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "/api/eob/locked-batches (list)", "issue": "Seeded locked snapshot 380e21fc (batchIdentifier 'end of batch', Double B) has null aveWeight/fcr/cfcr/totalDelivered/totalUsed/netConsumed in its stored report, so the Archive card and the emailed EOB show '—' for every KPI except Total Caught (39,594). Not an endpoint bug, but this is the same data gap behind the 'BroilerBaseMate results were wrong' complaint — the lock-time report payload is being persisted with empty feed/weight aggregates."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "Feed Program — Batch Results tab", "issue": "Whole-farm KPIs show BIRDS CAUGHT '—', TOTAL MORTS 527,309, MORTALITY % 100.00% (and every shed card shows 'MORTS (100.0%)' equal to birds placed) even though the Flock Forecast tab on the same farm shows 527,309 BIRDS LIVE and the locked snapshot has totalMorts=0. Looks like morts is computed as placed - caught with caught empty. Directly contradicts the live-birds figure a grower sees one tab away.", "selector": "text=MORTALITY %", "priority": "HIGH"},
+      {"component": "Onboarding wizard / Farm Buddy tour", "issue": "An anonymous QR guest (?farm=default&t=<token>, fresh browser) is shown the 5-step 'Welcome to Broiler Base Mate' setup wizard modal over an already-configured farm, plus the 3-step 'FIRST 3 THINGS' tour. The modal blocks the whole app until dismissed. Real-world impact: the grower scanning the QR on a new phone thinks their farm isn't set up. Gate the wizard on farm-already-configured (server-side) rather than a localStorage flag.", "selector": "text=Welcome to Broiler Base Mate", "priority": "MEDIUM"},
+      {"component": "Header (mobile 390px)", "issue": "'Double B Farm — Broiler Base Mate' title wraps onto 5 lines and the header action buttons (Sync Silo Base Mate / AUTO / Settings) overflow horizontally off-screen. Pre-existing, not caused by this session.", "selector": "header", "priority": "LOW"}
+    ],
+    "integration_issues": [
+      {"flow": "Anonymous /ops-dashboard and /admin with no session", "issue": "Expectation in the review request was a bounce to Emergent OAuth; observed behaviour is a redirect to /landing (still denied, no data leak, so not a security problem — PROTECTED_PAGE resolves to 'app' for these SPA routes so anonymousBounceUrl() returns /landing). Note: /ops-dashboard?farm=..&t=<validToken> DID correctly bounce to OAuth (token does not bypass ops pages).", "affected_selectors": []},
+      {"flow": "Owner magic link with to=/", "issue": "GET /api/auth/owner-magic?...&to=/ lands the authenticated admin on /landing, because index.html redirects '/' to /landing whenever there is no ?farm= param — the redirect runs before auth-guard/React so a logged-in owner can never enter the app at bare '/'. Works fine at /?farm=default. Consider making the magic link (or the redirect) carry the user's farm slug.", "affected_selectors": []}
+    ],
+    "design_issues": [
+      {"screen": "Locked Batches Archive", "issues": ["Renders cleanly on desktop and 390px mobile; buttons have good contrast. Only cosmetic gap: every KPI except Total Caught shows '—' for the one seeded batch (data issue, see backend minor)."]}
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_locked_batches_archive.py",
+    "/app/test_reports/pytest/pytest_results.xml"
+  ],
+  "action_items": [
+    "Fix Batch Results mortality calculation — 100% mortality / morts == birds placed when no catch rows exist (HIGH, contradicts Flock Forecast 'birds live' and is likely the root of the 'results were wrong' report).",
+    "Investigate why the locked EOB snapshot persists null aveWeight/fcr/cfcr/feed aggregates — the archive card and resent email both show '—'.",
+    "Suppress the onboarding wizard + tour for token-authenticated guests on farms that already have sheds/data.",
+    "Optional: decide intended anonymous bounce target for /ops-dashboard and /admin (currently /landing, review request expected OAuth).",
+    "Optional: owner-magic to=/ should include ?farm=<slug> so a logged-in owner isn't dropped on the marketing page."
+  ],
+  "critical_code_review_comments": [
+    "auth-guard.js SAVED_FARM_TOKEN allows a previously-visited farm to load with no ?t= in the URL, but it is correctly slug-scoped: verified /?farm=southridge with only the 'default' token saved is denied, and an invalid ?t= value bounces to OAuth with no farm data rendered. Behaviour is sound.",
+    "The fetch interceptor's mid-session 401 handler bounces token guests to Google OAuth if their farmToken is ever rotated/typo'd — for a loginless grower this is a dead end. Consider a farm-specific 'link expired, ask your farm owner for a new QR' screen instead of OAuth.",
+    "/api/auth/me returns 401 for token guests and logs a console error on every page load; harmless (interceptor skips /api/auth/*), but worth calling with a silent flag to keep the console clean for error-report noise."
+  ],
+  "updated_files": ["/app/backend/tests/test_locked_batches_archive.py"],
+  "success_rate": {"backend": "100% (17/17 pytest)", "frontend": "90% (all auth-guard + archive flows pass; 2 pre-existing data/UX bugs found)"},
+  "seed_data_creation": "None. Used existing seeded farms/tokens. One real email was sent to appcovi2026@gmail.com by the resend test (expected).",
+  "should_call_test_agent_after_fix": true,
+  "should_main_agent_self_test": false,
+  "test_credentials": "Owner magic link from /app/memory/test_credentials.md (verified working, role=admin). Farm tokens: default=o3JM8FS-..., north-creek=JA-018Mv...",
+  "context_for_next_testing_agent": "VERIFIED PASSING this iteration, do not retest: (1) anonymous /?farm=default&t=<token> loads the real Feed Program (header 'Double B Farm — Broiler Base Mate', shed tabs) with cleared cookies+localStorage; (2) anonymous /reader?farm=north-creek&t=<token> loads the reader; (3) bare '/' still redirects to /landing; (4) fresh-context /reader with no token bounces to OAuth; (5) invalid ?t= bounces to OAuth with no farm data rendered; (6) saved-token is slug-scoped (southridge denied); (7) ?t= does NOT bypass /ops-dashboard; (8) owner/admin session loads /, /ops-dashboard, /reader, /admin fine and the logout badge renders; (9) full Archive tab E2E — card, View Report link href carries farm+t, Resend Email returns '✓ Sent to appcovi2026@gmail.com', mobile 390px layout OK; (10) 17 backend tests in /app/backend/tests/test_locked_batches_archive.py (auth 401s, foreign-token isolation, wrong-farm 404, real %PDF payload, resend ok). NOT VERIFIABLE: the whole-farm growth-curve pickup tooltip ('−N birds caught' / '🎯 Pickup event') — no seeded farm has catch rows or weigh-ins, so no gold catch ReferenceLine renders; the invisible <Line dataKey='catchBirds'> IS present in src/App.tsx (~line 8756) and in the shipped bundle assets/index-DoXoRzOU.js, so code path confirmed present but not visually confirmed. Serving note: the live build is /app/silo/artifacts/feed-program/dist/public (/app/frontend/build does not exist); it already contains the conditional 'has(\"farm\")' root redirect.",
+  "rca_of_the_issue": "QR scan-and-go: both reported root causes are genuinely fixed and live in the served bundle — index.html now only redirects '/' to /landing when ?farm= is absent, and auth-guard.js skips the anonymous bounce when a URL/slug-scoped saved farmToken exists for page 'app' or /reader. Backend _require_farm_access validates the token per-farm with secrets.compare_digest, and cross-farm/invalid-token attempts return 401 (verified). Separate unresolved defect: Batch Results derives morts as birds-placed minus birds-caught, so a batch with no catch rows displays 100% mortality and TOTAL MORTS equal to the whole flock, while Flock Forecast reads live birds from a different source — hence contradictory KPIs and the 'results were wrong' perception."
+}

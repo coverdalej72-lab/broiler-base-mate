@@ -24,6 +24,22 @@
     try { return new URLSearchParams(window.location.search).get("farm") || "default"; }
     catch { return "default"; }
   })();
+  // SEC-006 scan-and-go: a valid ?t=<farmToken> in the URL (or saved from an
+  // earlier visit to this same farm) means the grower doesn't need a login
+  // session at all — the backend validates the token on every /api/* call.
+  // Without this, every QR/link visitor with no session cookie was being
+  // bounced to /landing (or OAuth) before the page ever got a chance to use
+  // their token — silently breaking every farm's QR code. Fixed Mar 2026.
+  const URL_FARM_TOKEN = (function () {
+    try { return new URLSearchParams(window.location.search).get("t") || ""; }
+    catch { return ""; }
+  })();
+  const SAVED_FARM_TOKEN = (function () {
+    try {
+      return (localStorage.getItem("bbm-farm-slug") === FARM_SLUG && localStorage.getItem("bbm-farm-token")) || "";
+    } catch { return ""; }
+  })();
+  const HAS_FARM_TOKEN = !!(URL_FARM_TOKEN || SAVED_FARM_TOKEN);
 
   function emergentLoginUrl() {
     // REMINDER: DO NOT HARDCODE THE URL, OR ADD ANY FALLBACKS OR REDIRECT URLS, THIS BREAKS THE AUTH
@@ -161,7 +177,16 @@
     // 2) Check existing session
     let info;
     try { info = await fetchMe(); } catch (e) { info = null; }
-    if (!info) { return bounceTo(anonymousBounceUrl()); }
+    if (!info) {
+      // Anonymous but holding a valid farm QR/link token — let the page load
+      // as a guest. The SPA's own fetch interceptor (index.html) attaches
+      // ?t=<token> to every /api/* call, which the backend validates per-farm.
+      if (HAS_FARM_TOKEN && (PROTECTED_PAGE === "app" || IS_READER_URL)) {
+        document.dispatchEvent(new CustomEvent("bbm-auth-ready", { detail: null }));
+        return;
+      }
+      return bounceTo(anonymousBounceUrl());
+    }
 
     // 3) Enforce role-based access (may bounce)
     enforceAccess(info);

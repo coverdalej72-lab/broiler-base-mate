@@ -751,14 +751,26 @@ async def list_locked_batches(request: Request, farm: str = Query(default=DEFAUL
     await _require_farm_access(request, farm)   # SEC-006 read isolation
     """Return metadata for closed batches on this farm. Excludes html/pdf/report
     blobs so the response stays small — client only needs to know which batches
-    are locked (to hide the End Batch button + show the badge).
+    are locked (to hide the End Batch button + show the badge), plus a small
+    safe `kpis` subset for the "Locked Batches Archive" list view (Mar 2026).
     SEC-001: also excludes `lockedBy` (owner email) to prevent PII disclosure
     from the loginless reader endpoint."""
     cursor = eob_snapshots_col.find(
         {"farmId": farm},
-        {"_id": 0, "html": 0, "pdfBase64": 0, "report": 0, "fingerprint": 0, "lockedBy": 0, "email": 0},
+        {"_id": 0, "html": 0, "pdfBase64": 0, "lockedBy": 0, "email": 0},
     ).sort("lockedAt", -1).limit(200)
-    return [doc async for doc in cursor]
+    out = []
+    async for doc in cursor:
+        report = doc.pop("report", None) or {}
+        doc.pop("fingerprint", None)
+        doc["kpis"] = {
+            "aveWeight": report.get("aveWeight"),
+            "fcr": report.get("fcr"),
+            "cfcr": report.get("cfcr"),
+            "totalCaught": report.get("totalCaught"),
+        }
+        out.append(doc)
+    return out
 
 
 @app.get("/api/eob/locked-batches/{snap_id}")
@@ -774,6 +786,59 @@ async def get_locked_batch(snap_id: str, request: Request, farm: str = Query(def
     if not doc:
         raise HTTPException(404, "Snapshot not found")
     return doc
+
+
+@app.get("/api/eob/locked-batches/{snap_id}/pdf")
+async def get_locked_batch_pdf(snap_id: str, request: Request, farm: str = Query(default=DEFAULT_FARM_ID)):
+    """Serve the archived PDF (or HTML fallback if PDF render failed at lock
+    time) for the "Locked Batches Archive" view/download button. Mar 2026."""
+    await _require_farm_access(request, farm)   # SEC-006 read isolation
+    doc = await eob_snapshots_col.find_one(
+        {"id": snap_id, "farmId": farm},
+        {"_id": 0, "pdfBase64": 1, "html": 1, "batchIdentifier": 1},
+    )
+    if not doc:
+        raise HTTPException(404, "Snapshot not found")
+    slug = "".join(c if c.isalnum() else "-" for c in (doc.get("batchIdentifier") or "batch"))
+    if doc.get("pdfBase64"):
+        import base64 as _b64
+        pdf_bytes = _b64.b64decode(doc["pdfBase64"])
+        return Response(content=pdf_bytes, media_type="application/pdf",
+                         headers={"Content-Disposition": f'inline; filename="EOB-{slug}.pdf"'})
+    if doc.get("html"):
+        return Response(content=doc["html"], media_type="text/html")
+    raise HTTPException(404, "No PDF or HTML on record for this batch")
+
+
+class ResendEobRequest(BaseModel):
+    to: Optional[str] = None  # defaults to the batch owner's email on record
+
+
+@app.post("/api/eob/locked-batches/{snap_id}/resend")
+async def resend_locked_batch_email(snap_id: str, req: ResendEobRequest, request: Request, farm: str = Query(default=DEFAULT_FARM_ID)):
+    """Re-send the ALREADY-rendered EOB report (no regeneration) for a locked
+    batch — "Locked Batches Archive" resend-email button. Mar 2026."""
+    await _require_farm_access(request, farm)   # SEC-006
+    doc = await eob_snapshots_col.find_one({"id": snap_id, "farmId": farm}, {"_id": 0})
+    if not doc:
+        raise HTTPException(404, "Snapshot not found")
+    to_addr = (req.to or doc.get("lockedBy") or "").strip()
+    if not to_addr or "@" not in to_addr:
+        raise HTTPException(400, "No valid recipient email on record — pass one explicitly")
+    from email_service import send_email
+    pdf_attachment = None
+    if doc.get("pdfBase64"):
+        slug = "".join(c if c.isalnum() else "-" for c in (doc.get("batchIdentifier") or "batch"))
+        pdf_attachment = {"filename": f"EOB-{slug}.pdf", "content": doc["pdfBase64"]}
+    result = await send_email(
+        to=to_addr,
+        subject=f"🏁 Batch Closed — {doc.get('batchIdentifier')} (resend)",
+        html=doc.get("html") or "<p>No report content on record for this batch.</p>",
+        attachments=[pdf_attachment] if pdf_attachment else None,
+    )
+    if not result.get("ok"):
+        raise HTTPException(500, f"Could not resend email: {result.get('error') or result.get('reason')}")
+    return {"ok": True, "sentTo": to_addr}
 
 
 @app.get("/api/eob/batch-accuracy")
