@@ -96,6 +96,8 @@ Jason Coverdale (Appcovi, 3rd-gen Aussie broiler grower on a Baiada contract) ne
 ## Backlog / future
 
 - P0 (recurring): Shed Tabs UI Mismatch — Feed Program renders default 6 groups instead of user's configured count
+- P1: Catches persistence — localStorage-only catchMap doesn't sync server-side; imported catches lost on new device/browser
+- P1: Add data-testid attributes across Batch Results / Catches / Email-import UI for testability
 - P1: Track AI prediction accuracy — log predicted vs actual EOB when a batch closes
 - P1: Trial-end conversion flow (day-25 email + day-30 read-only soft-lock)
 - P2: Custom-domain email sender (switch Resend from `onboarding@resend.dev` to `jason@appcovi.com.au` via DNS)
@@ -105,6 +107,11 @@ Jason Coverdale (Appcovi, 3rd-gen Aussie broiler grower on a Baiada contract) ne
 - P3: Day-3 no-login founder alert
 - P3: Carousel video demo — 20-sec docket-scan → silo-update autoplay muted video slide
 - P3: Weekly Playwright screenshot refresh cron
+
+## Recent fixes (Mar 1, 2026)
+
+- **Catches "Total Wgt" tonnes→kg unit fix** — Jason: pasted Baiada weighbridge email (GROWER/SHED#/AGE/BIRD#/ESTIMATE/ACTUAL/TOTAL KG, e.g. 35451 kg) and the app showed it as "35.45 t" instead of kg. Root cause: `EditableCatch.totalWgt` was stored internally in TONNES while several consumers (cFCR calc, Pickup Timeline card) already assumed kg — a real calculation bug, not just display. Standardized `totalWgt` to KILOGRAMS everywhere in `/app/silo/artifacts/feed-program/src/App.tsx`: email-paste parser, `parseCatches()`, per-row + shed TOTAL row display, Farm Buddy weighbridge-math audit, Pickup Timeline card, and xlsx-seeded catchMap/weighPlanMap (2 spots found by testing_agent code review, fixed same session). All "t" labels → "kg". Verified via testing_agent: parse preview, import, per-row/TOTAL rows, summary card, Pickup Timeline, manual edit, Farm Buddy audit all correct; 0 console errors.
+- **Known residual issues (not fixed, logged for backlog)**: (1) `catchMap` is localStorage-only, not synced to `/api/feed-program/state` — imported catches don't survive a fresh browser session/device. (2) Batch Results / Catches UI has almost no `data-testid` attributes, hurting testability.
 
 ## Recent fixes (Feb 28, 2026)
 

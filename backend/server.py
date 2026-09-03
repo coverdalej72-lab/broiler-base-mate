@@ -69,6 +69,10 @@ def _and(*filters: dict) -> dict:
 # ─── App ───────────────────────────────────────────────────────────────────
 app = FastAPI(title="Broiler Base Mate API")
 
+@app.get("/health")
+async def _root_health():
+    return {"status": "ok"}
+
 # CORS: explicit origins (not "*") because we use credential cookies. Add both
 # preview and production hosts plus localhost for dev.
 def _cors_origins() -> list[str]:
