@@ -1,0 +1,31 @@
+{
+  "summary": "Frontend-only focused verification of this turn's 2 mortality-calculation fixes on the live app (/?farm=default&t=<token>, Double B Farm, Batch #120). FIX 1 (App.tsx EobInfoPanel header strip) PASS: with 527,309 placed / 0 caught the MORTALITY pill shows '—' (not 527,309) and BALANCE correctly shows 527,309; when a real Morts-tab log entry (100 on S1/Mon) was added, the pill correctly switched to 100 and BALANCE to 527,209, and the Bird Summary row 1 showed −100 — so the MAX(logged, implied) branch works both ways. FIX 2 (EndOfBatchContent.getMortsForRow + App.tsx BatchResultsView shedStats, 90%→80%) PASS incl. boundary: simulated catches via PUT /api/feed-program/catches — Shed 6 caught 35,150/39,200 = 89.67% -> EOB Morts −4,050, Batch Results MORTALITY 10.33% (exactly Jason's real numbers); Shed 7 at 81.0% -> Morts −8,949 / 19.00%; Shed 8 at 79.0% -> Morts '—' (no fake mortality); Shed 5 at 50.0% -> Morts '—'. Critical regression (fake ~100%/50% mortality on in-progress sheds) did NOT reappear. Light regression smoke all PASS: Archive tab (locked 'end of batch' batch with View Report / Resend Email), Settings drawer (Upgrade & Pay Now visible, farm name synced as 'Double B Farm'), Install App fallback modal ('Install as a desktop app' + Got it), Morts tab grid, anonymous token access. All simulated data was rolled back (server catchMap restored to {}, morts log entry deleted and verified gone).",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "App.tsx EobInfoPanel (End of Batch header strip)", "issue": "POSSIBLE 4th location of the same bug class (aggregate form): the 80% implied-mortality threshold is applied to FARM TOTALS (liveCaught >= livePlaced*0.8) instead of per shed. With Shed 6 fully caught out at 89.67% (implied 4,050 morts) the Bird Summary table below showed '−4,050 morts' and Batch Results showed 'TOTAL MORTS 4,050 / 0.77%', while the header MORTALITY pill on the same screen still read '—' and BALANCE ignored the 4,050. Recommend EobInfoPanel sum the per-shed implied morts (same shedStats logic) rather than a farm-total threshold.", "selector": "End of Batch header MORTALITY / BALANCE pills", "priority": "MEDIUM"},
+      {"component": "App.tsx EobInfoPanel BIRDS CAUGHT pill", "issue": "Header 'BIRDS CAUGHT' excludes the xlsx-seeded catches that ARE displayed per shed in the Bird Summary table (sheds 9/10/11 = 39,594). Baseline: header shows '—' while the table header says '39,594 caught'; with simulated catches header showed 55,200 vs table TOTAL 94,794. Same-screen contradiction (pre-existing, caused by EobInfoPanel using catchMap only + the placement-date filter).", "selector": "BIRDS CAUGHT pill vs Bird Summary TOTAL row", "priority": "MEDIUM"}
+    ],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [],
+  "action_items": [
+    "EobInfoPanel: compute Mortality (and Balance) from per-shed implied morts instead of a farm-total >=80% threshold, so a fully-caught-out shed's derived morts appear in the header strip like they do in the Bird Summary / Batch Results tables.",
+    "EobInfoPanel BIRDS CAUGHT: include the same catch sources the Bird Summary table uses (xlsx col 23 / getCatchedForRow) so header and table agree.",
+    "Cosmetic: components/EndOfBatchContent.tsx doc comment at ~lines 640-649 still says 'catches >=90% of placement' while the code (and the inner comment) now uses 80% — update the stale comment."
+  ],
+  "critical_code_review_comments": [
+    "No 4th independent unguarded 'placed - caught' mortality calc found: App.tsx:3539 (onEobMorts seed) is guarded by an explicit isFinal red-catch flag, and App.tsx:8267 computes live birds remaining (not mortality) — both correct. The only remaining exposure is EobInfoPanel's farm-total (rather than per-shed) 80% threshold.",
+    "Threshold 0.8 is duplicated as a magic number in 3 files/locations — extract a shared helper (e.g. impliedMorts(placed, caught, hasFinalCatch)) so the next threshold change can't drift between the EOB tab, Batch Results and the header strip.",
+    "App.tsx is ~736KB / far over the 700-line guidance; the mortality reconciliation logic in particular should move to a shared module imported by all three consumers."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "n/a (frontend-only request)", "frontend": "100% on the 2 fixes under test (6/6 threshold scenarios + logged-morts branch); 5/5 regression smoke checks passed"},
+  "seed_data_creation": "Temporarily PUT simulated catchMap to /api/feed-program/catches for farm 'default' (sheds 5/6 then 7/8) and entered one morts value (100, S1/31 Aug). ALL rolled back: GET /api/feed-program/catches now returns {} and the morts grid is empty again. No permanent changes to Double B data.",
+  "should_call_test_agent_after_fix": false,
+  "should_main_agent_self_test": true,
+  "test_credentials": "farm 'default' anonymous QR token: /?farm=default&t=o3JM8FS-wuEDbZE634lWm_5m_GrZx9rq (note: param is &t=, not &token= — &token= falls through to the marketing landing page)",
+  "context_for_next_testing_agent": "Served bundle = /app/silo/artifacts/feed-program/dist/public/assets/index-DX5b4diQ.js (contains all three '*0.8' thresholds; build is current with src). Use &t=<token> (not &token=) or you land on the landing page. Dismiss 'Skip tour' first. localStorage 'silo-batch-catches' is overwritten on load by GET /api/feed-program/catches, so to simulate catches you MUST PUT to /api/feed-program/catches?farm=<slug>&t=<token> and reload (and restore {} afterwards). Morts grid cells: click page.locator('#pm-morts-table tbody tr').first.locator('td').nth(1).locator('div > div').first to open the numeric input (coordinate clicks do not work). Only console errors seen are pre-existing 401s on /api/auth/me under anonymous token access.",
+  "rca_of_the_issue": "Both fixes behave as designed. Residual gap: the implied-mortality guard in EobInfoPanel is evaluated against farm-wide totals, so per-shed derived mortality (the exact case Jason reported for Shed 6) never reaches the header MORTALITY/BALANCE pills until the whole farm is >=80% caught, producing a header-vs-table contradiction on the End of Batch screen."
+}
