@@ -1,0 +1,32 @@
+{
+  "summary": "Frontend-only regression on the History+Archive merge and Start-New-Batch reset in BBM. All 5 requested items verified against the preview deployment as the owner (farm=default, farm=north-creek). No blocking issues found.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [
+      {
+        "flow": "History → Locked Batches Archive → 'View Report'",
+        "issue": "Clicking archive-view-pdf-<id> does not open a new browser tab within 10s. The DOM click is registered (no console error), so the PDF is likely served via same-tab navigation, blob download, or a suppressed popup. Cosmetic/UX only — Resend Email works and returns '✓ Sent to appcovi2026@gmail.com'. Please confirm intended UX (new tab vs same tab vs download).",
+        "affected_selectors": ["[data-testid^='archive-view-pdf-']"]
+      }
+    ],
+    "design_issues": []
+  },
+  "test_report_links": [],
+  "action_items": [
+    "Confirm intended behaviour of archive 'View Report' button (open PDF in new tab vs download vs inline). Currently no new tab observed within 10s of click; button click fires without error but user-visible affordance is minimal."
+  ],
+  "critical_code_review_comments": [
+    "/app/silo/artifacts/feed-program/src/App.tsx is 12,990 lines — well over the recommended 700-line ceiling. This will keep amplifying regression risk (e.g. the 'setWeighIns is not defined' bug that motivated this task). Recommend splitting HistoryView, SettingsPanel, LockedBatchesArchive wiring, and reset flow into their own modules.",
+    "Reset flow: resetForNewBatch() (line 10871) uses window.confirm() which is not test-friendly and cannot be styled. Consider a Radix/shadcn dialog with data-testid so the flow is easier to automate and matches the rest of the UI.",
+    "History empty state ('No Batch History Yet') is preserved AND the Locked Batches Archive renders below it — good. However, when both are present the visual hierarchy is a bit odd: empty-state illustration first, then real data. Consider swapping order (archive first, empty-state as a below-the-fold hint) once the app has real closed batches."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "n/a (not tested per request)", "frontend": "100% (5/5 items verified)"},
+  "test_credentials": "Owner magic link (from /app/memory/test_credentials.md) → farm=default and farm=north-creek, both confirmed loading as owner appcovi2026@gmail.com.",
+  "seed_data_creation": "Temporarily seeded localStorage keys 'feedmate-flock-weighins' and 'silo-weigh-plan' in-browser only for the reset test; both were then cleared by the reset flow itself. No backend/DB seed data created. No test batches or farms left behind.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "History tab now hosts the Locked Batches Archive (component LockedBatchesArchiveView, data-testid='locked-batches-archive-view'). The old standalone '🗄 Archive' tab (data-testid='tab-locked-batches-archive') has been fully removed. The Start-New-Batch button lives inside the ⚙ Settings side panel behind a 🔒 Locked/🔓 Unlocked toggle; the button label is '↺ New Batch' (i18n key 'newBatchBtn'), NOT 'Start New Batch'. Once clicked (and window.confirm accepted), it clears localStorage keys 'feedmate-flock-weighins' and 'silo-weigh-plan' and re-seeds the spreadsheet to a blank state. No 'setWeighIns is not defined' error reproduced. Farm-switch header sync (default ↔ north-creek) verified working. Only unresolved observation: archive-view-pdf-<id> does not open a new tab within 10s — likely intended as same-tab/download but worth confirming.",
+  "rca of the issue": "n/a — no regressions found in this iteration. Previous 'setWeighIns is not defined' RCA (per prior handover): the reset flow referenced setWeighIns from a component scope that didn't own that state; fix removed the direct setter call and now relies on the storage event listener (line 5726-5727) to refresh weighIns after removeItem. Confirmed no longer reproduces."
+}
