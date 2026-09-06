@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="en-AU">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Understanding Your Broiler Grower Payment &amp; Settlement | Broiler Base Mate</title>
+<meta name="description" content="A plain-English walkthrough of the broiler chicken grower payment / settlement formula used by Ingham's, Baiada and BPL Adelaide — efficiency rating, cage rating and payment factor explained." />
+<meta name="keywords" content="broiler grower payment explained, chicken grower settlement formula, broiler contract payment calculation, efficiency rating explained, cage rating broiler, Ingham's grower payment, Baiada grower payment, BPL Adelaide settlement" />
+<meta name="robots" content="index, follow, max-image-preview:large" />
+<link rel="canonical" href="https://broilerbasemate.com.au/guides/broiler-grower-payment-explained" />
+<meta property="og:type" content="article" />
+<meta property="og:title" content="Understanding Your Broiler Grower Payment & Settlement" />
+<meta property="og:description" content="A plain-English walkthrough of the broiler chicken grower payment / settlement formula." />
+<meta property="og:url" content="https://broilerbasemate.com.au/guides/broiler-grower-payment-explained" />
+<meta property="og:site_name" content="Broiler Base Mate" />
+<meta property="og:locale" content="en_AU" />
+<link rel="icon" href="/reader-assets/favicon.png" />
+<meta name="theme-color" content="#0f1a2f" />
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "Article",
+      "@id": "https://broilerbasemate.com.au/guides/broiler-grower-payment-explained#article",
+      "headline": "Understanding Your Broiler Grower Payment & Settlement",
+      "description": "A plain-English walkthrough of the broiler chicken grower payment / settlement formula.",
+      "author": { "@id": "https://broilerbasemate.com.au/#organization" },
+      "publisher": { "@id": "https://broilerbasemate.com.au/#organization" },
+      "datePublished": "2026-03-06",
+      "mainEntityOfPage": "https://broilerbasemate.com.au/guides/broiler-grower-payment-explained",
+      "about": { "@id": "https://broilerbasemate.com.au/#software" }
+    },
+    {
+      "@type": "FAQPage",
+      "mainEntity": [
+        { "@type": "Question", "name": "What determines a broiler grower's payment?",
+          "acceptedAnswer": { "@type": "Answer", "text": "Most Australian contracts pay a base rate per kilogram, adjusted up or down by an efficiency rating derived from your corrected FCR and cage (turnaround) rating." } },
+        { "@type": "Question", "name": "What is cage rating?",
+          "acceptedAnswer": { "@type": "Answer", "text": "Cage rating measures how quickly you turned the batch around relative to a reference age — calculated as 39.5 divided by corrected batch age in days. A faster turnaround (lower age) gives a higher cage rating." } },
+        { "@type": "Question", "name": "Why does my payment differ from a simple weight × price calculation?",
+          "acceptedAnswer": { "@type": "Answer", "text": "Because efficiency rating (built from cFCR and cage rating) scales the base payment up or down — two growers delivering the same total weight can be paid differently based on how efficiently they got there." } }
+      ]
+    }
+  ]
+}
+</script>
+
+<style>
+  :root { --navy:#0f1a2f; --navy-2:#1e2f4d; --gold:#C9A227; --gold-hi:#e6d68e; --paper:#f7f9fc; --line:#dce3ee; --text:#1e2f4d; --muted:#5a6a86; }
+  * { box-sizing: border-box; }
+  html { scroll-behavior:smooth; }
+  body { margin:0; font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",Roboto,sans-serif; color:var(--text); background:var(--paper); -webkit-font-smoothing:antialiased; }
+  a { color:#0e6bc0; }
+  header.hero { background:linear-gradient(135deg,var(--navy-2) 0%,var(--navy) 100%); color:#fff; padding:64px 20px 48px; border-bottom:3px solid var(--gold); }
+  .wrap { max-width:940px; margin:0 auto; padding:0 20px; }
+  .brand-row { display:flex; align-items:center; gap:10px; margin-bottom:22px; }
+  .brand-row img { width:36px; height:36px; border-radius:8px; }
+  .brand-row a { color:var(--gold); text-decoration:none; font-weight:800; letter-spacing:2px; font-size:11px; text-transform:uppercase; }
+  .kicker { color:var(--gold); font-size:11px; letter-spacing:3px; font-weight:800; text-transform:uppercase; margin-bottom:8px; }
+  h1 { font-size:36px; font-weight:900; margin:0 0 12px; letter-spacing:-0.6px; line-height:1.15; }
+  header.hero p { color:#bdd3ee; font-size:16px; margin:0; max-width:680px; line-height:1.55; }
+  main { padding:40px 0 60px; }
+  section { background:#fff; border:1px solid var(--line); border-radius:14px; padding:24px; margin-bottom:22px; box-shadow:0 4px 14px -8px rgba(15,26,47,0.15); }
+  h2 { color:var(--navy); font-size:22px; font-weight:900; margin:0 0 14px; letter-spacing:-0.3px; padding-bottom:8px; border-bottom:2px solid var(--gold); }
+  h3 { color:var(--navy); font-size:16px; font-weight:800; margin:20px 0 8px; }
+  p { line-height:1.65; }
+  @media (max-width:640px) { h1 { font-size:28px; } }
+  .cta-band { background:linear-gradient(135deg,#0f1a2f,#1e2f4d); color:#fff; border-radius:14px; padding:28px 24px; margin-top:26px; text-align:center; border:2px solid var(--gold); }
+  .cta-band h3 { color:var(--gold); margin:0 0 8px; font-size:12px; letter-spacing:2px; text-transform:uppercase; }
+  .cta-band p { color:#e2ecf9; margin:0 0 18px; font-size:15px; line-height:1.5; }
+  .cta-band .btn { display:inline-block; background:var(--gold); color:var(--navy); text-decoration:none; font-weight:900; padding:13px 26px; border-radius:99px; font-size:14px; letter-spacing:0.4px; box-shadow:0 6px 18px rgba(201,162,39,0.35); }
+  footer { text-align:center; padding:24px 0 40px; color:var(--muted); font-size:12px; }
+  footer a { color:var(--navy); }
+</style>
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap">
+    <div class="brand-row">
+      <img src="/reader-assets/company-logo.png" alt="Appcovi logo" />
+      <a href="/">Appcovi · Broiler Base Mate</a>
+    </div>
+    <div class="kicker">Grower guide</div>
+    <h1>Understanding Your Broiler Grower Payment &amp; Settlement</h1>
+    <p>Grower payment on most Australian <strong>broiler chicken</strong> contracts isn't just weight × price — it's scaled by how efficiently you grew the batch. Here's the formula in plain English.</p>
+  </div>
+</header>
+
+<main class="wrap">
+
+  <section>
+    <h2>The building blocks</h2>
+    <h3>1. Corrected FCR (cFCR)</h3>
+    <p><strong>cFCR = FCR − (average bird weight in kg − 2.45) × 0.27</strong> — this normalises your feed conversion to a common 2.45 kg reference weight so batches of different average weights can be compared fairly.</p>
+    <h3>2. Cage rating</h3>
+    <p><strong>Cage rating = 39.5 ÷ corrected batch age (days)</strong> — this rewards a faster turnaround. A lower corrected age gives a higher cage rating.</p>
+    <h3>3. Efficiency rating</h3>
+    <p><strong>Efficiency rating = ((1.78 ÷ cFCR) × 0.7) + (cage rating × 0.3)</strong> — this combines feed efficiency (70% weight) and turnaround speed (30% weight) into one number.</p>
+  </section>
+
+  <section>
+    <h2>How efficiency rating scales your payment</h2>
+    <p>Your settlement payment is typically the base rate per kilogram, multiplied by your efficiency rating. An efficiency rating around 1.00 means you're paid the standard base rate; above 1.00 means a bonus for above-average efficiency; below 1.00 means a reduction. This is why two growers delivering the exact same total kilograms can walk away with different payments — the one with the better cFCR and turnaround gets paid more per kilo.</p>
+  </section>
+
+  <section>
+    <h2>Why your own number matters before settlement</h2>
+    <p>Settlement figures are calculated by the integrator weeks after catch — by then it's too late to change anything about that batch. Knowing your live FCR, cFCR and projected efficiency rating <em>during</em> the batch means you can act on a problem (feed waste, water issues, temperature stress) while it's still fixable, instead of finding out at settlement.</p>
+  </section>
+
+  <section>
+    <h2>FAQ</h2>
+    <h3>What determines a broiler grower's payment?</h3>
+    <p>Most Australian contracts pay a base rate per kilogram, adjusted up or down by an efficiency rating derived from your corrected FCR and cage (turnaround) rating.</p>
+    <h3>What is cage rating?</h3>
+    <p>Cage rating measures how quickly you turned the batch around relative to a reference age — calculated as 39.5 ÷ corrected batch age in days. A faster turnaround gives a higher cage rating.</p>
+    <h3>Why does my payment differ from a simple weight × price calculation?</h3>
+    <p>Because efficiency rating (built from cFCR and cage rating) scales the base payment up or down — two growers delivering the same total weight can be paid differently based on how efficiently they got there.</p>
+  </section>
+
+  <div class="cta-band">
+    <h3>Know your efficiency rating before settlement day</h3>
+    <p>Broiler Base Mate calculates live FCR, cFCR, cage rating and efficiency rating from your daily numbers — so settlement day never brings a surprise.</p>
+    <a class="btn" href="/#plans" data-testid="grower-payment-guide-cta">Start Free 30-Day Trial →</a>
+  </div>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    <p>© 2026 Appcovi · Broiler Base Mate ·
+      <a href="/">Home</a> · <a href="/tools/grower-payment-calculator">Grower Payment Calculator</a> · <a href="/tools/fcr-calculator">FCR Calculator</a>
+    </p>
+  </div>
+</footer>
+
+</body>
+</html>

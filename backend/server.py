@@ -4826,6 +4826,12 @@ async def api_page(page_name: str):
         "ross-308-growth-chart": "ross-308-growth-chart.html",
         "cobb-500-growth-chart": "cobb-500-growth-chart.html",
         "vs/poultrylog": "vs-poultrylog.html",
+        "guides/broiler-chicken-growth-stages": "guide-broiler-growth-stages.html",
+        "guides/lower-broiler-fcr": "guide-lower-broiler-fcr.html",
+        "guides/broiler-chicken-mortality-rates": "guide-broiler-mortality-rates.html",
+        "guides/chicken-shed-silo-management": "guide-chicken-shed-silo-management.html",
+        "guides/ross-308-vs-cobb-500": "guide-ross-308-vs-cobb-500.html",
+        "guides/broiler-grower-payment-explained": "guide-broiler-grower-payment.html",
     }
     if page_name not in allowed:
         raise HTTPException(404, "Page not found")
@@ -4838,7 +4844,7 @@ async def api_page(page_name: str):
     html = html.replace("/reader-assets/", "/api/static-asset/")
     # SEO: allow crawlers + browsers to cache marketing pages for 5 minutes.
     # Ops/reader/admin stay uncached (auth-guarded, user-specific).
-    is_public = page_name in ("landing", "landing/success", "onboarding-guide", "tools/fcr-calculator", "tools/grower-payment-calculator", "tools/silo-capacity-calculator", "ross-308-growth-chart", "cobb-500-growth-chart", "vs/poultrylog")
+    is_public = page_name in ("landing", "landing/success", "onboarding-guide", "tools/fcr-calculator", "tools/grower-payment-calculator", "tools/silo-capacity-calculator", "ross-308-growth-chart", "cobb-500-growth-chart", "vs/poultrylog", "guides/broiler-chicken-growth-stages", "guides/lower-broiler-fcr", "guides/broiler-chicken-mortality-rates", "guides/chicken-shed-silo-management", "guides/ross-308-vs-cobb-500", "guides/broiler-grower-payment-explained")
     cache_hdr = "public, max-age=300, s-maxage=600" if is_public else "no-store"
     return Response(content=html, media_type="text/html; charset=utf-8",
                     headers={"Cache-Control": cache_hdr})
@@ -4871,6 +4877,31 @@ async def ross_308_growth_chart_page():
     """Ross 308 target-weight/FCR chart reference page — SEO magnet targeting
     Aviagen Ross 308 keyword cluster."""
     path = os.path.join(STATIC_DIR, "ross-308-growth-chart.html")
+    with open(path, "r", encoding="utf-8") as f:
+        html = f.read()
+    return Response(content=html, media_type="text/html; charset=utf-8",
+                    headers={"Cache-Control": "public, max-age=600, s-maxage=1800"})
+
+
+# ─── Content hub guides — SEO magnets targeting "broiler"/"chicken" informational searches ───
+_GUIDE_FILES = {
+    "broiler-chicken-growth-stages": "guide-broiler-growth-stages.html",
+    "lower-broiler-fcr": "guide-lower-broiler-fcr.html",
+    "broiler-chicken-mortality-rates": "guide-broiler-mortality-rates.html",
+    "chicken-shed-silo-management": "guide-chicken-shed-silo-management.html",
+    "ross-308-vs-cobb-500": "guide-ross-308-vs-cobb-500.html",
+    "broiler-grower-payment-explained": "guide-broiler-grower-payment.html",
+}
+
+
+@app.get("/guides/{slug}")
+@app.get("/guides/{slug}/")
+async def content_hub_guide_page(slug: str):
+    """Content hub guide pages — informational articles targeting broiler/chicken
+    searches, each linking into a relevant free calculator or growth chart."""
+    if slug not in _GUIDE_FILES:
+        raise HTTPException(404, "Guide not found")
+    path = os.path.join(STATIC_DIR, _GUIDE_FILES[slug])
     with open(path, "r", encoding="utf-8") as f:
         html = f.read()
     return Response(content=html, media_type="text/html; charset=utf-8",
