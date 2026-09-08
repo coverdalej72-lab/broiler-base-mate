@@ -1,0 +1,38 @@
+{
+  "summary": "Frontend-only regression test of the 0-indexed age (Day 0 = placement) fix in BBM. Verified Flock Forecast headline CURRENT AGE, per-shed 'Day N' badges, per-shed side panel standard-curve preview + Farm Buddy tips, individual shed detail forecast, Morts tab, Density tab, and Batch Results (EOB) tab across farm=north-creek and farm=default. All age numbers match (today - placementDate) with NO +1 offset. No NaN, no Infinity, no console errors.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "verified_math": {
+    "today_in_app": "Tue 8 Sept 2026",
+    "shed_1_2": {"placed": "20 Mar 2026", "shown": "Day 172", "expected_0indexed": 172, "status": "PASS"},
+    "shed_3_4": {"placed": "20 Mar 2026", "shown": "Day 172", "expected_0indexed": 172, "status": "PASS"},
+    "shed_5_6": {"placed": "23 Mar 2026", "shown": "Day 169", "expected_0indexed": 169, "status": "PASS - 3-day difference correctly propagated"},
+    "headline_current_age_north_creek": "172d (PASS)",
+    "headline_current_age_default": "172d (PASS)"
+  },
+  "verified_panels": {
+    "shed_growth_side_panel_1_2": "Renders D0..D180 axis, 'Day 172 standard \u2248 4,067g' label, Farm Buddy tip references Day 172. Side panel correctly reflects 0-indexed age.",
+    "individual_shed_detail_5_6": "Opens Shed 5&6 detail, shows Day 169 correctly, no NaN/Infinity.",
+    "morts_tab": "Loads without errors, calendar grid renders (weekly grid header shows date labels e.g. 'Mon 7 Sept', 'Tue 8 Sept' - no 'Day X' badges visible on the calendar header in current implementation, so nothing to cross-check numerically there; underlying getDayNum change is not user-visible on this view in current placement state).",
+    "density_tab": "No NaN/Infinity, unaffected as expected.",
+    "batch_results_eob": "Renders correctly on farm=default; not flagged for EOB Age column per scope note."
+  },
+  "console_errors": "0 pageerrors, 0 console errors across all tested views on both farms.",
+  "test_report_links": [],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "MortsView calendar header renders date-only (e.g. 'Mon 7 Sept') with no visible 'Day N' badge in current UI state on north-creek - the getDayNum helper (~line 5923) was updated but is not surfaced in a place I could visually cross-check against Flock Forecast. Main agent may want to confirm getDayNum is actually rendered somewhere reachable; if it is and I missed it, ignore.",
+    "Cage Rating shows '\u2014' (em-dash) on Flock Forecast headline when there are no weigh-ins - correct, no crash. The intentional '>0' guard on 39.5/age is preserved."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "N/A", "frontend": "100%"},
+  "test_credentials": "Owner magic-link via /api/auth/owner-magic?key=... (as provided) - works, session cookie set.",
+  "seed_data_creation": "None - used existing north-creek and default farm data.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "0-indexed age fix verified end-to-end on north-creek (6 sheds, 2 different placement dates: 20 Mar and 23 Mar 2026) and default. Math: today Sep 8 2026 - Mar 20 = 172d, - Mar 23 = 169d, both display correctly. Side panels, individual shed forecast, and Farm Buddy tips all reflect the 0-indexed age. EOB static Age column intentionally unchanged per scope."
+}
