@@ -893,97 +893,88 @@ def _render_history_html(farm_name: str, days: int, sender: str,
                           silos_grouped: list, deliveries: list,
                           totals: dict, farm_logo_data: Optional[str],
                           silo_period_label: str = "latest per silo") -> str:
-    """Premium branded history email — silo readings + deliveries + totals."""
+    """Stock Take email — just that day's silo stock (kg/t per silo), same
+    navy/gold branded style as the End of Batch report (Jason: "end of batch
+    style is great i want same style when i send monthly stock take from app
+    just thats days stock"). Deliveries/period KPIs intentionally dropped —
+    stock take is silo levels only."""
     logo_src = (
         f"data:image/png;base64,{farm_logo_data}"
         if farm_logo_data else
-        "https://broilerbasemate.com.au/reader-assets/icon-192.png"
+        "https://broilerbasemate.com.au/reader-assets/company-logo.png"
     )
-    period = "today" if days == 1 else f"last {days} days"
+    gen = (datetime.now(timezone.utc) + AEST_OFFSET).strftime("%d %b %Y")
+    total_t = totals.get("totalT", 0)
 
-    # KPI tiles
-    def kpi(label: str, val: str, accent: str = "#0f3d24") -> str:
-        return f"""<td valign="top" style="padding:6px;"><div style="background:#fff;border:1px solid #e3dccb;border-radius:10px;padding:14px 12px;text-align:center;">
-          <div style="font-size:22px;font-weight:800;color:{accent};letter-spacing:-0.5px;line-height:1;">{val}</div>
-          <div style="font-size:10px;letter-spacing:1.2px;color:#5d6660;text-transform:uppercase;margin-top:6px;font-weight:700;">{label}</div>
-        </div></td>"""
-    kpis = f"""<table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-top:14px;"><tr>
-      {kpi("Total Feed on Farm", f"{totals.get('totalT', 0):,.1f} t", "#0f3d24")}
-      {kpi("Sheds Reporting", str(totals.get('shedsReporting', 0)), "#1a5c36")}
-      {kpi("Silos Read", str(totals.get('silosRead', 0)), "#C9A227")}
-      {kpi("Deliveries", str(len(deliveries)), "#a83e00")}
-    </tr></table>"""
+    hero = f"""
+      <div style="background:linear-gradient(135deg,#1e2f4d 0%,#0f1a2f 100%);padding:32px 28px;color:#fff;border-radius:16px 16px 0 0;border-bottom:3px solid #C9A227;">
+        <table width="100%" cellpadding="0" cellspacing="0" border="0"><tr>
+          <td valign="middle" style="padding-right:14px;width:72px;">
+            <img src="{logo_src}" alt="" width="64" height="64" style="display:block;border-radius:12px;background:#fff;padding:4px;" />
+          </td>
+          <td valign="middle">
+            <div style="font-size:11px;letter-spacing:3px;color:#C9A227;font-weight:800;margin-bottom:2px;">STOCK TAKE</div>
+            <div style="font-size:24px;font-weight:900;letter-spacing:-0.4px;line-height:1.15;">{farm_name}</div>
+            <div style="font-size:13px;color:#bdd3ee;margin-top:4px;">Today's silo stock · {gen}</div>
+          </td>
+        </tr></table>
+      </div>
+    """
 
-    # Silo readings — grouped by shed
     silo_html = ""
     for grp in silos_grouped:
         silo_rows = "".join(
-            f"""<tr><td style="padding:7px 12px;border-bottom:1px solid #f0ece1;font-weight:700;color:#0f3d24;">Silo {s['letter']}</td>
-              <td style="padding:7px 12px;border-bottom:1px solid #f0ece1;text-align:right;font-variant-numeric:tabular-nums;font-weight:600;">{s['amount']:,.2f} t</td>
-              <td style="padding:7px 12px;border-bottom:1px solid #f0ece1;text-align:right;color:#5d6660;font-size:12px;">{s.get('readAt','')}</td></tr>"""
+            f"""<tr>
+              <td style="padding:8px 12px;border-bottom:1px solid #e5e9ee;font-weight:700;color:#1e2f4d;">Silo {s['letter']}</td>
+              <td style="padding:8px 12px;border-bottom:1px solid #e5e9ee;text-align:right;font-weight:700;font-variant-numeric:tabular-nums;">{s['amount']:,.2f} t</td>
+            </tr>"""
             for s in grp['silos']
-        ) or """<tr><td colspan="3" style="padding:14px;text-align:center;color:#9ca3af;font-size:12px;font-style:italic;">No readings yet</td></tr>"""
-        silo_html += f"""<div style="margin-top:14px;background:#fff;border:1px solid #e3dccb;border-radius:10px;overflow:hidden;">
-          <div style="background:#0f3d24;color:#fff;padding:9px 14px;font-weight:800;letter-spacing:0.5px;font-size:13px;display:flex;justify-content:space-between;">
-            <span style="text-transform:uppercase;">{grp['name']}</span>
-            <span style="font-size:15px;background:rgba(201,162,39,0.32);padding:2px 10px;border-radius:99px;">{grp.get('groupTotalT', 0):,.1f} t</span>
+        ) or """<tr><td colspan="2" style="padding:14px;text-align:center;color:#9ca3af;font-size:12px;font-style:italic;">No readings yet</td></tr>"""
+        silo_html += f"""
+          <div style="margin-top:14px;background:#fff;border:1px solid #dce3ee;border-radius:10px;overflow:hidden;">
+            <div style="background:#1e2f4d;color:#fff;padding:9px 14px;font-weight:800;letter-spacing:0.5px;font-size:13px;display:flex;justify-content:space-between;align-items:center;">
+              <span style="text-transform:uppercase;">{grp['name']}</span>
+              <span style="font-size:15px;background:rgba(201,162,39,0.28);padding:2px 10px;border-radius:99px;">{grp.get('groupTotalT', 0):,.1f} t</span>
+            </div>
+            <table width="100%" cellpadding="0" cellspacing="0" border="0">
+              <thead><tr style="background:#eef2f9;">
+                <th style="padding:8px 12px;text-align:left;font-size:10px;color:#5a6a86;letter-spacing:1px;text-transform:uppercase;font-weight:700;border-bottom:1px solid #e3dccb;">Silo</th>
+                <th style="padding:8px 12px;text-align:right;font-size:10px;color:#5a6a86;letter-spacing:1px;text-transform:uppercase;font-weight:700;border-bottom:1px solid #e3dccb;">Stock</th>
+              </tr></thead>
+              <tbody>{silo_rows}</tbody>
+            </table>
           </div>
-          <table width="100%" cellpadding="0" cellspacing="0" border="0">
-            <thead><tr style="background:#faf7ef;">
-              <th style="padding:8px 12px;text-align:left;font-size:10px;color:#5d6660;letter-spacing:1px;text-transform:uppercase;font-weight:700;border-bottom:1px solid #e3dccb;">Silo</th>
-              <th style="padding:8px 12px;text-align:right;font-size:10px;color:#5d6660;letter-spacing:1px;text-transform:uppercase;font-weight:700;border-bottom:1px solid #e3dccb;">Amount</th>
-              <th style="padding:8px 12px;text-align:right;font-size:10px;color:#5d6660;letter-spacing:1px;text-transform:uppercase;font-weight:700;border-bottom:1px solid #e3dccb;">Last Read</th>
-            </tr></thead>
-            <tbody>{silo_rows}</tbody>
-          </table></div>"""
+        """
+    if not silo_html:
+        silo_html = """<div style="margin-top:14px;padding:18px;text-align:center;color:#9ca3af;font-size:13px;background:#eef2f9;border:1px dashed #e3dccb;border-radius:10px;">No silo readings taken today yet.</div>"""
 
-    # Deliveries table
-    if deliveries:
-        delivery_rows = "".join(
-            f"""<tr><td style="padding:8px 12px;border-bottom:1px solid #f0ece1;font-size:13px;">{d.get('date','—')}</td>
-              <td style="padding:8px 12px;border-bottom:1px solid #f0ece1;font-size:13px;color:#5d6660;">{d.get('supplier','—')}</td>
-              <td style="padding:8px 12px;border-bottom:1px solid #f0ece1;font-size:13px;color:#5d6660;">{d.get('feedType','—')}</td>
-              <td style="padding:8px 12px;border-bottom:1px solid #f0ece1;font-size:13px;text-align:right;font-variant-numeric:tabular-nums;font-weight:700;">{d.get('amountT', 0):,.2f} t</td></tr>"""
-            for d in deliveries
-        )
-        delivery_section = f"""<h3 style="margin:28px 0 10px;color:#0f3d24;font-size:14px;letter-spacing:1.5px;text-transform:uppercase;font-weight:800;border-bottom:2px solid #C9A227;padding-bottom:6px;">🚚 Feed Deliveries ({period})</h3>
-        <div style="background:#fff;border:1px solid #e3dccb;border-radius:10px;overflow:hidden;">
-          <table width="100%" cellpadding="0" cellspacing="0" border="0">
-            <thead><tr style="background:#faf7ef;">
-              <th style="padding:9px 12px;text-align:left;font-size:10px;color:#5d6660;letter-spacing:1px;text-transform:uppercase;font-weight:700;border-bottom:1px solid #e3dccb;">Date</th>
-              <th style="padding:9px 12px;text-align:left;font-size:10px;color:#5d6660;letter-spacing:1px;text-transform:uppercase;font-weight:700;border-bottom:1px solid #e3dccb;">Supplier</th>
-              <th style="padding:9px 12px;text-align:left;font-size:10px;color:#5d6660;letter-spacing:1px;text-transform:uppercase;font-weight:700;border-bottom:1px solid #e3dccb;">Feed Type</th>
-              <th style="padding:9px 12px;text-align:right;font-size:10px;color:#5d6660;letter-spacing:1px;text-transform:uppercase;font-weight:700;border-bottom:1px solid #e3dccb;">Amount</th>
-            </tr></thead>
-            <tbody>{delivery_rows}</tbody>
-          </table></div>"""
-    else:
-        delivery_section = ""
-
-    return f"""<!DOCTYPE html><html><head><meta charset="utf-8" /><title>Farm History — {farm_name}</title></head>
-<body style="margin:0;padding:24px 12px;background:#f3f0e8;font-family:-apple-system,BlinkMacSystemFont,'SF Pro Text','Segoe UI',Roboto,sans-serif;color:#1a2320;-webkit-font-smoothing:antialiased;">
-  <div style="max-width:680px;margin:0 auto;background:#faf7ef;border-radius:16px;overflow:hidden;box-shadow:0 8px 32px -12px rgba(15,61,36,0.18);">
-    <div style="background:linear-gradient(135deg,#0f3d24 0%,#1a5c36 100%);padding:32px 28px;color:#fff;">
-      <table width="100%" cellpadding="0" cellspacing="0" border="0"><tr>
-        <td valign="middle" style="padding-right:14px;width:64px;">
-          <img src="{logo_src}" alt="" width="56" height="56" style="display:block;border-radius:10px;background:#fff;padding:4px;" />
-        </td>
-        <td valign="middle">
-          <div style="font-size:12px;letter-spacing:2.5px;color:#C9A227;font-weight:700;margin-bottom:2px;">FARM HISTORY SNAPSHOT</div>
-          <div style="font-size:24px;font-weight:800;letter-spacing:-0.4px;line-height:1.15;">{farm_name}</div>
-          <div style="font-size:13px;opacity:0.85;margin-top:4px;">Covering the {period}</div>
-        </td>
-      </tr></table>
-    </div>
+    return f"""<!DOCTYPE html><html><head><meta charset="utf-8" />
+<title>Stock Take — {farm_name}</title></head>
+<body style="margin:0;padding:24px 12px;background:#eef2f9;font-family:-apple-system,BlinkMacSystemFont,'SF Pro Text','Segoe UI',Roboto,sans-serif;color:#1e2f4d;-webkit-font-smoothing:antialiased;">
+  <div style="max-width:680px;margin:0 auto;background:#f7f9fc;border-radius:16px;overflow:hidden;box-shadow:0 8px 32px -12px rgba(15,26,47,0.28);">
+    {hero}
     <div style="padding:20px 24px 28px;">
-      <h3 style="margin:0 0 4px;color:#0f3d24;font-size:14px;letter-spacing:1.5px;text-transform:uppercase;font-weight:800;border-bottom:2px solid #C9A227;padding-bottom:6px;">📊 At a Glance</h3>
-      {kpis}
-      <h3 style="margin:28px 0 10px;color:#0f3d24;font-size:14px;letter-spacing:1.5px;text-transform:uppercase;font-weight:800;border-bottom:2px solid #C9A227;padding-bottom:6px;">🌾 Silo Readings ({silo_period_label})</h3>
-      {silo_html or f'<div style="margin-top:14px;padding:18px;text-align:center;color:#9ca3af;font-size:13px;background:#faf7ef;border:1px dashed #e3dccb;border-radius:10px;">No silo readings {"taken today yet" if silo_period_label == "taken today" else "recorded in this window"}.</div>'}
-      {delivery_section}
-      <div style="margin-top:32px;padding:18px;background:#fff;border-radius:10px;border:1px dashed #e3dccb;text-align:center;color:#5d6660;font-size:12px;line-height:1.6;">
-        Generated by <b style="color:#0f3d24;">Broiler Base Mate™</b> · <a href="https://broilerbasemate.com.au" style="color:#1a5c36;text-decoration:none;font-weight:700;">broilerbasemate.com.au</a><br />
-        <span style="opacity:0.7;">Sent by {sender}</span>
+      <h3 style="margin:0 0 4px;color:#1e2f4d;font-size:14px;letter-spacing:1.5px;text-transform:uppercase;font-weight:800;border-bottom:2px solid #C9A227;padding-bottom:6px;">🌾 Silo Stock ({silo_period_label})</h3>
+      {silo_html}
+      <div style="margin-top:22px;padding:14px 16px;background:#fffbe6;border:1px solid #f1e2a8;border-radius:10px;text-align:center;">
+        <span style="font-size:11px;letter-spacing:1px;color:#8a6d00;text-transform:uppercase;font-weight:700;">Total Feed on Farm</span>
+        <div style="font-size:22px;font-weight:900;color:#1e2f4d;margin-top:4px;">{total_t:,.1f} t</div>
+      </div>
+      <div style="margin-top:32px;padding:22px 20px;background:linear-gradient(135deg,#1e2f4d 0%,#0f1a2f 100%);border-radius:12px;border:1px solid #2b4266;">
+        <table width="100%" cellpadding="0" cellspacing="0" border="0"><tr>
+          <td valign="middle" style="width:64px;padding-right:16px;">
+            <img src="https://broilerbasemate.com.au/reader-assets/company-logo.png" alt="Appcovi" width="56" height="56" style="display:block;border-radius:10px;background:#fff;padding:4px;" />
+          </td>
+          <td valign="middle" style="color:#dbe4ea;">
+            <div style="font-size:10px;letter-spacing:2.5px;color:#8a99b8;font-weight:700;margin-bottom:2px;">BUILT BY</div>
+            <div style="font-size:20px;font-weight:900;color:#fff;letter-spacing:0.5px;line-height:1;">APPCOVI</div>
+            <div style="font-size:11px;color:#8a99b8;font-weight:600;letter-spacing:1.4px;margin-top:3px;">POULTRY MANAGEMENT SOFTWARE</div>
+            <div style="font-size:12px;color:#bdd3ee;margin-top:8px;">
+              <a href="https://broilerbasemate.com.au" style="color:#C9A227;text-decoration:none;font-weight:700;">broilerbasemate.com.au</a>
+              &nbsp;·&nbsp; Sent by {sender}
+            </div>
+          </td>
+        </tr></table>
       </div>
     </div>
   </div>
@@ -1078,7 +1069,7 @@ async def share_history_email(req: HistoryShareRequest, request: Request):
     html = _render_history_html(farm_name, days, user.get("email") or "", silos_grouped, deliveries, totals, req.farmLogoData, silo_period_label="taken today")
 
     sent, failed = [], []
-    subject = f"📊 Farm History — {farm_name} ({'today' if days == 1 else f'last {days} days'})"
+    subject = f"🌾 Stock Take — {farm_name} ({datetime.now(timezone.utc).strftime('%d %b %Y')})"
     for addr in req.to:
         addr = addr.strip()
         if not addr or "@" not in addr:
@@ -1218,7 +1209,7 @@ async def _send_monthly_snapshot(farm: str, emails: list, days: int, fc: dict):
         logo = m.group(1) if m else None
     html = _render_history_html(farm_name, days, "Broiler Base Mate Auto-Send",
                                  silos_grouped, deliveries, {"totalT": total_t, "shedsReporting": sheds_reporting, "silosRead": silos_read}, logo)
-    subj = f"📊 Monthly Snapshot — {farm_name} ({now.strftime('%b %Y')})"
+    subj = f"🌾 Monthly Stock Take — {farm_name} ({now.strftime('%b %Y')})"
     for addr in emails:
         try: await send_email(to=addr, subject=subj, html=html)
         except Exception as e:

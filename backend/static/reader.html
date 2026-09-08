@@ -411,7 +411,7 @@
       <div class="history-tools">
         <div class="pill"><span>📵</span> Local only</div>
         <div class="pill green" id="export-excel"><span>📄</span> Export Excel</div>
-        <div class="pill" id="share-history-btn" data-testid="share-history-btn" style="background:linear-gradient(135deg,#1e2f4d,#2b4266);color:#fff;border:1px solid #1e2f4d;"><span>📤</span> Share to Head Office</div>
+        <div class="pill" id="share-history-btn" data-testid="share-history-btn" style="background:linear-gradient(135deg,#1e2f4d,#2b4266);color:#fff;border:1px solid #1e2f4d;"><span>📤</span> Send Stock Take</div>
       </div>
       <div id="history-list"></div>
     </div>
@@ -419,20 +419,12 @@
     <!-- Share History modal -->
     <div id="share-history-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:1000;align-items:center;justify-content:center;padding:16px;backdrop-filter:blur(4px);">
       <div style="background:#fff;border-radius:14px;max-width:380px;width:100%;padding:20px;box-shadow:0 24px 60px -16px rgba(0,0,0,0.5);">
-        <div style="font-size:12px;letter-spacing:2px;color:#C9A227;font-weight:800;margin-bottom:2px;">📤 SHARE FARM HISTORY</div>
+        <div style="font-size:12px;letter-spacing:2px;color:#C9A227;font-weight:800;margin-bottom:2px;">📤 STOCK TAKE</div>
         <h3 style="margin:0 0 6px;color:#1e2f4d;font-size:18px;letter-spacing:-0.3px;">Email to head office</h3>
-        <p style="margin:0 0 14px;color:#5d6660;font-size:13px;line-height:1.45;">Sends a branded snapshot — <b>today's silo readings</b> + recent deliveries + farm totals.</p>
+        <p style="margin:0 0 14px;color:#5d6660;font-size:13px;line-height:1.45;">Sends <b>today's silo stock</b> (kg/t per silo) — same branded style as your End of Batch report.</p>
         <label style="display:block;font-size:11px;color:#5d6660;font-weight:700;letter-spacing:0.5px;margin-bottom:4px;text-transform:uppercase;">Recipients</label>
         <input type="text" id="share-history-to" data-testid="share-history-to" placeholder="head.office@processor.com, manager@…" style="width:100%;padding:10px;border:1px solid #e3dccb;border-radius:8px;font-size:14px;background:#faf7ef;box-sizing:border-box;" />
         <div style="font-size:11px;color:#9ca3af;margin-top:4px;">Separate multiple addresses with commas</div>
-        <label style="display:block;font-size:11px;color:#5d6660;font-weight:700;letter-spacing:0.5px;margin:14px 0 4px;text-transform:uppercase;">Snapshot Period</label>
-        <select id="share-history-days" data-testid="share-history-days" style="width:100%;padding:10px;border:1px solid #e3dccb;border-radius:8px;font-size:14px;background:#faf7ef;box-sizing:border-box;">
-          <option value="1" selected>Today only (recommended)</option>
-          <option value="7">Last 7 days</option>
-          <option value="14">Last 14 days</option>
-          <option value="30">Last 30 days</option>
-        </select>
-        <div style="font-size:11px;color:#9ca3af;margin-top:4px;line-height:1.4;">Silo readings are always <b>today only</b>. This dropdown controls how much delivery history is included.</div>
         <!-- Set & forget: auto-send the snapshot on the LAST FRIDAY of every
              month between 9 AM and 2 PM AEST. Saves the grower from having to
              remember the deadline — head office gets the email automatically. -->
@@ -445,7 +437,7 @@
         </label>
         <div style="display:flex;gap:8px;margin-top:18px;">
           <button id="share-history-cancel" data-testid="share-history-cancel" style="flex:1;padding:12px;border:1px solid #e3dccb;border-radius:8px;background:#faf7ef;font-weight:700;color:#5d6660;cursor:pointer;">Cancel</button>
-          <button id="share-history-send" data-testid="share-history-send" style="flex:2;padding:12px;border:none;border-radius:8px;background:linear-gradient(135deg,#1e2f4d,#2b4266);color:#fff;font-weight:800;letter-spacing:0.3px;cursor:pointer;box-shadow:0 6px 16px -6px rgba(15,61,36,0.4);">📤 Send Snapshot</button>
+          <button id="share-history-send" data-testid="share-history-send" style="flex:2;padding:12px;border:none;border-radius:8px;background:linear-gradient(135deg,#1e2f4d,#2b4266);color:#fff;font-weight:800;letter-spacing:0.3px;cursor:pointer;box-shadow:0 6px 16px -6px rgba(15,61,36,0.4);">📤 Send Stock Take</button>
         </div>
       </div>
     </div>
@@ -1206,7 +1198,7 @@
     $("#share-history-send").addEventListener("click", async () => {
       const btn = $("#share-history-send");
       const toRaw = $("#share-history-to").value.trim();
-      const days = parseInt($("#share-history-days").value, 10) || 1;
+      const days = 3; // stock-take is always today's readings; small buffer only for the auto-send window fallback
       const toList = toRaw.split(/[,;\s]+/).map(s => s.trim()).filter(s => s && /@/.test(s));
       if (!toList.length) { toast("Add at least one email","err"); return; }
       btn.textContent = "Sending…";
@@ -1246,12 +1238,12 @@
         const autoMsg = $("#share-history-auto").checked
           ? ` · 🗓️ Auto-send ON (last Fri of every month, before 2 PM)`
           : "";
-        toast(`✓ Snapshot sent to ${sentCount} recipient${sentCount === 1 ? "" : "s"}${autoMsg}`, "ok");
+        toast(`✓ Stock take sent to ${sentCount} recipient${sentCount === 1 ? "" : "s"}${autoMsg}`, "ok");
         $("#share-history-modal").style.display = "none";
       } catch (e) {
         toast("Couldn't send: " + (e.message || "try again"), "err");
       } finally {
-        btn.textContent = "📤 Send Snapshot";
+        btn.textContent = "📤 Send Stock Take";
         btn.disabled = false;
       }
     });
