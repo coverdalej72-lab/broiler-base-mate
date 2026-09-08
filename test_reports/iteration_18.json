@@ -1,0 +1,50 @@
+{
+  "summary": "Frontend-only regression test for the new ShedGrowthSidePanel added to MAIN shed data-entry tabs in BBM. Verified table width bug fix (previously ballooned to 1,000,000px), correct rendering of the sidebar/growth-curves/silo panel across all 6 shed groups, and correct suppression on non-shed tabs. Regression sanity (cell double-click edit, tab switching, no page errors) also passed.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_results_detail": {
+    "layout_bug_fix": {
+      "1920px_viewport": "table bounding width = 1280px (bounded by maxWidth min(1280px,70vw))",
+      "1366px_viewport": "table bounding width = 1258px, side panel width = 409px, still fits",
+      "regression_confirmed_not_present": true,
+      "all_14_columns_visible": true
+    },
+    "shed_side_panel": {
+      "tabs_verified": ["1 & 2","3 & 4","5 & 6","7 & 8","9 & 10","11 & 12"],
+      "per_tab_result": "shed-growth-side-panel present, correct pair of shed-side-box-<n> testids (e.g. box-1 & box-2 on '1 & 2'), 2 SVG growth-curve previews rendered, breed label (Ross 308) shown, shed-side-silo-panel present with graceful 'Silo Sync not connected for this shed group yet' fallback (expected on demo farm with no Silo Sync)",
+      "farm_buddy_tip": "Not rendered because demo farm shows Placed='—' / Mortality=0 (age Day 172 with no placement data) — matches spec: graceful skip, not a crash"
+    },
+    "non_shed_tabs_no_sidepanel": {
+      "Batch Results": "side_panel absent (correct)",
+      "Flock Forecast": "side_panel absent (correct)",
+      "Morts": "side_panel absent (correct)",
+      "History": "side_panel absent (correct)",
+      "Density": "side_panel absent (correct)",
+      "end of batch": "side_panel absent (correct)"
+    },
+    "regression_sanity": {
+      "cell_double_click_edit": "PASS — input appears on dblclick of Ordered column cell",
+      "escape_cancels": "PASS",
+      "no_page_errors_during_tab_switching": true,
+      "no_console_errors_related_to_new_component": true
+    }
+  },
+  "test_report_links": [],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "App.tsx is a very large monolith (>12k lines). ShedGrowthSidePanel additions add more surface area — recommend future refactor to split shed-tab render section and side-panel component into their own modules for maintainability.",
+    "The maxWidth: 'min(1280px, 70vw)' guard is effective, but 70vw on ultra-wide (>2560px) monitors will leave the table unnecessarily narrow while the sidebar can grow — consider a max on the sidebar and letting the table use a slightly larger cap. Not blocking."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "N/A (not tested per request)", "frontend": "100%"},
+  "test_credentials": "Owner magic link (from /app/memory/test_credentials.md) used successfully — farm slug 'default'",
+  "seed_data_creation": "None — used existing demo data on farm 'default'",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "All 6 shed-tab side panels (shed-side-box-<1..12>) verified rendering with growth SVGs; table width bounded to ~1280px at 1920 viewport and ~1258 at 1366 viewport. Silo panel currently in graceful fallback state (no Silo Sync data on demo farm) — this is expected. Farm Buddy tip only appears when there is placement data + age>0; not observable on this demo where placed='—'.",
+  "rca of the issue": "N/A — no bugs found this iteration. Prior 1,000,000px table width bug (flexbox + table-layout:fixed interaction) confirmed fixed by main agent's maxWidth+overflowX guard on the SheetView wrapping div."
+}
