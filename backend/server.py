@@ -855,6 +855,7 @@ class ExternalMortEntry(BaseModel):
     date: str          # YYYY-MM-DD (grower's local date the morts/culls occurred)
     morts: int = 0
     culls: int = 0
+    staffName: Optional[str] = None   # who recorded it, from the Staff QR page — "so I know who did what" (Jason)
 
 
 class ExternalMortsPushRequest(BaseModel):
@@ -878,7 +879,8 @@ async def push_external_morts(req: ExternalMortsPushRequest, request: Request, f
             {"$set": {
                 "farmId": farm, "date": e.date, "shed": e.shed,
                 "morts": max(0, e.morts), "culls": max(0, e.culls),
-                "source": req.source, "updatedAt": now,
+                "source": req.source, "staffName": (e.staffName or "").strip()[:60] or None,
+                "updatedAt": now,
             }},
             upsert=True,
         )

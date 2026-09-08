@@ -50,10 +50,24 @@
     <div class="farm" id="farm-name">Loading…</div>
     <div class="sub" id="today-label"></div>
   </header>
-  <div class="wrap" id="content"><div class="loading">Loading sheds…</div></div>
+  <div class="wrap">
+    <div class="shed-card" id="name-card" style="margin-bottom:14px;">
+      <div class="field" style="margin:0;">
+        <label style="color:var(--green);">YOUR NAME</label>
+        <input type="text" id="staff-name" data-testid="staff-name-input" placeholder="e.g. Sarah" style="background:#142038;text-align:left;font-weight:600;" />
+      </div>
+      <div style="font-size:11px;color:var(--muted);margin-top:8px;">So the farm owner knows who recorded what. Saved on this phone.</div>
+    </div>
+    <div id="content"><div class="loading">Loading sheds…</div></div>
+  </div>
   <div class="toast" id="toast"></div>
 
   <script>
+    const NAME_KEY = "bbm-staff-name";
+    const nameInput = document.getElementById("staff-name");
+    nameInput.value = localStorage.getItem(NAME_KEY) || "";
+    nameInput.addEventListener("input", () => { localStorage.setItem(NAME_KEY, nameInput.value); });
+
     const qs = new URLSearchParams(window.location.search);
     const farm = qs.get("farm") || "default";
     const token = qs.get("t") || "";
@@ -95,12 +109,15 @@
           card.className = "shed-card";
           const preM = existing[s]?.morts ?? "";
           const preC = existing[s]?.culls ?? "";
+          const lastBy = existing[s]?.staffName
+            ? `<div style="font-size:10px;color:var(--muted);margin-top:2px;">Last by ${existing[s].staffName}${existing[s].updatedAt ? " · " + new Date(existing[s].updatedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : ""}</div>`
+            : "";
           card.innerHTML = `
-            <div class="head"><span class="num">Shed ${s}</span><span class="saved-badge" data-badge="${s}">✓ Saved</span></div>
+            <div class="head"><span class="num">Shed ${s}${lastBy}</span><span class="saved-badge" data-badge="${s}">✓ Saved</span></div>
             <div class="fields">
-              <div class="field morts"><label>MORTS</label><input type="number" inputmode="numeric" min="0" data-morts="${s}" value="${preM}" /></div>
-              <div class="field culls"><label>CULLS</label><input type="number" inputmode="numeric" min="0" data-culls="${s}" value="${preC}" /></div>
-              <button class="save-btn" data-save="${s}">Save</button>
+              <div class="field morts"><label>MORTS</label><input type="number" inputmode="numeric" min="0" data-morts="${s}" data-testid="morts-input-${s}" value="${preM}" /></div>
+              <div class="field culls"><label>CULLS</label><input type="number" inputmode="numeric" min="0" data-culls="${s}" data-testid="culls-input-${s}" value="${preC}" /></div>
+              <button class="save-btn" data-save="${s}" data-testid="save-shed-${s}">Save</button>
             </div>`;
           content.appendChild(card);
         }
@@ -108,6 +125,13 @@
         content.querySelectorAll("[data-save]").forEach(btn => {
           btn.addEventListener("click", async () => {
             const s = btn.getAttribute("data-save");
+            const staffName = nameInput.value.trim();
+            if (!staffName) {
+              toast("Add your name first", true);
+              nameInput.focus();
+              nameInput.scrollIntoView({ behavior: "smooth", block: "center" });
+              return;
+            }
             const morts = parseInt(document.querySelector(`[data-morts="${s}"]`).value, 10) || 0;
             const culls = parseInt(document.querySelector(`[data-culls="${s}"]`).value, 10) || 0;
             btn.disabled = true;
@@ -117,7 +141,7 @@
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 credentials: "include",
-                body: JSON.stringify({ source: "bbm-staff-qr", entries: [{ shed: parseInt(s, 10), date: todayIso, morts, culls }] }),
+                body: JSON.stringify({ source: "bbm-staff-qr", entries: [{ shed: parseInt(s, 10), date: todayIso, morts, culls, staffName }] }),
               });
               if (!res.ok) throw new Error("save failed");
               const badge = document.querySelector(`[data-badge="${s}"]`);
