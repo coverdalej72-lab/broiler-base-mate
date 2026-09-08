@@ -44,6 +44,7 @@ payments_col = db["payment_transactions"]
 farms_col = db["farms"]
 eob_snapshots_col = db["eob_snapshots"]
 external_morts_col = db["external_morts"]
+external_weighins_col = db["external_weighins"]
 
 DEFAULT_FARM_ID = "default"
 
@@ -900,6 +901,65 @@ async def get_external_morts(request: Request, farm: str = Query(default=DEFAULT
     cursor = external_morts_col.find(q, {"_id": 0}).sort("date", 1)
     return {"entries": await cursor.to_list(2000)}
 
+
+# ─── External Weigh-Ins Integration — "Weigh Birds" tab on the same Staff
+# QR page (Mort Buddy) ────────────────────────────────────────────────────
+# Jason: "we have mort buddy... could we have a tab weigh birds pick a shed
+# and add age and manual weight". Staff pick a shed, type the age/day and a
+# manual weight (grams or kg), no login. Keyed on (farm, shed, age) so
+# re-weighing the same shed/age overwrites rather than duplicating — the
+# desktop app then merges this straight into the existing Flock Forecast
+# weigh-in store (`feedmate-flock-weighins`) so charts/Buddy tips auto-update.
+class ExternalWeighInEntry(BaseModel):
+    shed: int
+    age: int             # day of batch, staff-entered manually, no default
+    date: str            # YYYY-MM-DD the weighing happened (for the recording-status display)
+    weightGrams: float
+    staffName: Optional[str] = None
+
+
+class ExternalWeighInsPushRequest(BaseModel):
+    entries: List[ExternalWeighInEntry]
+    source: Optional[str] = "external"
+
+
+@app.post("/api/integrations/weighins")
+async def push_external_weighins(req: ExternalWeighInsPushRequest, request: Request, farm: str = Query(default=DEFAULT_FARM_ID)):
+    """Upsert manual bird weighings from the Staff QR page. Idempotent on
+    (farm, shed, age) — re-weighing the same shed/age overwrites the value."""
+    await _require_farm_access(request, farm)
+    if not req.entries or len(req.entries) > 200:
+        raise HTTPException(400, "Provide 1-200 entries")
+    now = datetime.now(timezone.utc)
+    upserted = 0
+    for e in req.entries:
+        if e.weightGrams <= 0:
+            continue
+        await external_weighins_col.update_one(
+            {"farmId": farm, "shed": e.shed, "age": e.age},
+            {"$set": {
+                "farmId": farm, "shed": e.shed, "age": e.age, "date": e.date,
+                "weightGrams": e.weightGrams,
+                "source": req.source, "staffName": (e.staffName or "").strip()[:60] or None,
+                "updatedAt": now,
+            }},
+            upsert=True,
+        )
+        upserted += 1
+    return {"ok": True, "upserted": upserted}
+
+
+@app.get("/api/integrations/weighins")
+async def get_external_weighins(request: Request, farm: str = Query(default=DEFAULT_FARM_ID), since: Optional[str] = None):
+    """Return every external weigh-in on record for this farm — used by the
+    desktop app to merge into the Flock Forecast weigh-in store, and by the
+    Staff QR page itself to prefill today's entries."""
+    await _require_farm_access(request, farm)   # SEC-006 read isolation
+    q: dict = {"farmId": farm}
+    if since:
+        q["date"] = {"$gte": since}
+    cursor = external_weighins_col.find(q, {"_id": 0}).sort("age", 1)
+    return {"entries": await cursor.to_list(2000)}
 
 
 @app.get("/api/eob/batch-accuracy")

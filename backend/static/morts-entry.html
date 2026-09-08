@@ -5,12 +5,13 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
   <meta name="theme-color" content="#0f1a2f" />
   <link rel="icon" type="image/png" href="/reader-assets/icon-192.png" />
-  <title>Record Morts &amp; Culls</title>
+  <title>Mort Buddy — Record Morts, Culls &amp; Weights</title>
   <style>
     :root {
       --bg: #0f1a2f; --panel: #1b2540; --line: #2a3a5c; --ink: #eef3fa; --muted: #8a99b8;
       --red: #ef4444; --red-soft: #2a1a22; --orange: #f59e0b; --orange-soft: #2a2118;
-      --green: #2dbd5e; --green-600: #29a352;
+      --green: #2dbd5e; --green-600: #29a352; --teal: #22b8b0; --teal-soft: #142826;
+      --gold: #C9A227;
     }
     * { box-sizing: border-box; }
     html, body { margin: 0; background: var(--bg); color: var(--ink);
@@ -29,10 +30,13 @@
     .field label { display: block; font-size: 10px; letter-spacing: 1px; font-weight: 700; margin-bottom: 4px; }
     .field.morts label { color: var(--red); }
     .field.culls label { color: var(--orange); }
-    .field input { width: 100%; padding: 10px; border-radius: 8px; border: 1px solid var(--line); font-size: 16px;
-      text-align: center; font-weight: 700; color: var(--ink); }
+    .field.weight label { color: var(--teal); }
+    .field.age label { color: var(--gold); }
+    .field select, .field input { width: 100%; padding: 10px; border-radius: 8px; border: 1px solid var(--line); font-size: 16px;
+      text-align: center; font-weight: 700; color: var(--ink); background: #142038; }
     .field.morts input { background: var(--red-soft); }
     .field.culls input { background: var(--orange-soft); }
+    .field.weight input { background: var(--teal-soft); }
     .save-btn { background: var(--green); color: #fff; border: 0; border-radius: 8px; padding: 11px 16px;
       font-size: 13px; font-weight: 800; cursor: pointer; }
     .save-btn:disabled { opacity: 0.5; }
@@ -43,6 +47,22 @@
       opacity: 0; transition: opacity .25s; pointer-events: none; z-index: 99; }
     .toast.show { opacity: 1; }
     .toast.err { background: var(--red); }
+    .tabbar { display: flex; gap: 8px; margin-bottom: 14px; }
+    .tab-btn { flex: 1; background: var(--panel); border: 1px solid var(--line); color: var(--muted);
+      border-radius: 10px; padding: 11px 8px; font-size: 13px; font-weight: 800; cursor: pointer; }
+    .tab-btn.active { background: var(--teal-soft); border-color: var(--teal); color: var(--teal); }
+    .panel { display: none; }
+    .panel.active { display: block; }
+    .unit-toggle { display: flex; border-radius: 8px; overflow: hidden; border: 1px solid var(--line); }
+    .unit-toggle button { flex: 1; background: #142038; border: 0; color: var(--muted); font-weight: 800;
+      font-size: 12px; padding: 10px 4px; cursor: pointer; }
+    .unit-toggle button.active { background: var(--teal); color: #06231f; }
+    .weigh-log-item { display: flex; justify-content: space-between; align-items: center; padding: 9px 4px;
+      border-bottom: 1px solid var(--line); font-size: 13px; }
+    .weigh-log-item:last-child { border-bottom: 0; }
+    .weigh-log-item .w-shed { font-weight: 800; }
+    .weigh-log-item .w-meta { color: var(--muted); font-size: 11px; }
+    .empty-log { text-align: center; color: var(--muted); font-size: 12px; padding: 10px; }
   </style>
 </head>
 <body>
@@ -58,7 +78,45 @@
       </div>
       <div style="font-size:11px;color:var(--muted);margin-top:8px;">So the farm owner knows who recorded what. Saved on this phone.</div>
     </div>
-    <div id="content"><div class="loading">Loading sheds…</div></div>
+
+    <div class="tabbar">
+      <button class="tab-btn active" id="tab-btn-morts" data-testid="tab-morts-culls">🐔 Morts &amp; Culls</button>
+      <button class="tab-btn" id="tab-btn-weigh" data-testid="tab-weigh-birds">⚖️ Weigh Birds</button>
+    </div>
+
+    <div class="panel active" id="panel-morts">
+      <div id="content"><div class="loading">Loading sheds…</div></div>
+    </div>
+
+    <div class="panel" id="panel-weigh">
+      <div class="shed-card">
+        <div class="fields" style="grid-template-columns: 1fr; gap: 10px;">
+          <div class="field weight">
+            <label>SHED</label>
+            <select id="weigh-shed" data-testid="weigh-shed-select"></select>
+          </div>
+          <div class="field age">
+            <label>AGE (DAY)</label>
+            <input type="number" inputmode="numeric" min="0" id="weigh-age" data-testid="weigh-age-input" placeholder="e.g. 21" />
+          </div>
+          <div class="field weight">
+            <label>MANUAL WEIGHT</label>
+            <div style="display:flex; gap:8px;">
+              <input type="number" inputmode="decimal" min="0" step="0.01" id="weigh-value" data-testid="weigh-value-input" placeholder="e.g. 1.05" style="flex:1;" />
+              <div class="unit-toggle" style="width:110px;" data-testid="weigh-unit-toggle">
+                <button type="button" id="unit-g" data-testid="weigh-unit-g">g</button>
+                <button type="button" id="unit-kg" class="active" data-testid="weigh-unit-kg">kg</button>
+              </div>
+            </div>
+          </div>
+          <button class="save-btn" id="weigh-save-btn" data-testid="weigh-save-button">Save Weight</button>
+        </div>
+      </div>
+      <div class="shed-card">
+        <div class="head"><span class="num" style="font-size:13px;">TODAY'S WEIGHINGS</span></div>
+        <div id="weigh-log"><div class="empty-log">Nothing recorded yet today.</div></div>
+      </div>
+    </div>
   </div>
   <div class="toast" id="toast"></div>
 
@@ -84,6 +142,22 @@
       setTimeout(() => { el.className = "toast"; }, 2200);
     }
 
+    // ── Tabs ──────────────────────────────────────────────────────────────
+    const tabBtnMorts = document.getElementById("tab-btn-morts");
+    const tabBtnWeigh = document.getElementById("tab-btn-weigh");
+    const panelMorts = document.getElementById("panel-morts");
+    const panelWeigh = document.getElementById("panel-weigh");
+    tabBtnMorts.addEventListener("click", () => {
+      tabBtnMorts.classList.add("active"); tabBtnWeigh.classList.remove("active");
+      panelMorts.classList.add("active"); panelWeigh.classList.remove("active");
+    });
+    tabBtnWeigh.addEventListener("click", () => {
+      tabBtnWeigh.classList.add("active"); tabBtnMorts.classList.remove("active");
+      panelWeigh.classList.add("active"); panelMorts.classList.remove("active");
+    });
+
+    let totalShedsGlobal = 20;
+
     async function init() {
       try {
         const cfgRes = await fetch("/api/farm-config?" + authQ, { credentials: "include" });
@@ -91,6 +165,7 @@
         const cfg = await cfgRes.json();
         document.getElementById("farm-name").textContent = cfg.farmName || "Farm";
         const totalSheds = cfg.totalSheds || 20;
+        totalShedsGlobal = totalSheds;
 
         // Prefill with anything already recorded today (either entered here before, or synced from BBM itself)
         let existing = {};
@@ -156,11 +231,96 @@
             }
           });
         });
+
+        initWeighTab();
       } catch (e) {
         document.getElementById("content").innerHTML =
           '<div class="error">This link has expired or is invalid.<br/>Ask the farm owner for a fresh QR code.</div>';
+        document.getElementById("panel-weigh").innerHTML =
+          '<div class="error">This link has expired or is invalid.<br/>Ask the farm owner for a fresh QR code.</div>';
       }
     }
+
+    // ── Weigh Birds tab ─────────────────────────────────────────────────
+    let weighUnit = "kg";
+    function initWeighTab() {
+      const shedSelect = document.getElementById("weigh-shed");
+      shedSelect.innerHTML = "";
+      for (let s = 1; s <= totalShedsGlobal; s++) {
+        const opt = document.createElement("option");
+        opt.value = String(s);
+        opt.textContent = "Shed " + s;
+        shedSelect.appendChild(opt);
+      }
+
+      const unitG = document.getElementById("unit-g");
+      const unitKg = document.getElementById("unit-kg");
+      unitG.addEventListener("click", () => { weighUnit = "g"; unitG.classList.add("active"); unitKg.classList.remove("active"); });
+      unitKg.addEventListener("click", () => { weighUnit = "kg"; unitKg.classList.add("active"); unitG.classList.remove("active"); });
+
+      document.getElementById("weigh-save-btn").addEventListener("click", saveWeighIn);
+      refreshWeighLog();
+    }
+
+    async function saveWeighIn() {
+      const staffName = nameInput.value.trim();
+      if (!staffName) {
+        toast("Add your name first", true);
+        nameInput.focus();
+        nameInput.scrollIntoView({ behavior: "smooth", block: "center" });
+        return;
+      }
+      const shed = parseInt(document.getElementById("weigh-shed").value, 10);
+      const age = parseInt(document.getElementById("weigh-age").value, 10);
+      const rawVal = parseFloat(document.getElementById("weigh-value").value);
+      if (isNaN(age) || age < 0) { toast("Enter the bird's age in days", true); return; }
+      if (isNaN(rawVal) || rawVal <= 0) { toast("Enter the weight", true); return; }
+      const weightGrams = weighUnit === "kg" ? rawVal * 1000 : rawVal;
+
+      const btn = document.getElementById("weigh-save-btn");
+      btn.disabled = true;
+      btn.textContent = "Saving…";
+      try {
+        const res = await fetch("/api/integrations/weighins?" + authQ, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify({ source: "bbm-staff-qr", entries: [{ shed, age, date: todayIso, weightGrams, staffName }] }),
+        });
+        if (!res.ok) throw new Error("save failed");
+        toast(`Shed ${shed}, Day ${age} weight saved`);
+        document.getElementById("weigh-value").value = "";
+        await refreshWeighLog();
+      } catch (e) {
+        toast("Couldn't save — try again", true);
+      } finally {
+        btn.disabled = false;
+        btn.textContent = "Save Weight";
+      }
+    }
+
+    async function refreshWeighLog() {
+      const logEl = document.getElementById("weigh-log");
+      try {
+        const res = await fetch("/api/integrations/weighins?" + authQ + "&since=" + todayIso, { credentials: "include" });
+        if (!res.ok) throw new Error("load failed");
+        const data = await res.json();
+        const entries = (data.entries || []).filter(e => e.date === todayIso);
+        if (entries.length === 0) {
+          logEl.innerHTML = '<div class="empty-log">Nothing recorded yet today.</div>';
+          return;
+        }
+        logEl.innerHTML = entries.map(e => `
+          <div class="weigh-log-item">
+            <span class="w-shed">Shed ${e.shed} · Day ${e.age}</span>
+            <span>${(e.weightGrams / 1000).toFixed(3)} kg</span>
+            <span class="w-meta">${e.staffName || ""}</span>
+          </div>`).join("");
+      } catch (_) {
+        logEl.innerHTML = '<div class="empty-log">Nothing recorded yet today.</div>';
+      }
+    }
+
     init();
   </script>
 </body>

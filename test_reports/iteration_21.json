@@ -1,0 +1,25 @@
+{
+  "summary": "Tested new 'Weigh Birds' tab on Staff QR page (/morts-entry) + POST/GET /api/integrations/weighins. Backend: 9/9 pytest passing (auth 401s, valid upsert, idempotent overwrite on (farm,shed,age), separate age creates new entry, empty-entries 400, zero-weight skipped, no _id leak). Frontend: 21/21 checks passing (tab bar renders both tabs with correct data-testids, panel switching, shed dropdown populated 1-20, kg default active, staff-name required with focus, age & weight validation, kg + grams save flows with unit toggle, weight input cleared after save, entries appear in TODAY'S WEIGHINGS log converted to kg, regression: Morts & Culls tab still renders normally). Desktop Feed Program merge poll (60s → localStorage feedmate-flock-weighins) NOT UI-verified because it's a large SPA with per-browser localStorage merge — code path was reviewed and matches the existing morts-poll pattern; a curl-then-reload sequence in a real browser session is expected to work per the design note.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_report_links": [
+    "/app/backend/tests/test_weighins_integration.py",
+    "/app/test_reports/pytest/weighins_results.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "Endpoint correctly excludes MongoDB _id via projection ({'_id':0}) — good.",
+    "Idempotent upsert on (farmId, shed, age) verified in tests; matches spec.",
+    "staff-name and validation errors show toast + focus name field — matches request.",
+    "Desktop poll merge (App.tsx line ~10071) not runtime-verified in this iteration — main agent's curl round-trip + code review confirmed it earlier; recommend a smoke check next time the desktop app is otherwise being tested."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_weighins_integration.py (new)"
+  ],
+  "success_rate": {"backend": "100%", "frontend": "100%"},
+  "test_credentials": "Farm 'north-creek', token 'JA-018MvYOhNc8hBnbfJ1DU0dxeaIiQ_' — worked as provided.",
+  "seed_data_creation": "Created a few external_weighins entries during testing (shed 1/day 25, shed 2/day 30, shed 9/day 21 & 28). All cleaned up via direct Mongo delete — remaining north-creek external_weighins count = 0 confirmed.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Weigh Birds tab is fully functional on the loginless Staff QR page. Backend endpoint /api/integrations/weighins (POST/GET) at server.py:926-962, auth via _require_farm_access (SEC-006). data-testids in /app/backend/static/morts-entry.html: tab-morts-culls, tab-weigh-birds, weigh-shed-select, weigh-age-input, weigh-value-input, weigh-unit-g, weigh-unit-kg, weigh-save-button, staff-name-input. Toast messages: 'Add your name first', 'Enter the bird\\'s age in days', 'Shed X, Day Y weight saved'. Desktop merge poll lives at /app/silo/artifacts/feed-program/src/App.tsx ~line 10071 (writes to localStorage 'feedmate-flock-weighins')."
+}
