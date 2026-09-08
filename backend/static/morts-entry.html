@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <meta name="theme-color" content="#0f1a2f" />
+  <link rel="icon" type="image/png" href="/reader-assets/icon-192.png" />
+  <title>Record Morts &amp; Culls</title>
+  <style>
+    :root {
+      --bg: #0f1a2f; --panel: #1b2540; --line: #2a3a5c; --ink: #eef3fa; --muted: #8a99b8;
+      --red: #ef4444; --red-soft: #2a1a22; --orange: #f59e0b; --orange-soft: #2a2118;
+      --green: #2dbd5e; --green-600: #29a352;
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; background: var(--bg); color: var(--ink);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      font-size: 16px; -webkit-font-smoothing: antialiased; }
+    header { padding: 18px 16px 10px; text-align: center; border-bottom: 1px solid var(--line); }
+    header .farm { font-weight: 800; font-size: 18px; }
+    header .sub { font-size: 12px; color: var(--muted); margin-top: 3px; }
+    .wrap { max-width: 520px; margin: 0 auto; padding: 14px 14px 90px; }
+    .shed-card { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 14px; margin-bottom: 10px; }
+    .shed-card .head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+    .shed-card .head .num { font-size: 17px; font-weight: 900; }
+    .shed-card .head .saved-badge { font-size: 11px; color: var(--green); font-weight: 700; opacity: 0; transition: opacity .2s; }
+    .shed-card .head .saved-badge.show { opacity: 1; }
+    .fields { display: grid; grid-template-columns: 1fr 1fr auto; gap: 8px; align-items: end; }
+    .field label { display: block; font-size: 10px; letter-spacing: 1px; font-weight: 700; margin-bottom: 4px; }
+    .field.morts label { color: var(--red); }
+    .field.culls label { color: var(--orange); }
+    .field input { width: 100%; padding: 10px; border-radius: 8px; border: 1px solid var(--line); font-size: 16px;
+      text-align: center; font-weight: 700; color: var(--ink); }
+    .field.morts input { background: var(--red-soft); }
+    .field.culls input { background: var(--orange-soft); }
+    .save-btn { background: var(--green); color: #fff; border: 0; border-radius: 8px; padding: 11px 16px;
+      font-size: 13px; font-weight: 800; cursor: pointer; }
+    .save-btn:disabled { opacity: 0.5; }
+    .save-btn:active { background: var(--green-600); }
+    .loading, .error { text-align: center; padding: 40px 20px; color: var(--muted); }
+    .toast { position: fixed; bottom: 18px; left: 50%; transform: translateX(-50%); background: var(--green);
+      color: #fff; padding: 10px 20px; border-radius: 99px; font-size: 13px; font-weight: 700; box-shadow: 0 6px 20px -6px rgba(0,0,0,0.5);
+      opacity: 0; transition: opacity .25s; pointer-events: none; z-index: 99; }
+    .toast.show { opacity: 1; }
+    .toast.err { background: var(--red); }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="farm" id="farm-name">Loading…</div>
+    <div class="sub" id="today-label"></div>
+  </header>
+  <div class="wrap" id="content"><div class="loading">Loading sheds…</div></div>
+  <div class="toast" id="toast"></div>
+
+  <script>
+    const qs = new URLSearchParams(window.location.search);
+    const farm = qs.get("farm") || "default";
+    const token = qs.get("t") || "";
+    const authQ = "farm=" + encodeURIComponent(farm) + (token ? "&t=" + encodeURIComponent(token) : "");
+    const today = new Date();
+    const todayIso = today.toISOString().slice(0, 10);
+    document.getElementById("today-label").textContent =
+      "Today · " + today.toLocaleDateString("en-AU", { weekday: "long", day: "numeric", month: "short" });
+
+    function toast(msg, isErr) {
+      const el = document.getElementById("toast");
+      el.textContent = msg;
+      el.className = "toast show" + (isErr ? " err" : "");
+      setTimeout(() => { el.className = "toast"; }, 2200);
+    }
+
+    async function init() {
+      try {
+        const cfgRes = await fetch("/api/farm-config?" + authQ, { credentials: "include" });
+        if (!cfgRes.ok) throw new Error("auth");
+        const cfg = await cfgRes.json();
+        document.getElementById("farm-name").textContent = cfg.farmName || "Farm";
+        const totalSheds = cfg.totalSheds || 20;
+
+        // Prefill with anything already recorded today (either entered here before, or synced from BBM itself)
+        let existing = {};
+        try {
+          const morRes = await fetch("/api/integrations/morts?" + authQ + "&since=" + todayIso, { credentials: "include" });
+          if (morRes.ok) {
+            const data = await morRes.json();
+            (data.entries || []).forEach(e => { if (e.date === todayIso) existing[e.shed] = e; });
+          }
+        } catch (_) { /* prefill is best-effort */ }
+
+        const content = document.getElementById("content");
+        content.innerHTML = "";
+        for (let s = 1; s <= totalSheds; s++) {
+          const card = document.createElement("div");
+          card.className = "shed-card";
+          const preM = existing[s]?.morts ?? "";
+          const preC = existing[s]?.culls ?? "";
+          card.innerHTML = `
+            <div class="head"><span class="num">Shed ${s}</span><span class="saved-badge" data-badge="${s}">✓ Saved</span></div>
+            <div class="fields">
+              <div class="field morts"><label>MORTS</label><input type="number" inputmode="numeric" min="0" data-morts="${s}" value="${preM}" /></div>
+              <div class="field culls"><label>CULLS</label><input type="number" inputmode="numeric" min="0" data-culls="${s}" value="${preC}" /></div>
+              <button class="save-btn" data-save="${s}">Save</button>
+            </div>`;
+          content.appendChild(card);
+        }
+
+        content.querySelectorAll("[data-save]").forEach(btn => {
+          btn.addEventListener("click", async () => {
+            const s = btn.getAttribute("data-save");
+            const morts = parseInt(document.querySelector(`[data-morts="${s}"]`).value, 10) || 0;
+            const culls = parseInt(document.querySelector(`[data-culls="${s}"]`).value, 10) || 0;
+            btn.disabled = true;
+            btn.textContent = "Saving…";
+            try {
+              const res = await fetch("/api/integrations/morts?" + authQ, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                credentials: "include",
+                body: JSON.stringify({ source: "bbm-staff-qr", entries: [{ shed: parseInt(s, 10), date: todayIso, morts, culls }] }),
+              });
+              if (!res.ok) throw new Error("save failed");
+              const badge = document.querySelector(`[data-badge="${s}"]`);
+              badge.classList.add("show");
+              setTimeout(() => badge.classList.remove("show"), 2500);
+              toast(`Shed ${s} saved`);
+            } catch (e) {
+              toast("Couldn't save — try again", true);
+            } finally {
+              btn.disabled = false;
+              btn.textContent = "Save";
+            }
+          });
+        });
+      } catch (e) {
+        document.getElementById("content").innerHTML =
+          '<div class="error">This link has expired or is invalid.<br/>Ask the farm owner for a fresh QR code.</div>';
+      }
+    }
+    init();
+  </script>
+</body>
+</html>

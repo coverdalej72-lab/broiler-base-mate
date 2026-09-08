@@ -1,0 +1,40 @@
+{
+  "summary": "Tested the new Morts-tab Flock Overview panel + Staff QR flow + standalone /morts-entry page. Backend: 12/12 pytest cases pass (auth gates, push/pull round-trip via farm-token, farm-config auth, idempotent upsert, static page). Frontend: MortsInsightsPanel renders with all 4 KPIs (no NaN/undefined), period selector switches between 7/14/30 days and updates loss-rate KPI, both trend + shed breakdown charts render (recharts SVGs present), Staff QR button opens modal, generates correct /morts-entry?farm=north-creek&t=<token> URL, QR SVG renders, Close button dismisses modal. Standalone /morts-entry with valid token renders all 20 shed cards with Save buttons, farm name loads from /api/farm-config, saving a shed shows the '✓ Saved' badge + toast and POST /api/integrations/morts returns 200.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "/api/farm-token", "issue": "Accepts ?t=<farmToken> as auth. Since the endpoint's purpose is 'let the logged-in owner fetch the token to build the QR', accepting the token itself as auth is a mild footgun — any staff-QR link recipient could re-fetch the token. Consider requiring an actual session cookie (not _require_farm_access). Not blocking."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [
+      {"flow": "Standalone /morts-entry bad/missing token UX", "issue": "Spec says a wrong/missing ?t= should show 'This link has expired or is invalid' from the dark-themed staff page. In production the SPA's auth-guard.js runs before the /api/page/morts-entry fetch completes and, seeing no session AND no valid farm-token, redirects the anonymous visitor to Emergent OAuth (Google sign-in) instead. Result: staff scanning a stale QR see a Google login page rather than the intended 'link expired' message. The static HTML's own error branch (fetch /api/farm-config -> 401 -> show error) is never reached because the guard bounces first.", "affected_selectors": ["#content"]}
+    ],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_morts_staff_qr.py",
+    "/app/test_reports/pytest/morts_staff_qr.xml"
+  ],
+  "action_items": [
+    "Main agent: In /app/backend/static/auth-guard.js, treat /morts-entry as a public no-login page (like a public static route). Either short-circuit the guard when window.location.pathname === '/morts-entry', OR keep the guard but let it accept an anonymous visitor with the URL ?t= present and let the page itself render the 'link expired' error when the token is bad. Otherwise the bad-token UX contract in the spec cannot be met.",
+    "(Optional) Harden /api/farm-token to require an actual session cookie (not the farm token) so the QR-link recipient can't re-fetch the master token."
+  ],
+  "critical_code_review_comments": [
+    "MortsInsightsPanel is well-scoped and uses shared localStorage state — no data-model coupling issues. Uses recharts consistently with the rest of the app.",
+    "external_morts collection: GET returns clean docs (_id excluded via projection) — good.",
+    "morts-entry.html is 143 lines, dependency-free vanilla JS, dark-themed to match reader.html palette — appropriately isolated from the SPA bundle.",
+    "App.tsx is ~13,584 lines — it is far beyond the 700-line guideline. Not new in this feature but worth flagging: needs modularization."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_morts_staff_qr.py (new pytest file)"
+  ],
+  "success_rate": {"backend": "100%", "frontend": "90%"},
+  "test_credentials": "Owner magic-link: GET /api/auth/owner-magic?key=VO1Jd3ZFNuEdk69SX-7AzfgzHgtUuqB86_HB8sXS14Q&to=/ (session for appcovi2026@gmail.com, farm north-creek). Farm-token for north-creek is fetched fresh via /api/farm-token in the test.",
+  "seed_data_creation": "During UI testing wrote {shed:20, date:2026-09-08, morts:3, culls:1} to external_morts for farm north-creek, then overwrote with zeros as cleanup (final state: shed 20 / 2026-09-08 = 0/0 in external_morts). Backend pytest uses date 2019-01-15 sheds 97/98/99 and cleans up to zeros in an autouse module-scope fixture.",
+  "retest_needed": true,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "The bad-token /morts-entry UX gap is the only outstanding item — after main agent adjusts auth-guard.js to allow anonymous access to /morts-entry, re-verify by loading /morts-entry?farm=north-creek&t=bad in a fresh (no-cookie) browser context and asserting the 'This link has expired or is invalid' message appears in #content and no redirect to auth.emergentagent.com happens. Regression check the good-path standalone page still loads.",
+  "rca of the issue": "Root cause: /app/backend/static/auth-guard.js is included by the SPA bootloader (feed-program/index.html) for all app routes including /morts-entry. The guard runs BEFORE the STATIC-page interceptor's document.write can replace the DOM. When there's no session AND the farm token is invalid (backend /api/auth/me returns 401 and any /api/* call with the bad ?t= also 401s), the guard's anonymousBounceUrl() sends anonymous visitors to Emergent OAuth (because /morts-entry has __BBM_PAGE__='app' but is not the homepage exception). The staff HTML's own graceful 'link expired' fallback (lines 135-138 of morts-entry.html) is therefore never reached. Fix: whitelist /morts-entry in auth-guard.js so it returns early without redirecting when pathname === '/morts-entry', trusting the static page to handle bad-token UX itself."
+}

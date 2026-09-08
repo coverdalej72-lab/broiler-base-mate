@@ -16,6 +16,15 @@
   if (window.__BBM_AUTH_GUARD_STARTED__) return;
   window.__BBM_AUTH_GUARD_STARTED__ = true;
 
+  // /morts-entry is a fully self-contained, no-login staff page (Staff QR
+  // flow) — it makes its own auth decision by calling /api/farm-config with
+  // its own ?t= token and shows a graceful "link expired" message on a bad
+  // token. This guard must NOT run at all here: it was racing the SPA
+  // shell's static-page fetch (index.html) and hard-redirecting anonymous
+  // staff visitors to /landing/OAuth before morts-entry.html's own error
+  // branch ever got a chance to render. Found via testing_agent iteration_19.
+  if (/^\/morts-entry(\/|$|\?)/.test(window.location.pathname)) return;
+
   const PROTECTED_PAGE = (window.__BBM_PAGE__ || document.body && document.body.dataset && document.body.dataset.page) || "app";
   // Preview environment: the /reader route is bootstrapped by the SPA which sets
   // __BBM_PAGE__ = "app" — so also detect reader from the URL path so guards work.

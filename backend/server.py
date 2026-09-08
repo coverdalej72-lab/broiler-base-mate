@@ -1330,6 +1330,24 @@ async def _require_farm_access(request: Request, farm_slug: str) -> dict:
     return user
 
 
+async def _require_owner_session(request: Request, farm_slug: str) -> dict:
+    """Session-cookie-only variant of _require_farm_access — deliberately does
+    NOT accept the farm's own ?t=<farmToken> as auth. Used by /api/farm-token
+    so a staff member who already has the QR link/token can't use it to
+    re-derive the same token (harmless today, but keeps the token's blast
+    radius from growing). Flagged by testing_agent iteration_19."""
+    user = await _user_from_request(request)
+    if not user:
+        raise HTTPException(401, "Authentication required")
+    farms_info = await _list_user_farms(db, user["email"])
+    if farms_info["role"] == "admin":
+        return user
+    allowed = {f["slug"] for f in farms_info["owned"]} | {f["slug"] for f in farms_info["invited"]}
+    if farm_slug not in allowed:
+        raise HTTPException(403, f"No access to farm '{farm_slug}'")
+    return user
+
+
 # ─── Helpers ───────────────────────────────────────────────────────────────
 AEST_OFFSET = timedelta(hours=10)
 
@@ -2964,6 +2982,19 @@ async def get_farm_config(request: Request, farm: str = Query(default=DEFAULT_FA
         }
         await farm_config_col.insert_one(doc)
     return clean(doc)
+
+
+@api.get("/farm-token")
+async def get_farm_token(request: Request, farm: str = Query(default=DEFAULT_FARM_ID)):
+    """Lets the already-logged-in owner fetch their own farm's SEC-006 token,
+    to build the Staff QR link for /morts-entry (staff never gets a login,
+    just this farm's own secret token embedded in the QR). Session-only —
+    see _require_owner_session."""
+    await _require_owner_session(request, farm)
+    doc = await farms_col.find_one({"slug": farm}, {"farmToken": 1})
+    if not doc:
+        raise HTTPException(404, "Farm not found")
+    return {"token": doc.get("farmToken", "")}
 
 
 @api.patch("/farm-config")
@@ -4865,6 +4896,7 @@ async def api_page(page_name: str):
         "landing": "landing.html",
         "landing/success": "success.html",
         "reader": "reader.html",
+        "morts-entry": "morts-entry.html",
         "ops-dashboard": "ops-dashboard.html",
         "ops-outreach": "ops-outreach.html",
         "admin": "admin-health.html",
@@ -4967,6 +4999,18 @@ async def reader_page():
 @app.get("/reader/")
 async def reader_page_slash():
     return FileResponse(os.path.join(STATIC_DIR, "reader.html"))
+
+
+@app.get("/morts-entry")
+async def morts_entry_page():
+    """No-login staff morts/culls recording page — opened via the Staff QR
+    on BBM's Morts tab, farm-scoped by the ?farm=&t= SEC-006 token."""
+    return FileResponse(os.path.join(STATIC_DIR, "morts-entry.html"))
+
+
+@app.get("/morts-entry/")
+async def morts_entry_page_slash():
+    return FileResponse(os.path.join(STATIC_DIR, "morts-entry.html"))
 
 
 # ─── Personalised landing pages from outreach links ───────────────────────
