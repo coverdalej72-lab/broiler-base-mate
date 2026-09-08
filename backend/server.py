@@ -43,6 +43,7 @@ feed_program_catches_col = db["feed_program_catches"]
 payments_col = db["payment_transactions"]
 farms_col = db["farms"]
 eob_snapshots_col = db["eob_snapshots"]
+external_morts_col = db["external_morts"]
 
 DEFAULT_FARM_ID = "default"
 
@@ -839,6 +840,64 @@ async def resend_locked_batch_email(snap_id: str, req: ResendEobRequest, request
     if not result.get("ok"):
         raise HTTPException(500, f"Could not resend email: {result.get('error') or result.get('reason')}")
     return {"ok": True, "sentTo": to_addr}
+
+
+# ─── External Morts Integration — link a companion app (e.g. "Mort Buddy")
+# for daily mortality/culls entry ───────────────────────────────────────────
+# Jason is building a separate app for logging daily morts/culls per shed and
+# wants it to feed straight into BBM's Morts tab / EOB / Batch Results instead
+# of double-entering the same numbers in both apps. Auth reuses the exact same
+# SEC-006 farm-token mechanism as every other endpoint (`?t=<farmToken>` or
+# `x-farm-token` header) — no separate API key system needed, and the other
+# app never gets a login session, just the farm's own secret token.
+class ExternalMortEntry(BaseModel):
+    shed: int
+    date: str          # YYYY-MM-DD (grower's local date the morts/culls occurred)
+    morts: int = 0
+    culls: int = 0
+
+
+class ExternalMortsPushRequest(BaseModel):
+    entries: List[ExternalMortEntry]
+    source: Optional[str] = "external"   # which companion app sent this (e.g. "mort-buddy")
+
+
+@app.post("/api/integrations/morts")
+async def push_external_morts(req: ExternalMortsPushRequest, request: Request, farm: str = Query(default=DEFAULT_FARM_ID)):
+    """Upsert daily per-shed morts/culls from a companion app into BBM.
+    Idempotent — resending the same (farm, date, shed) overwrites that entry
+    rather than duplicating it, so the sender can safely retry/resync."""
+    await _require_farm_access(request, farm)
+    if not req.entries or len(req.entries) > 500:
+        raise HTTPException(400, "Provide 1-500 entries")
+    now = datetime.now(timezone.utc)
+    upserted = 0
+    for e in req.entries:
+        await external_morts_col.update_one(
+            {"farmId": farm, "date": e.date, "shed": e.shed},
+            {"$set": {
+                "farmId": farm, "date": e.date, "shed": e.shed,
+                "morts": max(0, e.morts), "culls": max(0, e.culls),
+                "source": req.source, "updatedAt": now,
+            }},
+            upsert=True,
+        )
+        upserted += 1
+    return {"ok": True, "upserted": upserted}
+
+
+@app.get("/api/integrations/morts")
+async def get_external_morts(request: Request, farm: str = Query(default=DEFAULT_FARM_ID), since: Optional[str] = None):
+    """Return every external morts/culls entry on record for this farm (used
+    by BBM's own frontend to merge Mort Buddy's numbers into the Morts tab,
+    and by the companion app itself to confirm what's already synced)."""
+    await _require_farm_access(request, farm)   # SEC-006 read isolation
+    q: dict = {"farmId": farm}
+    if since:
+        q["date"] = {"$gte": since}
+    cursor = external_morts_col.find(q, {"_id": 0}).sort("date", 1)
+    return {"entries": await cursor.to_list(2000)}
+
 
 
 @app.get("/api/eob/batch-accuracy")
