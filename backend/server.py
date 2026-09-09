@@ -1800,7 +1800,7 @@ async def list_shed_groups(request: Request, farm: str = Query(default=DEFAULT_F
                 SiloInfo(
                     id=s["id"],
                     letter=s.get("letter", ""),
-                    name=s["name"],
+                    name=s.get("name") or s.get("label", ""),
                     defaultFeedType=s.get("defaultFeedType"),
                 )
                 for s in silos if s.get("shedGroupId") == g["id"]

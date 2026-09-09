@@ -3,14 +3,15 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-  <meta name="theme-color" content="#1e2f4d" />
+  <meta name="theme-color" content="#0B1911" />
   <link rel="manifest" href="/reader-assets/manifest.json" />
   <link rel="icon" type="image/png" href="/reader-assets/icon-192.png" />
   <link rel="apple-touch-icon" href="/reader-assets/icon-192.png" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-  <meta name="apple-mobile-web-app-title" content="Silo Reader" />
-  <title>Double B Farm — Feed Management</title>
+  <meta name="apple-mobile-web-app-title" content="BBM Reader" />
+  <meta name="format-detection" content="telephone=no" />
+  <title>Broiler Base Mate — Silo Reader</title>
   <script>
     // Robust loader: local first, then CDN fallbacks
     (function loadQrLib(){
@@ -255,10 +256,41 @@
     /* Feb 2026: hide the floating language chip on the reader — language now
        lives in Settings → App instead, to declutter the workspace. */
     #appcovi-lang-chip, #appcovi-lang-menu { display: none !important; }
+
+    /* Sep 2026 — "boring chrome" fix (Jason): installed/standalone-mode PWA
+       splash so the Reader app doesn't open as a bare white/default tab on
+       phones. Normal browser tab visits are unaffected (#reader-splash stays
+       hidden) — this only shows the instant display-mode is standalone
+       (installed) or iOS's legacy navigator.standalone equivalent. */
+    #reader-splash { display: none; }
+    @media (display-mode: standalone) { #reader-splash { display: flex !important; } }
+    body.bbm-reader-standalone #reader-splash { display: flex !important; }
+    @keyframes bbm-reader-splash-pulse { 0%, 100% { opacity: 0.55; transform: scale(1); } 50% { opacity: 1; transform: scale(1.06); } }
+    @keyframes bbm-reader-splash-fade { from { opacity: 0; } to { opacity: 1; } }
   </style>
 <script src="/reader-assets/i18n-snippet.js" defer></script>
 </head>
 <body data-page="reader">
+<script>
+  try { if (window.navigator && window.navigator.standalone) document.body.classList.add("bbm-reader-standalone"); } catch (_) {}
+</script>
+<div id="reader-splash" style="position:fixed;inset:0;z-index:99999;background:#0B1911;color:#eef3fa;flex-direction:column;align-items:center;justify-content:center;gap:16px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;animation:bbm-reader-splash-fade 0.3s ease;">
+  <div style="width:74px;height:74px;border-radius:20px;background:radial-gradient(circle at 32% 28%, rgba(34,197,94,0.35), rgba(11,25,17,0) 70%);display:grid;place-items:center;animation:bbm-reader-splash-pulse 1.8s ease-in-out infinite;">
+    <img src="/reader-assets/icon-192.png" alt="Broiler Base Mate" style="height:56px;width:56px;border-radius:14px;box-shadow:0 8px 24px rgba(0,0,0,0.4);" onerror="this.style.display='none'" />
+  </div>
+  <div style="font-weight:900;letter-spacing:0.5px;font-size:16px;">BROILER BASE MATE</div>
+  <div style="font-size:11px;color:#22C55E;letter-spacing:2px;font-weight:700;">READER · FIELD SYNC</div>
+</div>
+<script>
+  (function () {
+    var hide = function () {
+      var el = document.getElementById("reader-splash");
+      if (el) el.style.display = "none";
+    };
+    window.addEventListener("load", function () { setTimeout(hide, 650); });
+    setTimeout(hide, 4000); // safety net in case 'load' never fires
+  })();
+</script>
 <script src="/reader-assets/auth-guard.js"></script>
 
 <!-- ── PWA install enabler ─────────────────────────────────────────

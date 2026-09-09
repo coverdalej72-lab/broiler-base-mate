@@ -1,13 +1,13 @@
 {
-  "name": "Broiler Base Mate — Silo Reader",
-  "short_name": "Silo Reader",
-  "description": "Field reader for Broiler Base Mate: silo readings, deliveries & AI docket scanner.",
-  "start_url": "/reader",
+  "name": "Broiler Base Mate — Mort Buddy Staff",
+  "short_name": "Mort Buddy",
+  "description": "No-login farm staff page to log morts, culls and bird weights — part of Broiler Base Mate.",
+  "start_url": "/morts-entry",
   "scope": "/",
   "display": "standalone",
   "orientation": "portrait",
-  "background_color": "#0B1911",
-  "theme_color": "#0B1911",
+  "background_color": "#0A1118",
+  "theme_color": "#0A1118",
   "icons": [
     {
       "src": "/reader-assets/icon-192.png",

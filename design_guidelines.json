@@ -1,8 +1,59 @@
 {
   "theme_overview": {
-    "vibe": "High-end 2026 SaaS, industrial command center, premium dark theme ('FarmBuddy' style)",
-    "emotional_tone": "Command-center focus, reliable, precise, high-tech agricultural",
-    "theme_preference": "Dark-first (with theme toggle for light mode fallback)"
+    "vibe": "High-end 2026 Agricultural SaaS, industrial command center with phone-first PWA polish ('Broiler Base Mate' family)",
+    "emotional_tone": "Command-center precision on desktop; tactical, warm, high-contrast field efficiency on phone",
+    "theme_preference": "Dark-first with phone-optimized native browser chrome integration"
+  },
+  "phone_browser_chrome_strategy": {
+    "problem_analysis": "Founder Jason's 'boring chrome' feedback stems from default white/navy browser bars, mismatched theme-color tags vs manifests, missing iOS Apple PWA tags, and zero splash screens on the Mort Buddy QR page, making mobile pages feel like plain Web 1.0 tabs.",
+    "phone_visual_identity": "Tactical Field Green & Dark Slate ('Bio-Luminescent Farm Tech'). A phone-first evolution of BBM's desktop navy/gold that bridges agricultural warmth with high-visibility field UI.",
+    "surface_color_tokens": {
+      "mobile_reader_app": {
+        "theme_color": "#0B1911",
+        "background_color": "#0B1911",
+        "status_bar_style": "black-translucent",
+        "accent_primary": "#22C55E",
+        "chrome_nav_header": "#112419"
+      },
+      "mort_buddy_qr_page": {
+        "theme_color": "#0A1118",
+        "background_color": "#0A1118",
+        "status_bar_style": "black-translucent",
+        "accent_primary": "#10B981",
+        "accent_alert": "#EF4444",
+        "chrome_nav_header": "#111A24"
+      }
+    },
+    "pwa_meta_and_manifest_architecture": {
+      "reader_manifest": {
+        "path": "/reader-manifest.json",
+        "name": "BBM Reader App",
+        "short_name": "BBM Reader",
+        "start_url": "/reader.html",
+        "display": "standalone",
+        "background_color": "#0B1911",
+        "theme_color": "#0B1911"
+      },
+      "mort_buddy_manifest": {
+        "path": "/mort-buddy-manifest.json",
+        "name": "BBM Mort Buddy Staff",
+        "short_name": "Mort Buddy",
+        "start_url": "/morts-entry.html",
+        "display": "standalone",
+        "background_color": "#0A1118",
+        "theme_color": "#0A1118"
+      },
+      "ios_meta_tags": [
+        "<meta name=\"apple-mobile-web-app-capable\" content=\"yes\">",
+        "<meta name=\"apple-mobile-web-app-status-bar-style\" content=\"black-translucent\">",
+        "<meta name=\"apple-mobile-web-app-title\" content=\"BBM Mobile\">",
+        "<meta name=\"format-detection\" content=\"telephone=no\">"
+      ]
+    },
+    "pwa_splash_screen_design": {
+      "reader_splash": "Dark Emerald background (#0B1911) with a central glowing SVG emblem (Silo + AI Eye) with subtle bio-mesh radial background pulse and text 'BROILER BASE MATE • READER v2.6'.",
+      "mort_buddy_splash": "Deep Slate-Navy background (#0A1118) with a high-visibility tactical emblem (Shield + Rooster Silhouette) with quick QR badge and text 'BBM MORT BUDDY • SHED DIRECT'."
+    }
   },
   "typography": {
     "headings": {
@@ -46,7 +97,7 @@
     "glassmorphism": "Use 'backdrop-blur-xl bg-black/60 border border-white/10' for the Right Silo Panel and Top Header. Ensures data doesn't feel flat.",
     "borders": "1px delicate inner stroke on elevated surfaces (border-white/5 to border-white/10).",
     "shadows": "Soft diffuse ambient shadows (shadow-2xl shadow-black/50) for modal elements and dropdowns.",
-    "textures": "Optional subtle noise/grain overlay (opacity-5) on the main app wrapper to kill 'digital flatness'."
+    "textures": "Subtle tactical noise/grain overlay (opacity-5) on the main app wrapper to kill 'digital flatness'."
   },
   "layouts": {
     "app_shell": "CSS Grid or Flex layout. Left Sidebar (fixed 240px, collapses on mobile). Main Content (fluid). Right Silo Panel (320px fixed on desktop, bottom drawer or collapsed on <1280px).",
@@ -59,15 +110,15 @@
     "kpi_tiles": "Flat solid background or glass effect, 1px border. Value text should use Outfit text-4xl font-semibold. Subtle icon in top-right with brand-muted background.",
     "feed_grid_table": "Dense cells. Use rich color-coded status pips (small rounded indicators 8px by 8px or subtle background tints). Today's row gets a distinct highlight (e.g., border-l-2 border-primary bg-primary/5).",
     "sliders": "Customized Shadcn Slider for 'Catch Day' and 'Target Weight'. Accent color matches primary green.",
-    "charts": "Recharts. Dark theme grids (stroke='#272B36'). Actual data = solid line. Forecast data = dashed line. Use dot={false} or subtle dots on hover. Tooltips must have dark glassmorphism background."
+    "charts": "Recharts. Dark theme grids (stroke='#272B36'). Actual data = solid line. Forecast data = dashed line. Tooltips must have dark glassmorphism background."
   },
   "motion": {
-    "hero_moment": "On initial app load, trigger a staggered Framer Motion entrance for the main Feed grid rows or Forecast KPI tiles (y: 20, opacity: 0 -> y: 0, opacity: 1, stagger: 0.05). The Silo gauge MUST animate its stroke-dashoffset from 0 to actual value over 1.5s.",
+    "hero_moment": "On initial app load, trigger a staggered Framer Motion entrance for the main Feed grid rows or Forecast KPI tiles (y: 20, opacity: 0 -> y: 0, opacity: 1, stagger: 0.05).",
     "micro_interactions": "Buttons get a subtle scale-down on tap (scale: 0.98). Table rows get a very subtle bg-white/5 on hover.",
     "transitions": "DO NOT use 'transition-all'. Use specific 'transition-colors', 'transition-transform'."
   },
   "accessibility": {
-    "contrast": "Ensure text against status colors meets APCA/WCAG standards. Use darker variants of status colors for text if placed on light backgrounds, or white text on dark status backgrounds.",
+    "contrast": "Ensure text against status colors meets APCA/WCAG standards.",
     "testing_attributes": "All interactive elements, buttons, tabs, and form inputs MUST have 'data-testid' attributes (e.g., data-testid='start-batch-btn')."
   },
   "media": {
@@ -83,29 +134,26 @@
   "phased_implementation_plan": [
     {
       "phase": 1,
-      "title": "Shell & Theme Overhaul",
-      "description": "Establish the 2026 dark theme tokens. Build the layout shell: Left Sidebar (240px), Sticky Header, and Right Silo Panel (320px). Implement the hero load-in animation for the shell."
+      "title": "Mobile Chrome & PWA Foundation",
+      "description": "Align theme-color meta tags, manifest files, and Apple iOS PWA tags for both Reader app (#0B1911) and Mort Buddy QR page (#0A1118). Add splash screen components and standalone PWA launcher polish."
     },
     {
       "phase": 2,
-      "title": "Feed Program Redesign & Silo Panel",
-      "description": "Refactor the main feed grid without breaking xlsx math. Add sticky headers/columns, color-coded pips, and quick-nav strip. Build the Silo Gauge (animated) and individual Silo cards in the Right Panel."
+      "title": "Desktop Shell & Feed Program",
+      "description": "Establish the 2026 dark theme tokens. Build the layout shell, sticky header, feed grid table, and animated Silo gauge panel."
     },
     {
       "phase": 3,
-      "title": "Flock Forecast Page (New)",
-      "description": "Create the new Flock Forecast view. Build the Parameter Sliders, Bento-style KPI tiles with staggered animations, Recharts Growth/Feed charts, and the Feed Order Planner list."
+      "title": "Flock Forecast View",
+      "description": "Build the interactive Flock Forecast page with Recharts growth curves, parameter sliders, and bento KPI tiles."
     }
   ],
   "universal_guidelines_for_main_agent": [
-    "CRITICAL: Treat all files as .js/.jsx. The project uses standard JavaScript/JSX, not TypeScript (.tsx), despite any initial prompts mentioning App.tsx. Double check the file extensions before writing.",
-    "DO NOT break the existing xlsx-driven math logic or the mobile Reader companion app.",
-    "NEVER use generic placeholder image URLs (like via.placeholder). Use the provided image_urls for avatars.",
-    "Do not center-align the main app layout. Left-align dense data.",
-    "Use 2-3x generous spacing for standard sections, but maintain a dense tight bento grid for the Flock Forecast.",
+    "CRITICAL: Treat all files as .js/.jsx. The project uses standard JavaScript/JSX, not TypeScript (.tsx).",
+    "Ensure both mobile surfaces (Reader app and Mort Buddy QR page) have unified theme-color meta tags matching their respective manifests.",
+    "Implement apple-mobile-web-app-capable and apple-mobile-web-app-status-bar-style tags on all mobile pages.",
     "Include 'data-testid' attributes on all actionable elements (buttons, inputs, tabs).",
-    "Implement glassmorphism using Tailwind 'backdrop-blur-xl bg-black/60'. Never use fully transparent backgrounds behind text.",
-    "Use Sonner for toast notifications.",
-    "Do not apply 'transition: all' globally."
+    "Never use generic placeholder image URLs.",
+    "Use Sonner for toast notifications."
   ]
 }
