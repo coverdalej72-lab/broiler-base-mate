@@ -1646,12 +1646,20 @@ async def batch_version():
 
 @api.delete("/batch/reset")
 async def batch_reset(request: Request, farm: str = Query(default=DEFAULT_FARM_ID)):
-    """New Batch: wipe this farm's readings, deliveries, and photos so app starts empty."""
+    """New Batch: wipe this farm's readings, deliveries, and photos so app starts empty.
+    Also clears external_weighins — Staff QR bird weights are keyed by
+    (farm, shed, AGE), which collides across batches (Day 21 exists in every
+    batch), unlike external_morts which is keyed by absolute calendar date
+    and therefore doesn't cross-contaminate a new batch on its own. Found via
+    code review Sep 2026: without this, the 60s desktop poll would silently
+    re-merge the previous batch's weigh-ins into the new batch's Flock
+    Forecast within a minute of starting fresh."""
     await _require_farm_access(request, farm)   # SEC-001 — DESTRUCTIVE, absolutely must be gated
     r = await readings_col.delete_many(_farm_filter(farm))
     d = await deliveries_col.delete_many(_farm_filter(farm))
     p = await photos_col.delete_many(_farm_filter(farm))
-    return {"ok": True, "readingsDeleted": r.deleted_count, "deliveriesDeleted": d.deleted_count, "photosDeleted": p.deleted_count}
+    w = await external_weighins_col.delete_many({"farmId": farm})
+    return {"ok": True, "readingsDeleted": r.deleted_count, "deliveriesDeleted": d.deleted_count, "photosDeleted": p.deleted_count, "externalWeighInsDeleted": w.deleted_count}
 
 
 @api.delete("/admin/delete-user")
@@ -1897,7 +1905,7 @@ async def readings_today(request: Request, localDate: Optional[str] = Query(defa
             silo_statuses.append({
                 "siloId": s["id"],
                 "letter": s.get("letter", ""),
-                "name": s.get("name", s.get("letter", "Silo")),
+                "name": s.get("name") or s.get("label", s.get("letter", "Silo")),
                 "saved": reading is not None,
                 "readingId": reading["id"] if reading else None,
                 "amountRemaining": float(reading["amountRemaining"]) if reading else None,
@@ -2166,7 +2174,7 @@ async def batch_create_readings(body: BatchCreateReadingsBody, request: Request,
         inserted.append({
             "id": doc["id"],
             "siloId": doc["siloId"],
-            "siloName": silo.get("name", "") if silo else "",
+            "siloName": (silo.get("name") or silo.get("label", "")) if silo else "",
             "siloLetter": silo.get("letter", "") if silo else "",
             "shedGroupName": group.get("name", "") if group else "",
             "feedType": doc["feedType"],
@@ -2195,7 +2203,7 @@ async def list_readings(request: Request, limit: int = Query(default=100, le=100
         out.append({
             "id": r["id"],
             "siloId": r["siloId"],
-            "siloName": silo.get("name", "") if silo else "",
+            "siloName": (silo.get("name") or silo.get("label", "")) if silo else "",
             "siloLetter": silo.get("letter", "") if silo else "",
             "shedGroupName": group.get("name", "") if group else "",
             "feedType": r["feedType"],
