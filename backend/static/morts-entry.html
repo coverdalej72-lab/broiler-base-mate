@@ -72,6 +72,11 @@
     .weigh-log-item .w-shed { font-weight: 800; }
     .weigh-log-item .w-meta { color: var(--muted); font-size: 11px; }
     .empty-log { text-align: center; color: var(--muted); font-size: 12px; padding: 10px; }
+    .age-chip-row { display: flex; gap: 6px; flex-wrap: wrap; }
+    .age-chip { background: #142038; border: 1px solid var(--line); color: var(--muted); font-weight: 800;
+      font-size: 12px; padding: 9px 14px; border-radius: 99px; cursor: pointer; }
+    .age-chip.active { background: var(--gold); color: #1a1000; border-color: var(--gold); }
+    .weigh-shed-row { display: grid; grid-template-columns: 1fr auto; gap: 8px; align-items: end; }
 
     /* Sep 2026 — "boring chrome" fix (Jason): installed/standalone-mode PWA
        splash for the no-login Staff QR page — previously had zero manifest,
@@ -132,27 +137,27 @@
     <div class="panel" id="panel-weigh">
       <div class="shed-card">
         <div class="fields" style="grid-template-columns: 1fr; gap: 10px;">
-          <div class="field weight">
-            <label>SHED</label>
-            <select id="weigh-shed" data-testid="weigh-shed-select"></select>
-          </div>
           <div class="field age">
-            <label>AGE (DAY)</label>
-            <input type="number" inputmode="numeric" min="0" id="weigh-age" data-testid="weigh-age-input" placeholder="e.g. 21" />
+            <label>AGE (DAY) — PICK A CHECK DAY</label>
+            <div class="age-chip-row" data-testid="weigh-age-chips">
+              <button type="button" class="age-chip" data-age="7" data-testid="weigh-age-chip-7">Day 7</button>
+              <button type="button" class="age-chip" data-age="14" data-testid="weigh-age-chip-14">Day 14</button>
+              <button type="button" class="age-chip active" data-age="21" data-testid="weigh-age-chip-21">Day 21</button>
+              <button type="button" class="age-chip" data-age="28" data-testid="weigh-age-chip-28">Day 28</button>
+              <button type="button" class="age-chip" data-age="custom" data-testid="weigh-age-chip-custom">Custom</button>
+            </div>
+            <input type="number" inputmode="numeric" min="0" id="weigh-age-custom" data-testid="weigh-age-custom-input" placeholder="Enter day" style="display:none;margin-top:8px;" />
           </div>
           <div class="field weight">
-            <label>MANUAL WEIGHT</label>
-            <div style="display:flex; gap:8px;">
-              <input type="number" inputmode="decimal" min="0" step="0.01" id="weigh-value" data-testid="weigh-value-input" placeholder="e.g. 1.05" style="flex:1;" />
-              <div class="unit-toggle" style="width:110px;" data-testid="weigh-unit-toggle">
-                <button type="button" id="unit-g" data-testid="weigh-unit-g">g</button>
-                <button type="button" id="unit-kg" class="active" data-testid="weigh-unit-kg">kg</button>
-              </div>
+            <label>UNIT</label>
+            <div class="unit-toggle" data-testid="weigh-unit-toggle">
+              <button type="button" id="unit-g" data-testid="weigh-unit-g">g</button>
+              <button type="button" id="unit-kg" class="active" data-testid="weigh-unit-kg">kg</button>
             </div>
           </div>
-          <button class="save-btn" id="weigh-save-btn" data-testid="weigh-save-button">Save Weight</button>
         </div>
       </div>
+      <div id="weigh-shed-list"><div class="loading">Loading sheds…</div></div>
       <div class="shed-card">
         <div class="head"><span class="num" style="font-size:13px;">TODAY'S WEIGHINGS</span></div>
         <div id="weigh-log"><div class="empty-log">Nothing recorded yet today.</div></div>
@@ -282,28 +287,80 @@
       }
     }
 
-    // ── Weigh Birds tab ─────────────────────────────────────────────────
+    // ── Weigh Birds tab — Sep 2026 redesign (Jason): manual weight only, one
+    // card per shed like Morts & Culls, and age picked from the standard
+    // industry check days (7/14/21/28) instead of typing an exact day every
+    // time — Farm Buddy doesn't know each shed's real placement date (that
+    // only lives in the desktop spreadsheet), so this keeps it simple rather
+    // than guessing wrong.
     let weighUnit = "kg";
-    function initWeighTab() {
-      const shedSelect = document.getElementById("weigh-shed");
-      shedSelect.innerHTML = "";
-      for (let s = 1; s <= totalShedsGlobal; s++) {
-        const opt = document.createElement("option");
-        opt.value = String(s);
-        opt.textContent = "Shed " + s;
-        shedSelect.appendChild(opt);
-      }
+    let selectedAge = 21;
+    let allWeighEntries = [];
 
+    function initWeighTab() {
       const unitG = document.getElementById("unit-g");
       const unitKg = document.getElementById("unit-kg");
       unitG.addEventListener("click", () => { weighUnit = "g"; unitG.classList.add("active"); unitKg.classList.remove("active"); });
       unitKg.addEventListener("click", () => { weighUnit = "kg"; unitKg.classList.add("active"); unitG.classList.remove("active"); });
 
-      document.getElementById("weigh-save-btn").addEventListener("click", saveWeighIn);
+      const customInput = document.getElementById("weigh-age-custom");
+      document.querySelectorAll(".age-chip").forEach(chip => {
+        chip.addEventListener("click", async () => {
+          document.querySelectorAll(".age-chip").forEach(c => c.classList.remove("active"));
+          chip.classList.add("active");
+          if (chip.dataset.age === "custom") {
+            customInput.style.display = "block";
+            customInput.focus();
+            selectedAge = parseInt(customInput.value, 10) || selectedAge;
+          } else {
+            customInput.style.display = "none";
+            selectedAge = parseInt(chip.dataset.age, 10);
+            await loadAllWeighEntries();
+            renderShedList();
+          }
+        });
+      });
+      customInput.addEventListener("input", async () => {
+        const v = parseInt(customInput.value, 10);
+        if (!isNaN(v) && v >= 0) { selectedAge = v; await loadAllWeighEntries(); renderShedList(); }
+      });
+
+      loadAllWeighEntries().then(renderShedList);
       refreshWeighLog();
     }
 
-    async function saveWeighIn() {
+    async function loadAllWeighEntries() {
+      try {
+        const res = await fetch("/api/integrations/weighins?" + authQ, { credentials: "include" });
+        if (!res.ok) return;
+        const data = await res.json();
+        allWeighEntries = data.entries || [];
+      } catch (_) { /* keep whatever we had */ }
+    }
+
+    function renderShedList() {
+      const wrap = document.getElementById("weigh-shed-list");
+      wrap.innerHTML = "";
+      for (let s = 1; s <= totalShedsGlobal; s++) {
+        const existing = allWeighEntries.find(e => e.shed === s && e.age === selectedAge);
+        const preKg = existing ? (existing.weightGrams / (weighUnit === "kg" ? 1000 : 1)).toFixed(weighUnit === "kg" ? 3 : 0) : "";
+        const lastBy = existing?.staffName ? `<span style="font-size:10px;color:var(--muted);margin-left:8px;">Last by ${existing.staffName}</span>` : "";
+        const card = document.createElement("div");
+        card.className = "shed-card";
+        card.innerHTML = `
+          <div class="head"><span class="num">Shed ${s}${lastBy}</span><span class="saved-badge" data-wbadge="${s}">✓ Saved</span></div>
+          <div class="weigh-shed-row">
+            <div class="field weight" style="margin:0;"><label>WEIGHT (${weighUnit.toUpperCase()})</label>
+              <input type="number" inputmode="decimal" min="0" step="0.001" data-wval="${s}" data-testid="weigh-value-${s}" value="${preKg}" placeholder="e.g. ${weighUnit === 'kg' ? '1.050' : '1050'}" />
+            </div>
+            <button class="save-btn" data-wsave="${s}" data-testid="weigh-save-${s}">Save</button>
+          </div>`;
+        wrap.appendChild(card);
+      }
+      wrap.querySelectorAll("[data-wsave]").forEach(btn => btn.addEventListener("click", () => saveWeighIn(parseInt(btn.dataset.wsave, 10))));
+    }
+
+    async function saveWeighIn(shed) {
       const staffName = nameInput.value.trim();
       if (!staffName) {
         toast("Add your name first", true);
@@ -311,14 +368,12 @@
         nameInput.scrollIntoView({ behavior: "smooth", block: "center" });
         return;
       }
-      const shed = parseInt(document.getElementById("weigh-shed").value, 10);
-      const age = parseInt(document.getElementById("weigh-age").value, 10);
-      const rawVal = parseFloat(document.getElementById("weigh-value").value);
-      if (isNaN(age) || age < 0) { toast("Enter the bird's age in days", true); return; }
+      const rawVal = parseFloat(document.querySelector(`[data-wval="${shed}"]`).value);
       if (isNaN(rawVal) || rawVal <= 0) { toast("Enter the weight", true); return; }
       const weightGrams = weighUnit === "kg" ? rawVal * 1000 : rawVal;
+      const age = selectedAge;
 
-      const btn = document.getElementById("weigh-save-btn");
+      const btn = document.querySelector(`[data-wsave="${shed}"]`);
       btn.disabled = true;
       btn.textContent = "Saving…";
       try {
@@ -330,13 +385,18 @@
         });
         if (!res.ok) throw new Error("save failed");
         toast(`Shed ${shed}, Day ${age} weight saved`);
-        document.getElementById("weigh-value").value = "";
+        const idx = allWeighEntries.findIndex(e => e.shed === shed && e.age === age);
+        const record = { shed, age, date: todayIso, weightGrams, staffName };
+        if (idx >= 0) allWeighEntries[idx] = record; else allWeighEntries.push(record);
+        const badge = document.querySelector(`[data-wbadge="${shed}"]`);
+        badge.classList.add("show");
+        setTimeout(() => badge.classList.remove("show"), 2500);
         await refreshWeighLog();
       } catch (e) {
         toast("Couldn't save — try again", true);
       } finally {
         btn.disabled = false;
-        btn.textContent = "Save Weight";
+        btn.textContent = "Save";
       }
     }
 

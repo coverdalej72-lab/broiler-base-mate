@@ -966,7 +966,7 @@
 
     function logWeigh(shed, age, kg, source){
       if (!age) { toast("Enter bird age first", "err"); return; }
-      // Store in the SAME localStorage key the Feed Program uses
+      // Store in the SAME localStorage key the Feed Program uses (this device)
       const KEY = "feedmate-flock-weighins";
       const sgId = Math.ceil(shed / 2);
       const slot = shed % 2 === 1 ? "s1" : "s2";
@@ -978,6 +978,15 @@
       asObj[slot] = grams;
       existing[sgId][age] = asObj;
       localStorage.setItem(KEY, JSON.stringify(existing));
+      // Sep 2026 — also push to the backend so this syncs to the desktop
+      // Feed Program even when it's a different device (matches Mort Buddy's
+      // Weigh Birds tab, which already syncs this way). Without this, a
+      // weight logged here only ever lived in this phone's own localStorage.
+      const staffName = localStorage.getItem("bbm-staff-name") || (window.__BBM_AUTH__ && window.__BBM_AUTH__.user && window.__BBM_AUTH__.user.name) || "";
+      fetch("/api/integrations/weighins", {
+        method: "POST", headers: {"Content-Type":"application/json"},
+        body: JSON.stringify({ source: "bbm-reader-app", entries: [{ shed, age, date: new Date().toISOString().slice(0,10), weightGrams: grams, staffName }] }),
+      }).catch(() => { /* offline — the device-local copy above still works for this browser */ });
       // Session log entry
       const log = document.getElementById("weigh-session-log");
       const row = document.createElement("div");
