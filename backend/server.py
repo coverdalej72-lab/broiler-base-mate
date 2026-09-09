@@ -4984,6 +4984,8 @@ async def api_page(page_name: str):
         "guides/chicken-shed-silo-management": "guide-chicken-shed-silo-management.html",
         "guides/ross-308-vs-cobb-500": "guide-ross-308-vs-cobb-500.html",
         "guides/broiler-grower-payment-explained": "guide-broiler-grower-payment.html",
+        "terms": "terms.html",
+        "privacy": "privacy.html",
     }
     if page_name not in allowed:
         raise HTTPException(404, "Page not found")
@@ -4996,7 +4998,7 @@ async def api_page(page_name: str):
     html = html.replace("/reader-assets/", "/api/static-asset/")
     # SEO: allow crawlers + browsers to cache marketing pages for 5 minutes.
     # Ops/reader/admin stay uncached (auth-guarded, user-specific).
-    is_public = page_name in ("landing", "landing/success", "onboarding-guide", "tools/fcr-calculator", "tools/grower-payment-calculator", "tools/silo-capacity-calculator", "ross-308-growth-chart", "cobb-500-growth-chart", "vs/poultrylog", "guides/broiler-chicken-growth-stages", "guides/lower-broiler-fcr", "guides/broiler-chicken-mortality-rates", "guides/chicken-shed-silo-management", "guides/ross-308-vs-cobb-500", "guides/broiler-grower-payment-explained")
+    is_public = page_name in ("landing", "landing/success", "onboarding-guide", "tools/fcr-calculator", "tools/grower-payment-calculator", "tools/silo-capacity-calculator", "ross-308-growth-chart", "cobb-500-growth-chart", "vs/poultrylog", "guides/broiler-chicken-growth-stages", "guides/lower-broiler-fcr", "guides/broiler-chicken-mortality-rates", "guides/chicken-shed-silo-management", "guides/ross-308-vs-cobb-500", "guides/broiler-grower-payment-explained", "terms", "privacy")
     cache_hdr = "public, max-age=300, s-maxage=600" if is_public else "no-store"
     return Response(content=html, media_type="text/html; charset=utf-8",
                     headers={"Cache-Control": cache_hdr})
@@ -5081,6 +5083,18 @@ async def morts_entry_page():
 @app.get("/morts-entry/")
 async def morts_entry_page_slash():
     return FileResponse(os.path.join(STATIC_DIR, "morts-entry.html"))
+
+
+@app.get("/terms")
+async def terms_page():
+    """Public Terms of Service page — linked from landing footer + trial signup."""
+    return FileResponse(os.path.join(STATIC_DIR, "terms.html"))
+
+
+@app.get("/privacy")
+async def privacy_page():
+    """Public Privacy Policy page — linked from landing footer + trial signup."""
+    return FileResponse(os.path.join(STATIC_DIR, "privacy.html"))
 
 
 # ─── Personalised landing pages from outreach links ───────────────────────
