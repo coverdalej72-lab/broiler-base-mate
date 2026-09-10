@@ -902,6 +902,18 @@ async def get_external_morts(request: Request, farm: str = Query(default=DEFAULT
     return {"entries": await cursor.to_list(2000)}
 
 
+@app.delete("/api/integrations/morts")
+async def delete_external_morts_by_date(request: Request, farm: str = Query(default=DEFAULT_FARM_ID), date: str = Query(...)):
+    """Clear wrong-day Morts & Culls entries — Jason: "the data stuck in Friday
+    ... can you clear Fridays entrys." Added as a permanent admin control (not
+    a one-off) so any wrong-day entry (timezone bug or otherwise) can be
+    cleared by the farm owner themselves, no agent DB access needed. Deletes
+    every external_morts row for this farm on the given date."""
+    await _require_farm_access(request, farm)   # SEC-001 — DESTRUCTIVE, must be gated
+    r = await external_morts_col.delete_many({"farmId": farm, "date": date})
+    return {"ok": True, "deleted": r.deleted_count}
+
+
 # ─── External Weigh-Ins Integration — "Weigh Birds" tab on the same Staff
 # QR page (Mort Buddy) ────────────────────────────────────────────────────
 # Jason: "we have mort buddy... could we have a tab weigh birds pick a shed
