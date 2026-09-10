@@ -825,6 +825,10 @@
 
     const FEED_TYPES = ["Starter","Grower","Finisher","Withdrawal"];
     let groupsCache=[], progressCache=null, deliveriesCache=[], readingsHistory=[], photosCache=[], farmConfig={};
+    // Sep 2026 — Jason: "does he know where he lives in the world" — .toISOString()
+    // is always UTC, so a manager entering data in the evening in Australia could
+    // get logged under the WRONG calendar day. Use the device's own local date.
+    function localDateStr(d) { d = d || new Date(); const off = d.getTimezoneOffset() * 60000; return new Date(d.getTime() - off).toISOString().slice(0, 10); }
     let activeTab="today";
     let qrScanner=null;
     let aiScanState={file:null,dataUrl:null,thumb:null,fields:null};
@@ -985,7 +989,7 @@
       const staffName = localStorage.getItem("bbm-staff-name") || (window.__BBM_AUTH__ && window.__BBM_AUTH__.user && window.__BBM_AUTH__.user.name) || "";
       fetch("/api/integrations/weighins", {
         method: "POST", headers: {"Content-Type":"application/json"},
-        body: JSON.stringify({ source: "bbm-reader-app", entries: [{ shed, age, date: new Date().toISOString().slice(0,10), weightGrams: grams, staffName }] }),
+        body: JSON.stringify({ source: "bbm-reader-app", entries: [{ shed, age, date: localDateStr(), weightGrams: grams, staffName }] }),
       }).catch(() => { /* offline — the device-local copy above still works for this browser */ });
       // Session log entry
       const log = document.getElementById("weigh-session-log");
@@ -1225,7 +1229,7 @@
       }
       const csv = rows.map(r=>r.map(v=>`"${String(v??"").replace(/"/g,'""')}"`).join(",")).join("\n");
       const blob = new Blob([csv],{type:"text/csv"}); const a=document.createElement("a");
-      a.href=URL.createObjectURL(blob); a.download=`silo-readings-${new Date().toISOString().slice(0,10)}.csv`; a.click();
+      a.href=URL.createObjectURL(blob); a.download=`silo-readings-${localDateStr()}.csv`; a.click();
       toast("✓ Exported — grouped with day totals","ok");
     });
 
@@ -1461,7 +1465,7 @@
       nameInput.oninput = () => localStorage.setItem(MORTS_NAME_KEY, nameInput.value);
 
       const totalShedsNum = (farmConfig && farmConfig.totalSheds) || (groupsCache.length * 2) || 20;
-      const todayIso = new Date().toISOString().slice(0,10);
+      const todayIso = localDateStr();
       let existing = {};
       try {
         const r = await fetch(`/api/integrations/morts?since=${todayIso}`);
@@ -1906,7 +1910,7 @@
       document.getElementById("mort-confirm-save").onclick = () => {
         const KEY_M = "silo-morts-log";
         const KEY_C = "silo-culls-log";
-        const today = (data.date && /^\d{4}-\d{2}-\d{2}$/.test(data.date)) ? data.date : new Date().toISOString().slice(0,10);
+        const today = (data.date && /^\d{4}-\d{2}-\d{2}$/.test(data.date)) ? data.date : localDateStr();
         const mortsLog = (()=>{try{return JSON.parse(localStorage.getItem(KEY_M)||"{}");}catch{return{};}})();
         const cullsLog = (()=>{try{return JSON.parse(localStorage.getItem(KEY_C)||"{}");}catch{return{};}})();
         if (!mortsLog[today]) mortsLog[today] = {};

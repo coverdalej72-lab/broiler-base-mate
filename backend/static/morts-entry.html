@@ -177,7 +177,11 @@
     const token = qs.get("t") || "";
     const authQ = "farm=" + encodeURIComponent(farm) + (token ? "&t=" + encodeURIComponent(token) : "");
     const today = new Date();
-    const todayIso = today.toISOString().slice(0, 10);
+    // Sep 2026 — Jason: "does he know where he lives in the world" — .toISOString()
+    // is always UTC, so a staff member in Australia entering data in the evening
+    // could get logged under the WRONG calendar day. Use the device's own local date.
+    function localDateStr(d) { const off = d.getTimezoneOffset() * 60000; return new Date(d.getTime() - off).toISOString().slice(0, 10); }
+    const todayIso = localDateStr(today);
     document.getElementById("today-label").textContent =
       "Today · " + today.toLocaleDateString("en-AU", { weekday: "long", day: "numeric", month: "short" });
 
