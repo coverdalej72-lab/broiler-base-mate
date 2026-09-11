@@ -1,0 +1,31 @@
+{
+  "summary": "Tested the new per-silo Active on/off + FeedType toggle feature (Jan 2026). Backend: 5/5 pytest tests passed covering shed-groups shape, PATCH active auto-setting manualOverride, PATCH feedType with explicit manualOverride reset, /api/readings/today per-silo meta fields (siloId/siloFeedType/active/manualOverride), and DELETE /api/batch/reset resetting manualOverride (verified on north-creek farm with silosOverrideReset count). Reader UI (/reader?farm=default, ~420px): all 10 shed groups × 3 silos render feed-type <select> + ⏻ off-button; toggling OFF collapses card into compact 'Silo X · OFF (feedType)' chip with 'Turn back on' that restores; feedType persists across page reload; saving readings for remaining ACTIVE silos still works (SAVED badges visible, toast fires). Feed Program desktop SPA loads at /?farm=default (marketing landing bypass requires ?farm= query param — the SPA index.html has a hard-coded window.location.replace('/landing') for root-with-no-farm); Summary/Flock Forecast/Sync Silo Base Mate tabs navigate cleanly with 0 pageerrors; the new per-silo manage tiles at App.tsx line 10017 are only rendered inside the `siloData ? (...)` block, so on the default farm — where no shed group has active Silo Sync data — the tiles do not appear visually. Cross-app sync verified indirectly: PATCH /api/silos/{id} works from either app and both Program+Reader poll /api/silos and /api/readings/today, so a toggle in one is reflected in the other on next poll (backend is the single source of truth).",
+  "backend_issues": { "critical": [], "minor": [] },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_silo_toggle.py",
+    "/app/test_reports/pytest/silo_toggle.xml"
+  ],
+  "action_items": [
+    "Feed Program's new per-silo manage tiles (data-testid=silo-manage-*, silo-active-toggle-*, silo-feedtype-*) are gated on `siloData` being present for the shed group. On the default test farm none of the 10 shed groups have Silo Sync connected, so the tiles are never rendered/visible in the Program UI. Consider either (a) rendering a lightweight version of the manage tiles even when siloData is null (using the /api/shed-groups silo config directly) so growers can turn silos on/off before they've done their first Silo Sync, or (b) documenting that Silo Sync must be run once before the toggles become accessible in the Program (the Reader-side toggles already work standalone, which mitigates but does not remove this UX gap). Confirmed via backend that all 30 default-farm silos exist with active=true/manualOverride=false; the feature works end-to-end via API, just not user-visible in the Program until Silo Sync data lands."
+  ],
+  "critical_code_review_comments": [
+    "App.tsx (13,995 lines) — file size is extreme; splitting into modules is long overdue. Not new to this change, but re-flagging.",
+    "Per-silo manage tiles at App.tsx ~10017 are only inside `siloData ? (...)`. Consider moving them out so they always render for the shed group's configured silos even before first Silo Sync — otherwise the Program UI toggle path is silently unavailable on brand-new farms.",
+    "Reader `renderToday()` correctly hides input for inactive silos and `saveShed()` skips them — good; the collapsed OFF chip uses the silo's own defaultFeedType (not a hard-coded 'Grower') which matches the spec."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_silo_toggle.py (new)"
+  ],
+  "success_rate": { "backend": "100%", "frontend": "~90% (Reader fully verified; Program tiles only partially — see action item)" },
+  "test_credentials": "Owner magic link works: https://harvest-hub-634.preview.emergentagent.com/api/auth/owner-magic?key=VO1Jd3ZFNuEdk69SX-7AzfgzHgtUuqB86_HB8sXS14Q&to=/?farm=default . NOTE: Feed Program dashboard requires the `?farm=<slug>` query parameter — plain `/` unconditionally redirects to `/landing` (see index.html line 310). Use `to=/?farm=default` (or any owned slug) for headless testing.",
+  "seed_data_creation": "None — used existing default/north-creek farms. Two Reader readings saved on default Sheds 1&2 (Silo B=5t, Silo C=6t Grower) as a side-effect of the Reader save-flow test; left in place (harmless, they simulate a real reading and appear as SAVED in the today view).",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Feed Program SPA lives at `/?farm=<slug>` (the `?farm=` param is required — root without it redirects to marketing landing per SPA index.html). The new per-silo manage tiles (data-testid `silo-manage-<sgId>-<letter>`, `silo-active-toggle-<sgId>-<letter>`, `silo-feedtype-<sgId>-<letter>`) only render for shed groups that have `siloData` populated (i.e. an actual Silo Sync run has happened). On a brand-new farm they won't appear until then. Reader-side toggles work standalone and are the primary UX for growers; backend is the source of truth and is fully verified.",
+  "rca of the issue": "N/A — feature works end-to-end. Only observation: the Program-side manage tiles are conditionally rendered inside `siloData ? (...)` which effectively hides them on farms/shed groups that have never run a Silo Sync. Not a bug per the spec (Program is the desktop companion; Reader is where growers actually toggle silos), but worth surfacing as a UX gap."
+}

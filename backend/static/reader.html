@@ -101,6 +101,15 @@
     .silo-saved { font-size: 10px; color: var(--accent-orange); text-align: center; font-weight: 800;
       letter-spacing: 1px; margin-top: 4px; padding-bottom: 4px; border-bottom: 2px solid var(--accent-orange); opacity: 0; transition: opacity .15s; }
     .silo-saved.show { opacity: 1; }
+    .silo-type-select { width: 100%; font-size: 9.5px; font-weight: 700; border: none; background: transparent;
+      color: var(--muted); margin-bottom: 4px; padding: 0; }
+    .silo-off-btn { margin-left: auto; background: none; border: 1px solid var(--line); border-radius: 99px;
+      width: 20px; height: 20px; font-size: 11px; color: var(--muted); cursor: pointer; line-height: 1; }
+    .silo-cell-off { display: flex; flex-direction: column; align-items: center; justify-content: center;
+      text-align: center; padding: 6px 4px; }
+    .silo-cell-off .silo-off-label { font-size: 10px; color: var(--muted); font-weight: 700; margin-bottom: 6px; }
+    .silo-reenable-btn { background: var(--panel-2); border: 1px solid var(--line); border-radius: 8px;
+      padding: 6px 8px; font-size: 10px; font-weight: 800; color: var(--ink); cursor: pointer; }
 
     /* ── History ── */
     .history-tools { display: flex; gap: 8px; margin-bottom: 14px; }
@@ -1083,9 +1092,23 @@
             <button class="save-pill" data-save="${g.id}">Save</button>
           </div>
           <div class="silos-row">
-            ${g.silos.map(s=>{ const p=siloProgress(g.id,s.id); const val=p?.amountRemaining??""; const saved=!!p?.saved;
-              return `<div class="silo-cell">
-                <div class="silo-h"><div class="silo-badge ${s.letter}">${s.letter}</div><div class="silo-name">Silo ${s.letter}</div></div>
+            ${g.silos.map(s=>{
+              const isActive = s.active !== false;
+              if (!isActive) {
+                return `<div class="silo-cell silo-cell-off" data-testid="silo-cell-off-${s.id}">
+                  <div class="silo-off-label">Silo ${s.letter} · OFF<br/>(${s.defaultFeedType||"Grower"})</div>
+                  <button class="silo-reenable-btn" data-toggle-silo="${s.id}" data-testid="silo-reenable-${s.id}">Turn back on</button>
+                </div>`;
+              }
+              const p=siloProgress(g.id,s.id); const val=p?.amountRemaining??""; const saved=!!p?.saved;
+              return `<div class="silo-cell" data-testid="silo-cell-${s.id}">
+                <div class="silo-h">
+                  <div class="silo-badge ${s.letter}">${s.letter}</div><div class="silo-name">Silo ${s.letter}</div>
+                  <button class="silo-off-btn" data-toggle-silo="${s.id}" data-testid="silo-off-btn-${s.id}" title="Turn this silo off">⏻</button>
+                </div>
+                <select class="silo-type-select" data-feedtype-silo="${s.id}" data-testid="silo-feedtype-${s.id}">
+                  ${["Starter","Grower","Finisher","Withdrawal"].map(ft=>`<option value="${ft}" ${(s.defaultFeedType||"Grower")===ft?"selected":""}>${ft}</option>`).join("")}
+                </select>
                 <div class="silo-input"><input type="number" inputmode="decimal" step="0.1" placeholder="0" value="${val}" data-silo="${s.id}" data-shed="${g.id}" /><div class="unit">t</div></div>
                 <div class="silo-saved ${saved?"show":""}">SAVED</div>
               </div>`;}).join("")}
@@ -1093,17 +1116,40 @@
         </div>`;
       }).join("");
       list.querySelectorAll("[data-save]").forEach(btn=>btn.addEventListener("click",()=>saveShed(btn.dataset.save,btn)));
+      list.querySelectorAll("[data-toggle-silo]").forEach(btn=>btn.addEventListener("click",()=>toggleSilo(btn.dataset.toggleSilo)));
+      list.querySelectorAll("[data-feedtype-silo]").forEach(sel=>sel.addEventListener("change",()=>setSiloFeedType(sel.dataset.feedtypeSilo, sel.value)));
+    }
+
+    async function toggleSilo(siloId){
+      const g = groupsCache.find(gr=>gr.silos.some(s=>s.id===siloId));
+      const s = g && g.silos.find(s=>s.id===siloId);
+      const nextActive = !(s ? s.active !== false : false);
+      try{
+        await fetch(`/api/silos/${siloId}`,{method:"PATCH",headers:{"Content-Type":"application/json"},body:JSON.stringify({active:nextActive, manualOverride:true})});
+        await loadAll();
+      }catch(e){ toast("Couldn't update silo","err"); }
+    }
+
+    async function setSiloFeedType(siloId, feedType){
+      try{
+        // A feed-type correction isn't an on/off decision — let Farm Buddy
+        // re-evaluate active/inactive fresh against the new type.
+        await fetch(`/api/silos/${siloId}`,{method:"PATCH",headers:{"Content-Type":"application/json"},body:JSON.stringify({defaultFeedType:feedType, manualOverride:false})});
+        await loadAll();
+      }catch(e){ toast("Couldn't update feed type","err"); }
     }
 
     async function saveShed(gid,btn){
       const g=groupsCache.find(x=>x.id===gid); if(!g)return;
       const readings=[];
       for (const s of g.silos){
+        if (s.active === false) continue; // hidden/inactive silos can't log a reading
         const input=document.querySelector(`input[data-silo="${s.id}"]`);
+        if (!input) continue;
         const raw=input.value.trim();
         const amt=parseFloat(raw);
         if (raw==="" || isNaN(amt)) continue;
-        readings.push({siloId:s.id, feedType:"Grower", amountRemaining:amt, unit:"t"});
+        readings.push({siloId:s.id, feedType:s.defaultFeedType||"Grower", amountRemaining:amt, unit:"t"});
       }
       if (!readings.length){ toast("Enter at least one silo amount","err"); return; }
       btn.disabled=true; btn.textContent="Saving…";

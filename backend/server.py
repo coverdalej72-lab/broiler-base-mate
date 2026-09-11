@@ -1453,6 +1453,7 @@ class SiloInfo(BaseModel):
     letter: str
     name: str
     defaultFeedType: Optional[str] = None
+    active: bool = True
 
 
 class ShedGroup(BaseModel):
@@ -1467,11 +1468,14 @@ class CreateSiloBody(BaseModel):
     defaultFeedType: Optional[str] = None
     shedGroupId: Optional[str] = None
     letter: Optional[str] = None
+    active: Optional[bool] = None
 
 
 class UpdateSiloBody(BaseModel):
     name: Optional[str] = None
     defaultFeedType: Optional[str] = None
+    active: Optional[bool] = None
+    manualOverride: Optional[bool] = None
 
 
 class SiloReadingInput(BaseModel):
@@ -1529,7 +1533,9 @@ async def _seed_farm(farm_id: str, name: Optional[str] = None) -> None:
                 "shedGroupId": gid,
                 "letter": letter,
                 "name": f"Silo {letter}",
-                "defaultFeedType": None,
+                "defaultFeedType": "Grower",
+                "active": True,
+                "manualOverride": False,
             })
     if groups:
         await shed_groups_col.insert_many(groups)
@@ -1671,7 +1677,10 @@ async def batch_reset(request: Request, farm: str = Query(default=DEFAULT_FARM_I
     d = await deliveries_col.delete_many(_farm_filter(farm))
     p = await photos_col.delete_many(_farm_filter(farm))
     w = await external_weighins_col.delete_many({"farmId": farm})
-    return {"ok": True, "readingsDeleted": r.deleted_count, "deliveriesDeleted": d.deleted_count, "photosDeleted": p.deleted_count, "externalWeighInsDeleted": w.deleted_count}
+    # New batch starts at Day 0 on Starter — let Farm Buddy re-decide each silo's
+    # on/off state fresh instead of carrying over the previous batch's manual toggles.
+    so = await silos_col.update_many(_farm_filter(farm), {"$set": {"manualOverride": False}})
+    return {"ok": True, "readingsDeleted": r.deleted_count, "deliveriesDeleted": d.deleted_count, "photosDeleted": p.deleted_count, "externalWeighInsDeleted": w.deleted_count, "silosOverrideReset": so.modified_count}
 
 
 @api.delete("/admin/delete-user")
@@ -1822,6 +1831,7 @@ async def list_shed_groups(request: Request, farm: str = Query(default=DEFAULT_F
                     letter=s.get("letter", ""),
                     name=s.get("name") or s.get("label", ""),
                     defaultFeedType=s.get("defaultFeedType"),
+                    active=s.get("active", True),
                 )
                 for s in silos if s.get("shedGroupId") == g["id"]
             ],
@@ -1844,9 +1854,11 @@ async def create_silo(body: CreateSiloBody, request: Request, farm: str = Query(
         "id": str(uuid.uuid4()),
         "farmId": farm,
         "name": body.name,
-        "defaultFeedType": body.defaultFeedType,
+        "defaultFeedType": body.defaultFeedType or "Grower",
         "shedGroupId": body.shedGroupId,
         "letter": body.letter or "",
+        "active": body.active if body.active is not None else True,
+        "manualOverride": False,
     }
     await silos_col.insert_one(doc)
     return clean(doc)
@@ -1866,6 +1878,11 @@ async def update_silo(silo_id: str, body: UpdateSiloBody, request: Request):
     patch = {k: v for k, v in body.model_dump(exclude_none=True).items()}
     if not patch:
         raise HTTPException(400, "Nothing to update")
+    # A manual "active" flip (without an explicit manualOverride flag) means the
+    # manager/staff member toggled the switch themselves — remember that so Farm
+    # Buddy's age-based auto default stops overriding this silo until next batch.
+    if "active" in patch and "manualOverride" not in patch:
+        patch["manualOverride"] = True
     res = await silos_col.find_one_and_update({"id": silo_id}, {"$set": patch}, return_document=True)
     if res is None:
         raise HTTPException(404, "Silo not found")
@@ -1923,6 +1940,9 @@ async def readings_today(request: Request, localDate: Optional[str] = Query(defa
                 "amountRemaining": float(reading["amountRemaining"]) if reading else None,
                 "feedType": reading["feedType"] if reading else None,
                 "unit": reading["unit"] if reading else None,
+                "siloFeedType": s.get("defaultFeedType") or "Grower",
+                "active": s.get("active", True),
+                "manualOverride": s.get("manualOverride", False),
             })
         sheds.append({
             "shedGroupId": g["id"],
