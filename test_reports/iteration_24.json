@@ -1,0 +1,31 @@
+{
+  "summary": "CRITICAL FIX VERIFIED: The `ReferenceError: siloLive is not defined` crash from iteration_23 is resolved. Feed Program SPA (/?farm=default) now mounts cleanly for the owner via the magic link — zero pageerrors, dashboard/tabs/summary/shed grids all render. All 6 previously-blocked review items on the Program side pass; Reader sanity re-confirmed on 390px. Backend PATCH /api/silos/{id} verified from the browser network log (200 with body `{\"active\":true,\"manualOverride\":true}`). Persistence across reload works. One MINOR frontend UX gap: after clicking a header toggle the PATCH succeeds and backend updates, but the button color does not refresh in the currently-open tab until the user reloads/switches tabs (App's `liveSiloConfig` is not re-fetched after `patchSiloActive`).",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "SheetView silo header toggle (App.tsx)", "issue": "No optimistic/post-PATCH local refresh. Clicking `silo-header-toggle-<idx>-<A|B|C>` fires a valid PATCH /api/silos/{id} (200 OK) but the button's own color/title stays on the pre-click value until page reload or tab switch. Reader-side chip and post-reload Program state both correctly reflect the new value, so this is a UI-only staleness issue on the Program.", "selector": "[data-testid='silo-header-toggle-1-C']", "priority": "MINOR"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "SheetView header row", "issues": ["Silo A/B/C ⏻ toggles are quite small (visible but require squinting on a 1920px viewport); consider bumping size or adding a hover-scale so growers on tablets see them more readily."]}
+    ]
+  },
+  "test_report_links": ["/app/test_reports/iteration_23.json", "/app/test_reports/iteration_22.json"],
+  "action_items": [
+    "MINOR: After a successful PATCH inside App's `patchSiloActive`, update the local `liveSiloConfig` state (either optimistically before the network call, or re-hydrate from the PATCH response body which already contains the full updated silo record) so the header ⏻ flips color immediately without requiring a reload.",
+    "OPTIONAL: The disabled/loading grey state observed in iteration_23 is no longer visible under normal conditions (autoSync populates `liveSiloConfig` before the header toggles are rendered in most cases). Leaving as-is is fine, but consider a `key` on the button or a subtle skeleton if slower networks show the grey state noticeably."
+  ],
+  "critical_code_review_comments": [
+    "App.tsx now safely owns its own `liveSiloConfig` state + `patchSiloActive` — the cross-component ReferenceError is gone. Good.",
+    "PATCH `patchSiloActive` should merge the response back into `liveSiloConfig` (the endpoint returns the full updated silo). Currently it does not, causing the UI-refresh gap noted above.",
+    "App.tsx remains ~14k lines. Re-flagging: split into components/hooks. The header-toggle rendering (SheetView ~L2132) and the App-side owner logic (~L10082) should each live in their own file so this class of scoping bug can't recur."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "not tested (no backend changes this round)", "frontend": "100% functional (all 6 Program items + Reader sanity pass); 1 minor UX polish item outstanding"},
+  "test_credentials": "Owner magic link (from review request) worked: /api/auth/owner-magic?key=VO1Jd3ZFNuEdk69SX-7AzfgzHgtUuqB86_HB8sXS14Q&to=/?farm=default",
+  "seed_data_creation": "None persistent. During test I toggled silo `dbb4a17c-953a-4850-9133-4b95600e46f9` (Shed 1&2, Silo C, shedGroupId 41c7e2f9-0e35-4f07-a242-85b8be6e9389) OFF then back ON, and finally issued a cleanup PATCH `{active:true, manualOverride:false}` returning 200 — farm 'default' is left in its baseline state (verified: no silos with active=false remain).",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "iteration_23's ReferenceError is fully resolved — the Program mounts on owner magic-link session and header ⏻ toggles are present at row-8 of Silo A/B/C columns in every SHED tab. Observed values during test: ON = rgb(34,197,94)/title 'Silo X is ON — click to turn off'; OFF = rgb(220,38,38)/title 'Silo X is OFF — click to turn back on'. Only remaining bug is the missing local-state refresh after PATCH; ergo the AFTER-click DOM read matches the BEFORE state until reload — the backend and Reader-app side ARE correct.",
+  "rca of the issue": "iteration_23 crash root cause (cross-component undefined identifiers `siloLive`/`patchSiloActive`/`shedInfos` referenced from inside App's SheetView call site) was addressed by lifting App-local state `liveSiloConfig` + a local `patchSiloActive` helper into App and computing `sgId` inline via a shed-count loop. Verified: no page errors, correct PATCH payloads, correct persistence, Reader unaffected. The residual minor issue is the missing setState after PATCH — trivial follow-up."
+}
