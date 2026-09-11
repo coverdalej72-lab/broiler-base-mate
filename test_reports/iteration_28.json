@@ -1,0 +1,31 @@
+{
+  "summary": "Re-verified mobile fixes on /landing (note: landing page is served at /landing, NOT /). Primary requirement (no horizontal document scroll) is PASSING at 390px and 375px viewports — documentElement.scrollWidth === clientWidth === innerWidth on both. Mobile menu regressions all pass (open/close/ESC/backdrop/link-tap). Trust-kit and trial-ribbon fits within viewport. Desktop layout unaffected. HOWEVER, two of the underlying fixes did NOT take effect at runtime despite being present in the CSS source — the visible bugs are masked only by the html/body overflow-x:hidden, so children still overflow behind the clip.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "#partner-form", "issue": "The @media(max-width:900px) rule `#partner-form { grid-template-columns:1fr !important }` (line 440 of landing.html) is NOT winning against the inline `grid-template-columns:1fr 1fr` at line 1219. Computed value at 390px is `30px 260px` (2-column, still). Result: pf-name/pf-email/pf-farms render at only 30px width while pf-company/pf-type/pf-message render 260px wide on the same row — a broken two-column layout. Fields do all fit inside the 390px viewport (max right=332), so no page-level overflow, but the form is visually incorrect and NOT stacked to a single column as required.", "selector": "#partner-form", "priority": "HIGH"},
+      {"component": ".how-mobile-card", "issue": "`.how-mobile-card` computed grid-template-columns IS `1fr` (rule works — resolved to 775px), but the card itself has offsetWidth=829px at 390px viewport (parent lets it grow because inline padding + no explicit width cap on the card). It visually extends ~439px past the right edge (right=843), but is hidden by html{overflow-x:hidden}. Screenshot confirms the docket/weigh/mort cards are visibly cut off at the right edge on mobile. Need `.how-mobile-card { max-width:100% !important; width:100% !important; box-sizing:border-box !important; padding:16px !important; }` at <=900px.", "selector": ".how-mobile-card", "priority": "HIGH"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Landing mobile 390/375", "issues": ["Trust-kit renders 2 columns at 390px (via <=520px rule), request expected 3-col at 390 or 2-col at <=420. Actual outcome fits viewport and looks clean — acceptable but doesn't match spec exactly.", "Trial-ribbon inner span right edge = 389 at 390 viewport (1px inside edge) — no visible clash with H1, ribbon parent at right=376 well-positioned."]}
+    ]
+  },
+  "test_report_links": [],
+  "action_items": [
+    "Fix #partner-form 1fr override: the current !important rule isn't taking effect (computed cols = `30px 260px`). Likely the inline `grid-template-columns:1fr 1fr` on the <form> element (line 1219) needs to be removed or the selector needs to be more specific, e.g. `form#partner-form[style]` or set via JS `partnerForm.style.setProperty('grid-template-columns','1fr','important')` at mobile breakpoint. Also verify no downstream CSS block later in file re-sets it.",
+    "Add width/max-width constraint to `.how-mobile-card` itself at <=900px (currently only grid-template-columns is overridden). Suggest: `.how-mobile-card { max-width:100% !important; width:auto !important; box-sizing:border-box !important; padding:18px !important; }`.",
+    "Verify partner-form and how-mobile-card still 2-col at desktop after any further tweaks."
+  ],
+  "critical_code_review_comments": [
+    "Two @media(max-width:900px) blocks now exist that both target .how-mobile-card (lines 437-439 and 1004-1006) — consolidate to a single source of truth to avoid drift.",
+    "Root symptom (horizontal scroll) was masked with `html,body{overflow-x:hidden}` rather than fixing every overflowing child. Any element still exceeding viewport width is hidden but still allocated space and can cause misalignment; prefer per-element width caps."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "n/a", "frontend": "70%"},
+  "seed_data_creation": "none",
+  "retest_needed": true,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Landing page URL is /landing (not /). Previous mobile-menu behavior, trust-kit, trial-ribbon, WA-fab, sticky-CTA, and horizontal-scroll requirement all pass. Remaining bugs: (1) #partner-form still renders 2-column on mobile — the `1fr !important` rule at line 440 is not overriding the inline `grid-template-columns:1fr 1fr` at line 1219 (computed = `30px 260px`); (2) .how-mobile-card offsetWidth=829px at 390-viewport, hidden only by body clip. Do NOT retest full page — only re-verify #partner-form computed cols and .how-mobile-card offsetWidth after main agent's next fix.",
+  "rca of the issue": "For #partner-form: at 390px width, matchMedia('(max-width:900px)').matches===true, so @media block IS active. Rule `#partner-form { grid-template-columns:1fr !important }` should beat inline `1fr 1fr` (inline styles have specificity but !important in stylesheet wins over inline non-important). Computed result `30px 260px` shows neither rule is winning — likely a THIRD rule is active. Suspect a later CSS block or an inline style added via JS. Verify via devtools 'Computed' panel which selector wins, or search for any dynamic style injection touching #partner-form. For .how-mobile-card: grid-template-columns rule DOES win (1fr resolved to 775px), but the card element itself lacks a width/max-width cap so it overflows its viewport-narrower parent."
+}

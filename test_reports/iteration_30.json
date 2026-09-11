@@ -1,0 +1,34 @@
+{
+  "summary": "Re-verified the single remaining bug from iteration_29: .how-mobile-card still 829px wide on mobile viewport 390x844. The inline change at line 749 to grid-template-columns:minmax(0,1fr) is being nullified by an !important CSS rule elsewhere.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [
+      {
+        "component": ".how-mobile-card parent grid wrapper (landing.html #how section)",
+        "issue": "BUG NOT FIXED. At 390x844, getComputedStyle(parent).gridTemplateColumns still resolves to '829px' (expected <=362px). .how-mobile-card offsetWidth = 829 (expected <=390). Root cause: CSS rule at line 1013 `#how > div > div:last-of-type { grid-template-columns: 1fr !important; }` overrides the new inline `minmax(0,1fr)` at line 749. `1fr` == `minmax(auto,1fr)` which allows the track to expand to the sibling desktop-table card's min-content (~829px). The `min-width:0 !important` on .how-mobile-card is insufficient because the parent track itself is 829px wide.",
+        "selector": ".how-mobile-card, #how > div > div:last-of-type",
+        "priority": "HIGH"
+      }
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Landing /#how at 390px", "issues": ["Card 2 (Mobile Reader) still overflows to 829px; visually clipped by parent overflow (page scrollWidth==clientWidth==390 so no horizontal scroll), but the card content is cut off — phone-frame image and bullet list are not laid out per the mobile 1-column design intent."]}
+    ]
+  },
+  "test_report_links": [],
+  "action_items": [
+    "Change line 1013 CSS from `#how > div > div:last-of-type { grid-template-columns: 1fr !important; }` to `#how > div > div:last-of-type { grid-template-columns: minmax(0,1fr) !important; }` (or remove the !important override entirely, since the inline style at line 749 is now already minmax(0,1fr)). This should let the parent's track collapse to parent width (362px) on mobile, allowing .how-mobile-card's min-width:0 rule to finally take effect and shrink the card to the mobile column.",
+    "After fix, re-verify: parent gridTemplateColumns <=362px on mobile 390px; .how-mobile-card offsetWidth <=362; desktop 1920 unchanged at 1180px."
+  ],
+  "critical_code_review_comments": [
+    "Multiple layered !important overrides on same grid container (inline style + CSS media query + last-of-type rule) make debugging responsive layout brittle. Consolidate into a single CSS class-based rule.",
+    "landing.html is very large (>2000 lines) with heavy inline styles; consider extracting into stylesheet for maintainability."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "n/a (skipped)", "frontend": "0% for the specific bug (regression check passed for desktop and no new horizontal overflow)"},
+  "seed_data_creation": "",
+  "retest_needed": true,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Only the how-mobile-card mobile-width bug remains. Cause identified: line 1013 !important override. Fix is a one-line CSS change. Regression scope: verify #how layout at both 390px and 1920px.",
+  "rca of the issue": "Line 749 inline `grid-template-columns:minmax(0,1fr)` is overridden by line 1013 CSS `#how > div > div:last-of-type { grid-template-columns:1fr !important; }`. `1fr` is shorthand for `minmax(auto,1fr)` — the `auto` minimum expands to the largest child's min-content (the desktop-table card, ~829px), forcing both grid children (including .how-mobile-card) to 829px. Replace with `minmax(0,1fr) !important` so the track can shrink to the parent's actual width."
+}

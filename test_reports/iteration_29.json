@@ -1,0 +1,42 @@
+{
+  "summary": "Final re-verification of 2 remaining mobile bugs from iteration_28. Partner form bug is FIXED. how-mobile-card overflow bug is STILL PRESENT — root cause is parent grid track, not the card itself.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [
+      {
+        "component": ".how-mobile-card (Card 2 — Mobile Reader)",
+        "issue": "At 390x844 viewport, the element's own boundingClientRect.width / offsetWidth is still 829px (not <=390). The newly-added rules on .how-mobile-card { max-width:100% !important; width:100% !important; box-sizing:border-box !important; padding:18px !important; } are actually applied and computed, but they are ineffective because the PARENT grid track is 829px wide. width:100% of an 829px track = 829px. Visible cutoff is only hidden by ancestor overflow clip.",
+        "selector": ".how-mobile-card",
+        "priority": "HIGH"
+      }
+    ],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [],
+  "action_items": [
+    "Fix .how-mobile-card overflow at the PARENT level. The parent div wrapping both '01 · DESKTOP' card and '.how-mobile-card' has inline style `display:grid;grid-template-columns:1fr;gap:32px;max-width:1180px;margin:0 auto;`. Its computed grid-template-columns evaluates to '829px' at 390px viewport because the sibling desktop-table card has ~829px min-content, and CSS Grid's `1fr` = `minmax(auto, 1fr)` expands the track to fit min-content. Recommended fixes (any ONE of):",
+    "  (a) Change the parent's inline grid-template-columns from `1fr` to `minmax(0, 1fr)` — cleanest.",
+    "  (b) Add a class to that parent (e.g., .how-cards-wrap) and inside @media(max-width:900px) add `.how-cards-wrap { grid-template-columns: minmax(0,1fr) !important; } .how-cards-wrap > * { min-width: 0 !important; overflow: hidden; }`.",
+    "  (c) On the desktop-table card (Card 1) sibling, add `min-width:0; overflow:auto;` in mobile media query so it stops dictating the shared 1fr track width.",
+    "The current rules added on .how-mobile-card itself will not help — the constraint is inherited from the parent grid track sizing."
+  ],
+  "critical_code_review_comments": [
+    "landing.html is 2575 lines — should be split into components; inline styles + !important overrides in media queries is fragile.",
+    "Grid parents with `grid-template-columns:1fr` should default to `minmax(0,1fr)` to avoid children-forcing-track-width surprises."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "N/A", "frontend": "75% (3 of 4 checks pass)"},
+  "test_results_detail": {
+    "check_1_partner_form_mobile": "PASS — gridTemplateColumns='302px' (single track), all 6 fields + submit button width=302px, all stacked at left=44 / right=346, fully inside 390px viewport.",
+    "check_2_how_mobile_card_mobile": "FAIL — offsetWidth=829, boundingWidth=829, computed width='829px'. Parent grid track computed to '829px'. Parent inline style: display:grid;grid-template-columns:1fr;gap:32px;max-width:1180px.",
+    "check_3_no_horizontal_overflow": "PASS — documentElement.scrollWidth=390 === clientWidth=390.",
+    "check_4a_desktop_partner_form": "PASS — gridTemplateColumns='254px 254px' (2 columns); pf-name/pf-company on row 1 side-by-side (254px each); pf-email/pf-type/pf-farms/pf-message span both columns (520px width each).",
+    "check_4b_desktop_how_mobile_card": "PASS — gridTemplateColumns='260px 830px' (2 columns), display:grid, width=1180px (phone left, bullets right)."
+  },
+  "seed_data_creation": "",
+  "retest_needed": true,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Only 1 remaining bug: .how-mobile-card offsetWidth=829 at 390px. Root cause identified: PARENT grid track sizing. Fix must target the parent grid (either change `1fr` to `minmax(0,1fr)` on the parent inline style at approx line ~730-765 of /app/backend/static/landing.html, or add min-width:0 to grid children). Do NOT keep piling more CSS onto .how-mobile-card itself — it's already at max-width:100%; width:100%. All other mobile items (menu, trust-kit, trial-ribbon, WA-fab, sticky-cta, partner-form, general overflow) are passing.",
+  "rca_of_the_issue": "The parent div wrapping both how-it-works cards has `display:grid; grid-template-columns:1fr;` set inline. At 390px viewport the parent's usable width is 362px, but its computed grid-template-columns resolves to '829px'. This is standard CSS Grid behavior: `1fr` is shorthand for `minmax(auto, 1fr)`, and the `auto` minimum means the track expands to fit each row's min-content. The sibling '01 · DESKTOP' card contains a wide desktop table (~829px min-content) which forces the 1fr track to 829px. The how-mobile-card then inherits this 829px track width; setting width:100% and max-width:100% on the card computes to 100% of 829px = 829px. Reproduction: viewport 390x844 → scroll to #how → getComputedStyle(document.querySelector('.how-mobile-card').parentElement).gridTemplateColumns returns '829px'. Mitigation: change parent grid-template-columns to `minmax(0, 1fr)` OR set `min-width:0` (and optionally `overflow:hidden`/`overflow-x:auto`) on the grid children so they can shrink below their min-content."
+}

@@ -1,0 +1,39 @@
+{
+  "summary": "Frontend-only verification of the public landing page (/) mobile experience at 390x844 and 375x667. Menu behavior (hamburger open, close-button close, ESC close, link-tap auto-close) all WORK. APPCOVI corner chip correctly hidden. Desktop regression (1920x1080) OK (hamburger hidden, sticky CTA hidden, desktop nav shown). HOWEVER, page has SEVERE horizontal overflow on mobile: document.scrollWidth = 993px vs viewport 390px (>600px of horizontal scroll). Multiple sections are NOT being restyled by the mobile CSS layer as expected: trust-kit circular badges, how-it-works cards, partnership form inputs, and trial ribbon all overflow the viewport. This is exactly the class of bug the visual verification pass was meant to catch.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "Page root (html/body)", "issue": "html and body both have overflow-x:visible on mobile. Because the slide-in #m-nav-panel is position:fixed with transform:translateX(100%) (i.e. 320px offscreen right), it contributes 320px to document.scrollWidth. Combined with other overflowing sections, the whole page has a horizontal scrollbar and users can pan right and see empty navy space. Fix: add `html, body { overflow-x: hidden; }` inside the @media (max-width:900px) mobile layer.", "selector": "html, body", "priority": "HIGH"},
+      {"component": ".trust-badge (Appcovi Trust Kit circular badges)", "issue": "At 390px viewport the 6 circular trust badges DO NOT reflow to a 2-column grid — they remain in a horizontal row, so badges 4–6 sit at right=662, 828, 993 (way off-screen). PRD/test spec requires 2-column grid at ≤520px. No mobile grid rule exists for .trust-badge in the mobile CSS layer.", "selector": ".trust-badge", "priority": "HIGH"},
+      {"component": ".how-mobile-card (How it works / steps cards)", "issue": "how-mobile-card elements have right=843 at 390px viewport — they are ~450px wide, larger than the phone screen. They are not being constrained to viewport width on mobile.", "selector": ".how-mobile-card", "priority": "HIGH"},
+      {"component": "Partnership enquiry form inputs (#pf-company, #pf-email, #pf-type, #pf-farms, #pf-message)", "issue": "All partner-form inputs have right=466 at 390px viewport — they overflow the screen by ~76px. Inputs need width:100%; box-sizing:border-box; max-width:100% on mobile.", "selector": "#pf-company, #pf-email, #pf-type, #pf-farms, #pf-message", "priority": "HIGH"},
+      {"component": "#trial-ribbon .trial-ribbon-inner", "issue": "Even after the mobile shrink rule (width:212px, left:-31px, top:60px) the rotated ribbon's right edge is at x=405 at a 390px viewport — 15px of horizontal overflow. Visually in the screenshot the text 'START YOUR FREE TRIAL' clips past the right edge over the hero heading. Shrink further (e.g. width:180px, left:-24px) or tighten the rotate transform-origin.", "selector": "#trial-ribbon", "priority": "MEDIUM"},
+      {"component": "#m-nav-backdrop", "issue": "Backdrop element has explicit `inset:0` but at 390 viewport its width comes out ~993px (matches the polluted scrollWidth). It still closes the panel when tapped in the visible strip, but this is a symptom of the html/body overflow issue above. Fixing overflow-x on body will resolve it.", "selector": "#m-nav-backdrop", "priority": "LOW"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Hero @ 390px", "issues": ["Trial ribbon 'START YOUR FREE TRIAL' text clips past the viewport's right edge and overlays the H1 word 'Farm'. Combined with the horizontal page overflow, text like 'sheet' and 'Farm' visually collides with the ribbon."]}
+    ]
+  },
+  "test_report_links": [],
+  "action_items": [
+    "Add `html, body { overflow-x: hidden; }` inside the @media (max-width:900px) mobile CSS layer in /app/backend/static/landing.html to stop the whole page from being horizontally scrollable due to the fixed slide-in menu's translateX transform.",
+    "Add a mobile grid rule for .trust-badge container so 6 badges reflow to 2 columns at ≤520px (spec requirement).",
+    "Constrain .how-mobile-card to 100% width / single column on mobile (currently ~450px wide, overflowing 390 viewport).",
+    "Add `#partners input, #partners select, #partners textarea { width:100%; max-width:100%; box-sizing:border-box; }` (or similar) inside the mobile layer so partnership form fields fit the screen.",
+    "Shrink trial ribbon further at ≤400px viewport (e.g. width:180px, adjust .trial-ribbon-inner left/top) so it doesn't overflow horizontally or overlap the H1.",
+    "After fix, re-verify scrollWidth === clientWidth at 390 and 375 with a Playwright pass."
+  ],
+  "critical_code_review_comments": [
+    "landing.html is 2546 lines — a single monolithic static file mixing HTML/CSS/JS. Consider splitting mobile CSS to a separate stylesheet for maintainability.",
+    "Mobile CSS layer restyles some sections (hero, pricing) but misses others that also need mobile treatment (trust-badge grid, how-mobile-card, partner form inputs). No visual regression check exists — needs an overflow-x smoke test in CI.",
+    "The slide-in menu uses transform:translateX(100%) to hide off-screen but without overflow-x:hidden on body, this creates horizontal scroll on mobile. Standard fix should be baked in when introducing off-canvas menus."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "n/a", "frontend": "~55% (menu interactions pass, layout/overflow fails)"},
+  "seed_data_creation": "",
+  "retest_needed": true,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Next testing agent should: (1) revisit /app/backend/static/landing.html after main agent adds the mobile fixes; (2) at viewports 390 and 375, assert document.documentElement.scrollWidth === document.documentElement.clientWidth; (3) verify .trust-badge grid columns count === 2 at 390px via getComputedStyle on the parent grid container; (4) verify partner-form inputs' bounding-box right <= viewport width; (5) verify #trial-ribbon .trial-ribbon-inner right <= viewport width; (6) re-run the menu open/close/link/ESC/backdrop tests to guard against regressions. Menu JS logic itself is currently correct — do not touch /app/backend/static/landing.html lines 2505-2542.",
+  "rca of the issue": "Root cause of horizontal overflow: The mobile off-canvas menu (#m-nav-panel) is position:fixed with transform:translateX(100%) to hide off-screen. In modern browsers, transformed fixed elements CAN contribute to the document's scrollable area unless the containing block explicitly clips overflow. The landing page's mobile CSS layer never applies `overflow-x: hidden` to html/body, so the panel's off-screen position becomes horizontally scrollable content. Additionally, several sections (trust-badge row, how-mobile-card, partner form inputs) have no mobile-specific rules and inherit their desktop widths (up to ~500-993px), extending the scrollWidth further. Reproduction: `page.set_viewport_size({width:390,height:844})` → goto '/' → `document.documentElement.scrollWidth` returns 993 (should be 390). Mitigation: add `html,body{overflow-x:hidden}` at ≤900px + add missing mobile layout rules for trust-badge (2-col grid), how-mobile-card (100% width), partner form inputs (100% width, box-sizing:border-box), and shrink trial ribbon at ≤400px."
+}
