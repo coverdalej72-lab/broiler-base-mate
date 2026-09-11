@@ -1,0 +1,61 @@
+{
+  "summary": "Frontend-only verification of the DENSITY tab bug fix in the Feed Program (Broiler Base Mate) desktop app. Tested Farm Buddy age-based breed-standard weight estimate fallback in DensityView across all 4 seeded farms (default, north-creek, southridge, eaglehawk). All acceptance criteria pass — the fix correctly replaces the buggy birds/m² fallback with a proper kg/m² live-weight density derived from Ross 308 breed standards when no override/weigh-in/catch weight exists yet.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "tests_executed": [
+    {
+      "id": "TEST 1 — estimate fallback appears with correct Ross 308 age-based weight",
+      "result": "PASS",
+      "detail": "All 12 sheds on every seeded farm render the new '🧠 Farm Buddy estimate: X.XXX kg · day N (Ross 308) — enter today's weight for accuracy' badge (data-testid=density-estimate-badge-{shedNum}). Seeded farms have ages day 169/172/175 which cap at Ross 308 ~4.067 kg — Farm Buddy correctly derives this from placement date. NOTE: no seeded farm currently has a day 3-10 batch to exactly reproduce the original bug scenario, but the estimate-based kg/m² calculation chain was verified end-to-end (see TEST 2)."
+    },
+    {
+      "id": "TEST 2 — kg/m² live-weight now uses the estimate (not raw birds/m²)",
+      "result": "PASS",
+      "detail": "Set Shed 1 (north-creek, 40,500 birds) to 2000 m² shed size. Card correctly displays 82.4 kg/m² (= 20.3 birds/m² × 4.067 kg estimate) with red Baiada-max alert and 'Remove ~27,714 birds' recommendation. The fill bar and color logic now correctly derive from primaryVal (kg/m²) instead of raw birds/m². For a hypothetical day-5 shed (0.151 kg/bird) at the same 20.3 birds/m², kg/m² would be 3.06 → GREEN, exactly matching the user's expectation. Verified via TEST 3 override that same 20.3 birds/m² @ 0.15 kg → 3.0 kg/m² GREEN."
+    },
+    {
+      "id": "TEST 3 — manual today's weight override still takes priority",
+      "result": "PASS",
+      "detail": "Typed '0.15' into density-today-wt-input-1. Card recalculated live to 3.0 kg/m² GREEN, override badge (density-override-badge-1) shows '✍️ using today's weight: 0.150 kg', estimate badge disappears (count=0). Fill bar and coloring update immediately without reload."
+    },
+    {
+      "id": "TEST 4 — clearing override restores the estimate",
+      "result": "PASS",
+      "detail": "Clicking density-clear-today-wt-1 clears the input; estimate badge reappears (count=1), override badge disappears (count=0)."
+    },
+    {
+      "id": "TEST 5 — no placement / empty shed",
+      "result": "PASS",
+      "detail": "Default farm sheds (with 0 placed birds) render '—' for kg/m² and still show the estimate badge based on placement date. No console errors, no crash."
+    },
+    {
+      "id": "TEST 6 — regression: weigh-in priority",
+      "result": "NOT DIRECTLY TESTED (no seeded weigh-ins)",
+      "detail": "Code review confirms priority chain overrideKg ?? latestWeighInKg ?? latestCatchWgtKg ?? estimatedKg in App.tsx L6458. TEST 3 already proves higher-priority sources correctly displace the estimate."
+    },
+    {
+      "id": "TEST 7 — smoke: no console errors on Density tab",
+      "result": "PASS",
+      "detail": "Zero console errors across navigation to Density tab on all 4 farms and during input/override interactions."
+    }
+  ],
+  "test_report_links": [],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "App.tsx is 14,122 lines — well past the 700-line guideline; consider splitting DensityView, FlockForecastView etc. into their own modules for maintainability. Not a blocker for this fix.",
+    "groupEstimates memo depends on [sheets, edits, shedBreeds] but shedBreeds is only initialised from localStorage once (useState without update); if a user changes breed in Flock Forecast, DensityView will not recompute the estimate until page reload. Minor — add a storage-event listener like the one already used for FLOCK_WEIGHIN_KEY / BATCH_CATCHES_KEY.",
+    "The estimate badge shows breed via BREED_DAILY[getShedBreedKey(groupId, slot)]?.name — this uses groupId as the sgId argument but earlier in groupEstimates the sgId is derived from SHED_SHEET_ORDER[shedCount]. If those diverge for non-contiguous shed layouts, badge could show the wrong breed name. Not observed on seeded farms but worth checking."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "n/a (skipped)", "frontend": "100%"},
+  "test_credentials": "Owner magic link used per request; session cookie persisted after visiting /api/auth/owner-magic then navigating to /?farm=<slug>.",
+  "seed_data_creation": "None. Wrote transient localStorage entries via UI (shed size = 2000 for north-creek Shed 1, today's weight = 0.15 kg) — should be cleared by user/main agent if needed.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "DensityView estimate fix is verified working. Seeded farms only have late-stage (day 169-175) batches, so testing a true day-5 scenario requires either (a) creating a fresh farm/batch with today's placement date, or (b) editing the placement date on a seeded shed via the Summary tab. Current tests confirm the calculation chain (birds/m² × estimated kg = primary kg/m²) works correctly at any weight value.",
+  "rca of the issue": "Original bug (verified fixed): DensityView fell back to coloring the bar using raw birds/m² thresholds (green<10, amber<14, red>=14) when no weigh-in existed, causing normally-stocked young sheds (~18 birds/m²) to be flagged red as 'breaking density'. Fix adds a Ross 308 / Cobb 500 daily-weight estimate (via new groupEstimates memo using findPlacementDate + stdAtBreed) as the last-resort fallback in latestKg, so the true kg/m² live-weight density is used everywhere. Verified: day-175 sheds now show 4.067 kg estimate and correctly high kg/m²; the same 20.3 birds/m² at 0.15 kg (simulated day-5 weight via manual override) produces 3.0 kg/m² GREEN — no false red."
+}
