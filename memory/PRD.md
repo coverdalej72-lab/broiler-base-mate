@@ -402,6 +402,15 @@ Jason Coverdale (Appcovi, 3rd-gen Aussie broiler grower on a Baiada contract) ne
   - `BASE_PATH=/ npx vite build` passes clean. ✅ Verified by testing_agent (iteration_25): Day column starts at 0 on placement day, increments correctly, all other columns (Feed Alloc, Feed On Hand, Silo Total, Catch/Morts, Birds Left) stayed row-aligned — no regressions, no console errors.
   - Status: shipped in preview, **testing_agent-confirmed, not yet user-confirmed live**.
 
+## Recent fixes (Sep 11, 2026, cont'd #5)
+
+- 🐛 **"Placement number should never change — it's dropping when morts are entered"** — Jason correctly flagged that the Summary card's "Birds Placed" number was decreasing every time morts/culls were logged, when it should stay fixed at whatever was originally placed.
+  - Root cause: `syncShedBirdsCell()` was overwriting the shed's placement cell (col 2) with `placement − newMortsSinceLastSync` every time a mort/cull was saved, an old external-morts merge ran, or "Clear Wrong Entries" fired. Meanwhile `birdsLeftByRow` (used for the "BIRDS LEFT" column on the shed tab) computes its OWN live count independently as `placement − cumulative morts/culls` — so morts were being subtracted from the placement number twice: once by `syncShedBirdsCell` corrupting the base placement figure, and again by `birdsLeftByRow`'s own subtraction.
+  - Fixed by removing the col-2 (birds placed) write from `syncShedBirdsCell` entirely — it now only keeps the sheet's informational running-morts-total cell (col 4) in sync, and never touches the placement number. `birdsLeftByRow` already handles the live "birds left" figure correctly on its own.
+  - Bonus: found and fixed the same UTC-date-shift bug pattern (from earlier today's Mort Buddy fix) inline in `birdsLeftByRow`'s day-matching (`rowDate.toISOString().slice(0,10)` → local date components) — it was matching Morts-log entries against the wrong calendar day for AEST, which would silently mis-attribute a day's morts to the wrong row.
+  - `BASE_PATH=/ npx vite build` passes clean. Not yet re-tested by testing_agent or confirmed live — please log a mort on a shed and confirm the Summary "Birds Placed" number stays exactly the same, while "BIRDS LEFT" on that shed's daily tab still correctly drops.
+  - Status: shipped in preview, **not user-confirmed**.
+
 ## Test credentials
 - Admin magic link: appcovi2026@gmail.com
 
