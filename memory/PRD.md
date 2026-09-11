@@ -379,6 +379,14 @@ Jason Coverdale (Appcovi, 3rd-gen Aussie broiler grower on a Baiada contract) ne
   - ✅ Verified via Node simulation reproducing the exact reported symptom before/after the fix; `BASE_PATH=/ npx vite build` passes clean. Not yet re-tested by testing_agent or confirmed by the user against live data — recommend the user try "Clear Wrong Entries" again for 11/09/2026 and confirm it now removes the stray entries and the correct day (Friday) is highlighted.
   - Status: shipped in preview, **not user-confirmed**.
 
+## Recent fixes (Sep 11, 2026, cont'd #2)
+
+- 🐛 **Summary shed card showed "SHED 7"/"SHED 8" inside a "SHED 9 & 10" card, and no per-shed weight** — Jason placed Shed 9 yesterday and Shed 10 today (1 day apart) and noticed the card's bird-count rows were mislabeled with the OLD shed pair's numbers, and there was no bird-weight figure that reflected each shed's different age.
+  - **Mislabel fix**: `shed1Name`/`shed2Name` in `ShedSummaryCard` trusted the raw spreadsheet cell text unconditionally — when a shed-pair sheet is copied from an earlier pair (e.g. Shed 9&10 copied from Shed 7&8), that cell can still literally contain "SHED 7"/"SHED 8". Now validated against the shed's own number (mirrors the existing `shedNum` header fallback) before trusting it.
+  - **New per-shed estimated weight**: added a small "D{age} · {weight}" chip next to each shed's breed picker in `BreedPickerRow`, computed independently per shed from *that shed's own* placement date + breed (via `stdAt()`/`BREED_DAILY` in `lib/breedStandards.ts`) — so Shed 9 (Day 1, ~62g Ross 308) and Shed 10 (Day 0, ~44g) now correctly show two different numbers. Confirmed the existing "KG / BIRD" tile (feed-used ÷ birds) is a separate feed-conversion metric, not a body weight — left as-is since feed is tracked jointly for the pair in the underlying spreadsheet and splitting that would need a bigger data-model change; not requested.
+  - ✅ Verified with a Node.js simulation of the exact placement dates (10/09 & 11/09/2026) confirming ages 1 and 0 and weights 62g/44g; `BASE_PATH=/ npx vite build` passes clean. Not yet re-tested by testing_agent or confirmed by the user against their live shed card.
+  - Status: shipped in preview, **not user-confirmed**.
+
 ## Test credentials
 - Admin magic link: appcovi2026@gmail.com
 
