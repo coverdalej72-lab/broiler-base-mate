@@ -387,6 +387,13 @@ Jason Coverdale (Appcovi, 3rd-gen Aussie broiler grower on a Baiada contract) ne
   - ✅ Verified with a Node.js simulation of the exact placement dates (10/09 & 11/09/2026) confirming ages 1 and 0 and weights 62g/44g; `BASE_PATH=/ npx vite build` passes clean. Not yet re-tested by testing_agent or confirmed by the user against their live shed card.
   - Status: shipped in preview, **not user-confirmed**.
 
+## Recent fixes (Sep 11, 2026, cont'd #3)
+
+- 🐛 **"Turned off Withdrawal silos but Feed On Hand still adds all silos"** — root cause: the 30s auto-sync poll only re-applies silo readings into the spreadsheet when the readings *hash* changes, but that hash was built from `letter:amountRemaining:unit` only — it never included each silo's `active` flag. So flipping a silo's toggle (no new reading typed) left the hash unchanged, the poll returned early ("nothing new"), and the already-written cell kept its old non-zero value instead of being zeroed out.
+  - Fixed by including `active` in the hash (`App.tsx`, the auto-sync `run()` effect, plus `clearAndResync`/`applySiloSync` for consistency) so toggling a silo now triggers `doApplyReadings` again immediately, which already correctly forces an inactive silo's cell to `0`.
+  - `BASE_PATH=/ npx vite build` passes clean. Not yet re-tested by testing_agent or confirmed live by the user — please toggle a Withdrawal silo off again and confirm Feed On Hand drops within ~30s (or immediately after hitting Apply in the Silo Sync modal).
+  - Status: shipped in preview, **not user-confirmed**.
+
 ## Test credentials
 - Admin magic link: appcovi2026@gmail.com
 
