@@ -411,6 +411,15 @@ Jason Coverdale (Appcovi, 3rd-gen Aussie broiler grower on a Baiada contract) ne
   - `BASE_PATH=/ npx vite build` passes clean. Not yet re-tested by testing_agent or confirmed live — please log a mort on a shed and confirm the Summary "Birds Placed" number stays exactly the same, while "BIRDS LEFT" on that shed's daily tab still correctly drops.
   - Status: shipped in preview, **not user-confirmed**.
 
+## Recent fixes (Sep 11, 2026, cont'd #6)
+
+- 🐛 **"Turned off Withdrawal silos but Feed On Hand still adds all silos" — deeper fix**: the earlier same-day fix (including `active` in the sync hash) was necessary but not sufficient. Found the real remaining gap: the whole re-apply pipeline was gated on `anySaved` (a genuinely NEW reading logged *today*) — toggling a silo with no fresh reading typed never re-triggered `doApplyReadings` at all, so Feed On Hand stayed stale until someone happened to log a new reading.
+  - `patchSiloActive` (Program header ⏻ toggle) now immediately re-applies the current known silo amounts into today's row the instant it's clicked — no waiting for the 30s poll.
+  - The 30s auto-sync poll no longer requires a fresh reading — its change-hash now covers every configured silo's active/saved state, so a toggle flipped from the phone Reader app (which can't touch the Program's spreadsheet directly) still gets picked up within ~30s.
+  - ✅ Verified by testing_agent (iteration_26): header toggle drops/restores Feed On Hand in <1s across repeated cycles; a Reader-simulated OFF toggle propagated to the Program within 5s; normal new-reading entry unaffected (regression pass). 3/4 scenarios passed.
+  - One flagged "residual" case (Reader-simulated ON toggle not recovering) was investigated and is **not a bug** — the test used `{active:true, manualOverride:false}`, which hands control back to Farm Buddy's own age-based auto-toggle (a separate feature from earlier today); since that test shed is far past Day 24, Buddy correctly keeps a Grower-type silo off. The real Reader app always sends `manualOverride:true` on a manual toggle — confirmed via curl that this path persists correctly and isn't fought by Buddy.
+  - Status: shipped in preview, **testing_agent-verified for the reported scenario, not yet user-confirmed live**.
+
 ## Test credentials
 - Admin magic link: appcovi2026@gmail.com
 

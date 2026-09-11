@@ -1,0 +1,61 @@
+{
+  "summary": "Frontend regression fix for silo-toggle → Feed On Hand cascade verified. Logged into farm 'default' via owner magic link, opened Sheds 1 & 2 tab, seeded today's readings (Silo A=10t, B=5t, C=5t via /api/readings/batch) so the sync row (Wed 1 April 2026 = current sync day for that shed) showed Silo Total=20,000 / A=10,000 / B=5,000 / C=5,000 / Feed On Hand=15,152. Then exercised all three test paths.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [
+      {
+        "flow": "Reader-app silo toggle back ON → Program 30s auto-sync recovery",
+        "issue": "After a silo is toggled OFF via a direct PATCH /api/silos/{id} (simulating the Reader app) and the Program's sheet cell has been persisted as '0', restoring active=true via API PATCH alone (no new reading typed) did NOT visibly recover the sheet cell within 45s of waiting for the auto-sync poll — Silo B stayed at 0 and Silo Total stayed at 15,000 even though /api/silos and /api/readings/today both correctly showed B: active=true, saved=true, amountRemaining=5. Note: the reverse direction (Reader-sim OFF) worked within 5s, and clicking the Program's header ⏻ toggle back ON restored the value immediately. So the 'ON via poll only' branch appears to have a residual issue — possibly doApplyReadings' hash-change-triggered re-write is not actually persisting through to the visible cell in this specific sequence, or a stale liveSiloConfig snapshot from the earlier optimistic-off update is still being used. The user-facing symptom (stuck stale Feed On Hand after Reader flip) may still occur on the recovery direction.",
+        "affected_selectors": ["[data-testid='silo-header-toggle-1-B']"],
+        "priority": "MEDIUM"
+      }
+    ],
+    "design_issues": []
+  },
+  "verification_evidence": {
+    "test1_header_toggle_immediate": {
+      "before": "Row 12 (Wed 1 April 2026): Silo Total=20,000, A=10,000, B=5,000, C=5,000, Feed On Hand=15,152",
+      "toggle_B_off_after_0.53s": "Silo Total=15,000, A=10,000, B=0, C=5,000, Feed On Hand=10,152 — dropped by exactly 5,000, no reload, no waiting",
+      "toggle_B_back_on": "Fully restored to 20,000 / 5,000 / 15,152",
+      "toggle_C_off_then_on": "Same immediate drop/restore behaviour, C column 5,000↔0, Total 20,000↔15,000, Feed On Hand 15,152↔10,152",
+      "api_side_effect": "PATCH /api/silos/{B} correctly set active=false, manualOverride=true on toggle-off, then active=true, manualOverride=true on toggle-back-on. All three optimistic UI updates were confirmed against the server.",
+      "result": "PASS"
+    },
+    "test2_reader_toggle_off_program_polls_within_30s": {
+      "setup": "All silos active=true, readings seeded, sync hash cache cleared, page reloaded, Sheds 1 & 2 tab opened",
+      "action": "PATCH /api/silos/{SILO_B} {active:false, manualOverride:true} (bypassing the Program UI, as the phone Reader app would)",
+      "observed": "Program's next auto-sync poll (fired within 5s during the immediate-first-run at page-load window) applied the change: Silo B column → 0, Silo Total → 15,000, Feed On Hand → 10,152. Well under the 30s SLA.",
+      "result": "PASS"
+    },
+    "test2_reader_toggle_back_on_program_recovers": {
+      "setup": "Continuing from the OFF state above",
+      "action": "PATCH /api/silos/{SILO_B} {active:true, manualOverride:false}",
+      "observed": "Polled every 5s for 45s. Silo B stayed at 0, Silo Total stayed at 15,000, Feed On Hand stayed at 10,152. API /api/readings/today confirmed B active=true, saved=true, amountRemaining=5 throughout. Only when the header ⏻ toggle was clicked in the Program UI did the value recover.",
+      "result": "FAIL (see integration_issues above)"
+    },
+    "regression_new_reading_pickup": {
+      "action": "POST /api/readings/batch with a fresh 7t reading for Silo B (simulating staff/Reader entering a new reading, then implicitly toggling nothing)",
+      "observed": "At poll t=20s: Silo Total 20,000 → 22,000, Silo B 5,000 → 7,000, Feed On Hand 15,152 → 17,152. Existing entry path is unaffected by this fix.",
+      "result": "PASS"
+    }
+  },
+  "test_report_links": ["/app/test_reports/after_seed_sync.png", "/app/test_reports/after_toggle_tests.png", "/app/test_reports/final_state.png"],
+  "action_items": [
+    "Investigate why the Reader-toggle-back-ON recovery does not visibly re-apply the Silo value via the 30s poll when the sheet cell has been persisted as '0'. /api/readings/today already reports active=true, saved=true, amountRemaining=5, and the hash IS changing (proven because the OFF direction worked from the same code path 5s earlier). Suspect: (a) stale liveSiloConfig / optimistic state overwriting fresh poll data, (b) doApplyReadings' Map.set for that cell being clobbered by a subsequent write path, or (c) the applied edit not being persisted through to sheets state consistently on the ON transition. Consider adding a targeted test: force patchSiloActive-style doApplyReadings on the ON branch of the poll too, not just OFF.",
+    "Optional: return silos to seeded state on farm 'default' if this test's residual readings (A=10t, B=5t, C=5t on today's row of Sheds 1 & 2) interfere with any future demo. The test explicitly restored all silos to active=true, manualOverride=false at the end so the OFF-related bug won't reappear."
+  ],
+  "critical_code_review_comments": [
+    "patchSiloActive (line 10460) correctly does an optimistic UI update + immediate doApplyReadings on the click — this half of the fix is solid and verified across 3 toggle cycles.",
+    "The 30s auto-sync change-hash now includes {letter,amount,unit,active,saved} for ALL silos + today's date — this correctly triggers doApplyReadings on a toggle flip alone (verified in the OFF direction). Regression path also verified.",
+    "Potential regression risk on the ON direction of the polled path: with the sheet cell persisted as '0' server-side, the fresh doApplyReadings run appears to not overwrite it back to the live reading value. This may be a pre-existing bug in doApplyReadings' state chain (setEdits not flushing back to server before next poll clobbers) rather than the toggle fix itself, but the user-visible symptom (stuck '0' after Reader restores a silo) is the same bug class the fix is meant to eliminate."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "n/a (not tested per request)", "frontend": "75% (3 of 4 scenarios PASS — TEST 1 both directions, TEST 2 OFF direction, and regression path all work; TEST 2 ON-direction recovery via API PATCH alone does not visibly re-apply within 45s)"},
+  "test_credentials": "Owner magic link from problem statement; owner appcovi2026@gmail.com. Valid.",
+  "seed_data_creation": "Seeded 3 silo readings for Sheds 1 & 2 (farm 'default'): Silo A=10t, B=5t, C=5t (later B updated to 7t during regression, then restored to 5t during cleanup). All silos left at active=true, manualOverride=false per E1's cleanup request.",
+  "retest_needed": true,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Fix is confirmed working for the primary user-reported scenario (turn silo OFF via Program header OR via Reader → Feed On Hand drops within seconds). One residual gap: turning a silo back ON via API PATCH alone (as the Reader would) doesn't visibly recover the Program's sheet cell within 45s even though the auto-sync poll IS running and the API returns correct state. Header toggle in the Program still fixes it. Farm 'default', Sheds 1 & 2 tab, has today's silo values seeded (A=10t, B=5t, C=5t) — reuse them by opening the same tab; today's row in the workbook is Wed 1 April 2026 (that shed's current sync-day). Silo IDs: A=b3c0bf59-4609-4056-8e6e-7a4feb0bdbb7, B=0121a7bc-280c-4167-b1fc-f8947acbf58a, C=dbb4a17c-953a-4850-9133-4b95600e46f9.",
+  "rca_of_the_issue": "Primary bug (stale Feed On Hand after toggle) is fixed: (1) patchSiloActive now immediately runs doApplyReadings with the optimistically-updated silo config → header ⏻ click drops the total within ~0.5s (verified 0.53s). (2) The 30s poll's change-detection hash now covers all silos' active/saved flags + today's date, so a Reader-side toggle propagates without requiring a fresh reading (verified within 5s on OFF direction). Residual concern: the same polled-recovery path does not reliably re-apply on the ON direction when the sheet cell has been persisted as '0'. Recommend E1 verify doApplyReadings' Map.set on line 11131 actually overwrites persisted '0' edits under the polled (non-optimistic) code path."
+}
