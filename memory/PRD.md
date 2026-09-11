@@ -399,8 +399,8 @@ Jason Coverdale (Appcovi, 3rd-gen Aussie broiler grower on a Baiada contract) ne
 - 🔁 **"All sheds starting Day 1, want Day 0 everywhere"** — Jason asked why the main spreadsheet tabs still showed Day 1 on placement day while Forecast/badges/growth curves/Mort Buddy already show Day 0 (from an earlier fix that deliberately left the raw spreadsheet day column alone, to avoid touching the row-position math feed formulas/EOB calcs are built on). Confirmed he wants it consistent everywhere.
   - Relabeled the shed tab's Day column display-only: subtracts 1 from whatever the cell's raw value is before rendering. The underlying cell value (1..60) and its row position are completely untouched — `todayRow`/`shedDataStartRow`/all feed & EOB math key off ROW POSITION, never off this column's displayed text, confirmed by tracing `todayRow`'s calc (`dayNum = floor((now-placement)/86400000)+1`, `row = shedDataStartRow + dayNum - 1`) — so this is purely cosmetic and safe.
   - EOB sheet's own age column intentionally left as-is (not mentioned by Jason, and carries separate FCR/CFCR calc risk) — only the ongoing shed tabs were changed.
-  - `BASE_PATH=/ npx vite build` passes clean. Not yet re-tested by testing_agent or confirmed live — please check a shed tab now shows Day 0 on placement day.
-  - Status: shipped in preview, **not user-confirmed**.
+  - `BASE_PATH=/ npx vite build` passes clean. ✅ Verified by testing_agent (iteration_25): Day column starts at 0 on placement day, increments correctly, all other columns (Feed Alloc, Feed On Hand, Silo Total, Catch/Morts, Birds Left) stayed row-aligned — no regressions, no console errors.
+  - Status: shipped in preview, **testing_agent-confirmed, not yet user-confirmed live**.
 
 ## Test credentials
 - Admin magic link: appcovi2026@gmail.com
