@@ -1553,6 +1553,7 @@ async def seed_if_empty() -> None:
             "slug": DEFAULT_FARM_ID,
             "name": "My Farm",
             "ownerEmail": os.environ.get("ADMIN_EMAIL"),
+            "ownerEmails": [os.environ.get("ADMIN_EMAIL")] if os.environ.get("ADMIN_EMAIL") else [],
             "createdAt": datetime.now(timezone.utc),
             "isDefault": True,
         })
@@ -1568,6 +1569,22 @@ async def _startup():
             {"slug": f["slug"]},
             {"$set": {"farmToken": secrets.token_urlsafe(24)}},
         )
+    # SEC-008 migration (2026-09-12, ticket #251797): backfill the new
+    # `ownerEmails` co-owner array from the legacy single `ownerEmail` on
+    # every farm that doesn't have it yet, then grant coverdalej72@gmail.com
+    # co-owner access to the "default" farm -- he'd been logging in with that
+    # address, which had no owner/invite record, while the farm's sole
+    # ownerEmail was appcovi2026@gmail.com. Both idempotent: re-running this
+    # on every startup is safe and a no-op once applied.
+    async for f in farms_col.find({"ownerEmails": {"$exists": False}}, {"slug": 1, "ownerEmail": 1}):
+        await farms_col.update_one(
+            {"slug": f["slug"]},
+            {"$set": {"ownerEmails": [f["ownerEmail"]] if f.get("ownerEmail") else []}},
+        )
+    await farms_col.update_one(
+        {"slug": "default"},
+        {"$addToSet": {"ownerEmails": "coverdalej72@gmail.com"}},
+    )
     # Background scheduler — last-Friday-of-month auto-send
     asyncio.create_task(_maybe_send_monthly_reports())
     await _ensure_indexes()
@@ -4772,7 +4789,11 @@ async def delete_farm(slug: str):
 
 
 @app.post("/api/farms/{slug}/invite")
-async def invite_operator(slug: str, body: InviteOperatorBody):
+async def invite_operator(slug: str, body: InviteOperatorBody, request: Request):
+    """Owner-only: invites an operator to this farm. SEC-007 (2026-09-12):
+    previously had no auth check at all, so anyone who knew/guessed a farm
+    slug could add themselves as an operator invite on it."""
+    await _require_owner_session(request, slug)
     from email_service import send_email, render_farm_invite_email
     farm = await farms_col.find_one({"slug": slug})
     if not farm:

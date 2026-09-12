@@ -1,6 +1,6 @@
 /*!
  * Appcovi i18n snippet — Google Translate widget + language chip.
- * Include ONCE per page via: <script src="/reader-assets/i18n-snippet.js" defer></script>
+ * Include ONCE per page via: <script src="/api/static-asset/i18n-snippet.js" defer></script>
  * Adds a Language chip to the top-right, invokes Google Translate for 100+ languages,
  * remembers choice in localStorage, and sets <html lang>. Free, no API key required.
  */

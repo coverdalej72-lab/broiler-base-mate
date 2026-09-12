@@ -1,0 +1,29 @@
+{
+  "summary": "Verified the /reader-assets/ -> /api/static-asset/ asset-path fix on reader, morts-entry, landing, and root pages at mobile (390x844) and desktop viewports. All primary logo/manifest/icon assets now load correctly with correct content-types. Manifest JSON is valid and its icon URLs resolve to real PNGs. Core UI on reader (silo cards, shed 1&2 etc.) and morts-entry (10 shed cards + Save) still renders and functions.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "/landing", "issues": ["Three secondary screenshot images under /api/static-asset/screenshots/reader-today.jpg, reader-weigh.jpg, reader-history.jpg return 404 (naturalWidth=0). Not part of the current fix but a broken-image regression visible on the landing page's screenshot gallery section."]},
+      {"screen": "/reader (mobile)", "issues": ["Non-blocking pageerror in console: 'Cannot set properties of null (setting onclick)' — pre-existing, does not prevent reader UI from rendering or saving, but should be investigated."]}
+    ]
+  },
+  "test_report_links": [],
+  "action_items": [
+    "Optional: upload/copy the missing landing screenshots (screenshots/reader-today.jpg, reader-weigh.jpg, reader-history.jpg) into the static-asset mount, or update landing.html/index.html to point to existing images.",
+    "Investigate the recurring 'Cannot set properties of null (setting onclick)' page error on reader.html and landing.html — likely a missing DOM node the script tries to bind before it exists."
+  ],
+  "critical_code_review_comments": [
+    "Global replace worked cleanly across reader.html, morts-entry.html, logo.svg, and index.html JSON-LD.",
+    "Reader page has a non-fatal JS error on load — worth fixing to prevent silent breakage if a future refactor removes another element.",
+    "Landing page still references some screenshot assets that were not migrated / do not exist under /api/static-asset/screenshots/ — either the folder wasn't served or files are missing."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "n/a", "frontend": "95%"},
+  "seed_data_creation": "None. Used farm slug=default, token=o3JM8FS-wuEDbZE634lWm_5m_GrZx9rq.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Asset-path fix (/reader-assets -> /api/static-asset) is verified across reader, morts-entry, landing, and /. Manifest + icon-192/icon-512 load with correct MIME types. Only two leftover items: (a) 3 landing 'screenshots/' images return 404, (b) a benign pageerror on reader/landing about setting onclick on null.",
+  "rca of the issue": "Original problem: /reader-assets/* was being intercepted by the frontend SPA fallback and returned HTML instead of the real assets, so PWA manifest + icons + logo silently 200'd as text/html and never installed. Fix relocated all references to /api/static-asset/* which is a real FastAPI StaticFiles mount that bypasses the SPA fallback. Verified via network: content-type is now image/png, image/svg+xml, application/json respectively; naturalWidth>0 for header logos on reader/morts-entry/landing/root."
+}

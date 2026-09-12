@@ -70,8 +70,14 @@ async def list_user_farms(db, email: str) -> dict:
             owned.append({"slug": f.get("slug"), "name": f.get("name"), "isDefault": bool(f.get("isDefault"))})
         return {"owned": owned, "invited": [], "role": "admin"}
 
-    # Owner of farms
-    async for f in db["farms"].find({"ownerEmail": {"$regex": f"^{email_l}$", "$options": "i"}}, {"_id": 0}):
+    # Owner of farms — matches the legacy single `ownerEmail` string, or
+    # membership in the newer `ownerEmails` array (co-owners, SEC-008).
+    async for f in db["farms"].find({
+        "$or": [
+            {"ownerEmail": {"$regex": f"^{email_l}$", "$options": "i"}},
+            {"ownerEmails": {"$regex": f"^{email_l}$", "$options": "i"}},
+        ]
+    }, {"_id": 0}):
         owned.append({"slug": f.get("slug"), "name": f.get("name"), "isDefault": bool(f.get("isDefault"))})
 
     # Invited operator

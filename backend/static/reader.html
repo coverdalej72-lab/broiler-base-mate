@@ -4,9 +4,9 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
   <meta name="theme-color" content="#0B1911" />
-  <link rel="manifest" href="/reader-assets/manifest.json" />
-  <link rel="icon" type="image/png" href="/reader-assets/icon-192.png" />
-  <link rel="apple-touch-icon" href="/reader-assets/icon-192.png" />
+  <link rel="manifest" href="/api/static-asset/manifest.json" />
+  <link rel="icon" type="image/png" href="/api/static-asset/icon-192.png" />
+  <link rel="apple-touch-icon" href="/api/static-asset/icon-192.png" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <meta name="apple-mobile-web-app-title" content="BBM Reader" />
@@ -16,7 +16,7 @@
     // Robust loader: local first, then CDN fallbacks
     (function loadQrLib(){
       const sources = [
-        "/reader-assets/html5-qrcode.min.js",
+        "/api/static-asset/html5-qrcode.min.js",
         "https://cdn.jsdelivr.net/npm/html5-qrcode@2.3.10/html5-qrcode.min.js",
         "https://unpkg.com/html5-qrcode@2.3.10/html5-qrcode.min.js",
       ];
@@ -277,7 +277,7 @@
     @keyframes bbm-reader-splash-pulse { 0%, 100% { opacity: 0.55; transform: scale(1); } 50% { opacity: 1; transform: scale(1.06); } }
     @keyframes bbm-reader-splash-fade { from { opacity: 0; } to { opacity: 1; } }
   </style>
-<script src="/reader-assets/i18n-snippet.js" defer></script>
+<script src="/api/static-asset/i18n-snippet.js" defer></script>
 </head>
 <body data-page="reader">
 <script>
@@ -285,7 +285,7 @@
 </script>
 <div id="reader-splash" style="position:fixed;inset:0;z-index:99999;background:#0B1911;color:#eef3fa;flex-direction:column;align-items:center;justify-content:center;gap:16px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;animation:bbm-reader-splash-fade 0.3s ease;">
   <div style="width:74px;height:74px;border-radius:20px;background:radial-gradient(circle at 32% 28%, rgba(34,197,94,0.35), rgba(11,25,17,0) 70%);display:grid;place-items:center;animation:bbm-reader-splash-pulse 1.8s ease-in-out infinite;">
-    <img src="/reader-assets/icon-192.png" alt="Broiler Base Mate" style="height:56px;width:56px;border-radius:14px;box-shadow:0 8px 24px rgba(0,0,0,0.4);" onerror="this.style.display='none'" />
+    <img src="/api/static-asset/icon-192.png" alt="Broiler Base Mate" style="height:56px;width:56px;border-radius:14px;box-shadow:0 8px 24px rgba(0,0,0,0.4);" onerror="this.style.display='none'" />
   </div>
   <div style="font-weight:900;letter-spacing:0.5px;font-size:16px;">BROILER BASE MATE</div>
   <div style="font-size:11px;color:#22C55E;letter-spacing:2px;font-weight:700;">READER · FIELD SYNC</div>
@@ -300,7 +300,7 @@
     setTimeout(hide, 4000); // safety net in case 'load' never fires
   })();
 </script>
-<script src="/reader-assets/auth-guard.js"></script>
+<script src="/api/static-asset/auth-guard.js"></script>
 
 <!-- ── PWA install enabler ─────────────────────────────────────────
      Registers a minimal non-caching service worker so Android Chrome
@@ -406,7 +406,7 @@
 </script>
   <div class="status-bar"></div>
   <header class="app-header">
-    <div class="app-icon"><img src="/reader-assets/logo.svg" alt="" /></div>
+    <div class="app-icon"><img src="/api/static-asset/logo.svg" alt="" /></div>
     <div class="farm-info">
       <div class="name" id="farm-name">Double B Farm</div>
       <div class="sub" style="color:#C9A227;font-size:9px;white-space:nowrap;">🐔 BROILER BASE MATE · READER</div>
@@ -570,7 +570,7 @@
           <div class="desc">Shown in both the mobile app and the Feed Program header.</div>
         </div>
         <div style="display:flex;gap:8px;align-items:center;">
-          <img id="logo-preview" src="/reader-assets/logo.svg" style="width:44px;height:44px;border-radius:8px;background:#000;object-fit:cover;" />
+          <img id="logo-preview" src="/api/static-asset/logo.svg" style="width:44px;height:44px;border-radius:8px;background:#000;object-fit:cover;" />
           <label class="pill green" style="cursor:pointer;border:1px solid var(--green-600);margin:0;">
             Upload<input id="logo-file" type="file" accept="image/*" style="display:none;" />
           </label>
@@ -635,7 +635,7 @@
 
       <div style="text-align:center;margin:32px 0 8px;display:flex;flex-direction:column;align-items:center;gap:10px;color:var(--muted);font-size:11px;letter-spacing:1.5px;font-weight:700;">
         <div>CRAFTED BY</div>
-        <img src="/reader-assets/company-logo.png" alt="" style="height:64px;width:64px;object-fit:contain;border-radius:12px;background:#000;padding:6px;" />
+        <img src="/api/static-asset/company-logo.png" alt="" style="height:64px;width:64px;object-fit:contain;border-radius:12px;background:#000;padding:6px;" />
       </div>
     </div>
   </main>
@@ -2110,7 +2110,7 @@
 
     // ── Logo upload / reset
     function applyLogo(logoData){
-      const url = logoData ? `data:image/png;base64,${logoData}` : "/reader-assets/logo.svg";
+      const url = logoData ? `data:image/png;base64,${logoData}` : "/api/static-asset/logo.svg";
       const headerImg = document.querySelector(".app-icon img");
       if (headerImg) headerImg.src = url;
       const preview = $("#logo-preview"); if (preview) preview.src = url;
