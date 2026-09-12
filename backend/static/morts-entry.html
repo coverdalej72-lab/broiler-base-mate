@@ -167,6 +167,84 @@
   <div class="toast" id="toast"></div>
 
   <script>
+    // ─── Offline write queue ──────────────────────────────────────────
+    // Staff on a shed floor often have patchy signal. If a Morts/Culls or
+    // Weigh-In save fails (offline / DNS / 5xx), queue it in localStorage and
+    // replay automatically on `online` + every 30s — same resilience reader.html
+    // already has, so an entry never just silently vanishes because of one
+    // bad moment of signal. Jason: "well it needs to work."
+    const QKEY = "bbm-staff-offline-queue";
+    function loadQueue() { try { return JSON.parse(localStorage.getItem(QKEY) || "[]"); } catch { return []; } }
+    function saveQueue(q) { try { localStorage.setItem(QKEY, JSON.stringify(q)); } catch (_) {} }
+    function pushToQueue(item) {
+      const q = loadQueue();
+      if (q.length > 200) q.shift();
+      q.push(item);
+      saveQueue(q);
+      updateOfflineBanner();
+    }
+    function updateOfflineBanner() {
+      let banner = document.getElementById("bbm-offline-banner");
+      const q = loadQueue();
+      const showing = navigator.onLine === false || q.length > 0;
+      if (showing) {
+        if (!banner) {
+          banner = document.createElement("div");
+          banner.id = "bbm-offline-banner";
+          banner.style.cssText = "position:fixed;bottom:14px;left:50%;transform:translateX(-50%);z-index:9999;background:#1e2f4d;color:#fff;padding:8px 14px;border-radius:99px;font:600 12px system-ui,sans-serif;box-shadow:0 6px 22px rgba(0,0,0,.3);max-width:90vw;text-align:center;";
+          banner.setAttribute("data-testid", "staff-offline-queue-banner");
+          document.body.appendChild(banner);
+        }
+        const onl = navigator.onLine !== false;
+        banner.textContent = onl
+          ? `🔄 Syncing ${q.length} saved item${q.length === 1 ? "" : "s"}…`
+          : `📡 Offline — ${q.length} item${q.length === 1 ? "" : "s"} queued, will sync when back online`;
+      } else if (banner) {
+        banner.remove();
+      }
+    }
+    (function patchFetchForOffline() {
+      const orig = window.fetch.bind(window);
+      window.fetch = async function(input, init) {
+        const method = (init && init.method ? init.method : "GET").toUpperCase();
+        const urlStr = typeof input === "string" ? input : (input && input.url) || "";
+        const isQueueable = ["POST", "PUT", "PATCH"].includes(method) && urlStr.startsWith("/api/");
+        const hdrs = (init && init.headers) || {};
+        const bypass = hdrs["x-bbm-skip-queue"] === "1";
+        if (!isQueueable || bypass) return orig(input, init);
+        let body = init && init.body;
+        if (body && typeof body !== "string") { try { body = JSON.stringify(body); } catch { body = null; } }
+        try {
+          const res = await orig(input, init);
+          if (res.status >= 500) {
+            if (body != null) pushToQueue({ url: urlStr, method, body, headers: init && init.headers || {"Content-Type":"application/json"}, ts: Date.now() });
+            return new Response(JSON.stringify({ queued: true }), { status: 202, headers: { "Content-Type": "application/json" } });
+          }
+          return res;
+        } catch (e) {
+          if (body != null) pushToQueue({ url: urlStr, method, body, headers: init && init.headers || {"Content-Type":"application/json"}, ts: Date.now() });
+          return new Response(JSON.stringify({ queued: true }), { status: 202, headers: { "Content-Type": "application/json" } });
+        }
+      };
+    })();
+    async function drainQueue() {
+      const q = loadQueue();
+      if (!q.length) { updateOfflineBanner(); return; }
+      if (navigator.onLine === false) { updateOfflineBanner(); return; }
+      const item = q[0];
+      const headers = Object.assign({}, item.headers || {}, { "x-bbm-skip-queue": "1" });
+      try {
+        const r = await window.fetch(item.url, { method: item.method, headers, body: item.body, credentials: "include" });
+        if (r.status >= 500) { updateOfflineBanner(); return; }
+        q.shift(); saveQueue(q); updateOfflineBanner();
+        if (q.length) setTimeout(drainQueue, 200);
+      } catch (_) { updateOfflineBanner(); }
+    }
+    window.addEventListener("online", () => { updateOfflineBanner(); drainQueue(); });
+    window.addEventListener("offline", () => { updateOfflineBanner(); });
+    setInterval(drainQueue, 30000);
+    setTimeout(() => { updateOfflineBanner(); drainQueue(); }, 1500);
+
     const NAME_KEY = "bbm-staff-name";
     const nameInput = document.getElementById("staff-name");
     nameInput.value = localStorage.getItem(NAME_KEY) || "";
@@ -269,10 +347,12 @@
                 body: JSON.stringify({ source: "bbm-staff-qr", entries: [{ shed: parseInt(s, 10), date: todayIso, morts, culls, staffName }] }),
               });
               if (!res.ok) throw new Error("save failed");
+              let queued = false;
+              if (res.status === 202) { try { queued = !!(await res.json()).queued; } catch (_) {} }
               const badge = document.querySelector(`[data-badge="${s}"]`);
               badge.classList.add("show");
               setTimeout(() => badge.classList.remove("show"), 2500);
-              toast(`Shed ${s} saved`);
+              toast(queued ? `Shed ${s} queued — will sync when back online` : `Shed ${s} saved`);
             } catch (e) {
               toast("Couldn't save — try again", true);
             } finally {
@@ -388,7 +468,9 @@
           body: JSON.stringify({ source: "bbm-staff-qr", entries: [{ shed, age, date: todayIso, weightGrams, staffName }] }),
         });
         if (!res.ok) throw new Error("save failed");
-        toast(`Shed ${shed}, Day ${age} weight saved`);
+        let queued = false;
+        if (res.status === 202) { try { queued = !!(await res.json()).queued; } catch (_) {} }
+        toast(queued ? `Shed ${shed}, Day ${age} queued — will sync when back online` : `Shed ${shed}, Day ${age} weight saved`);
         const idx = allWeighEntries.findIndex(e => e.shed === shed && e.age === age);
         const record = { shed, age, date: todayIso, weightGrams, staffName };
         if (idx >= 0) allWeighEntries[idx] = record; else allWeighEntries.push(record);
