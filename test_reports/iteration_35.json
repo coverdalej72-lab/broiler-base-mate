@@ -1,0 +1,34 @@
+{
+  "summary": "Verified fetchWithTimeout initial-load hang fix on morts-entry.html and reader.html. Tests 1, 2, 4A, 4B, 5 all PASS. Test 3A passes (retry UI appears at ~15.5s with correct message and testid). Test 3B FAILS: on morts-entry.html, clicking Retry after a farm-config hang partially recovers (farm name is refreshed, farm-config + morts prefill both return 200, no JS console errors surface) BUT the shed cards never render — #content is re-populated with the retry error UI a second time. Reader.html retry path works perfectly.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [
+      {
+        "component": "morts-entry.html init()/initWeighTab()",
+        "issue": "On network-error branch (lines 377-386), the error HTML is written into BOTH #content AND #panel-weigh (line 383 overwrites panel-weigh innerHTML). On Retry, init() runs again, farm-config succeeds, but then initWeighTab() (called at line 372) tries to access #unit-g / #unit-kg / .age-chip / #weigh-age-custom — all of which were destroyed when panel-weigh was overwritten. `unitG.addEventListener` throws on null, which is caught by init()'s outer try/catch, re-rendering the retry error UI over the fresh shed cards. Net effect: Retry appears to do nothing to the user (though farm-name in header does update). This defeats the whole purpose of the fix on the morts page.",
+        "selector": "[data-testid='morts-retry-load']",
+        "priority": "HIGH"
+      }
+    ],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [],
+  "action_items": [
+    "Fix morts-entry.html retry path. Two viable options: (a) On error, only overwrite #content, and set a lightweight retry message in #panel-weigh WITHOUT clobbering the weigh-tab template — or restore the panel-weigh template before init() retries. (b) Make initWeighTab() defensive (early-return if #unit-g is missing) AND on retry, first rebuild the panel-weigh markup from a static template string before calling init(). Recommend option (a): keep the original panel-weigh HTML intact, and only inject the retry message into a small inner container, so initWeighTab() can still find its elements.",
+    "Also consider: after successful init() retry, the panel-weigh tab (if user clicks Weigh Birds) currently would still show a stale retry message unless option (a) is implemented — worth verifying."
+  ],
+  "critical_code_review_comments": [
+    "morts-entry.html line 383 mutates #panel-weigh innerHTML on ANY init() failure, which permanently breaks the Weigh Birds tab initialization on subsequent retries. Error UI should be scoped or reversible.",
+    "reader.html:1082 attaches the retry click handler correctly and only mutates #shed-list — pattern is clean and works. Use as reference for the morts-entry fix.",
+    "Both files use fetchWithTimeout with AbortController + 15s default — implementation is correct and hoisted properly within the single <script> block."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "N/A (frontend only)", "frontend": "86% (6 of 7 assertions pass; 1 critical retry-recovery bug on morts-entry)"},
+  "test_credentials": "Farm token t=o3JM8FS-wuEDbZE634lWm_5m_GrZx9rq (slug=default) — works",
+  "seed_data_creation": "None",
+  "retest_needed": true,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "The 15s timeout + retry UI works on BOTH pages. Reader.html retry recovery works end-to-end. Morts-entry.html retry recovery is broken because initWeighTab() throws on missing DOM after #panel-weigh was overwritten with the error message — the throw is silently swallowed by init()'s try/catch which re-renders the retry UI. To reproduce: page.route('**/api/farm-config**', hang_forever) → navigate morts-entry → wait ~16s for retry button → page.unroute → click morts-retry-load → observe farm-name updates but shed cards never appear and content still shows the retry message (with no console error, because the failure is inside the catch block itself). Only need to retest TEST 3B (morts-entry retry recovery) after fix.",
+  "rca of the issue": "On init() network-failure branch, both #content and #panel-weigh get their innerHTML replaced by the error+retry markup. On Retry click → init() re-runs → farm-config now succeeds → cards are built into #content → initWeighTab() is called → it queries #unit-g (which no longer exists inside #panel-weigh) → null.addEventListener throws → outer catch fires → renders retry UI again into #content, overwriting the just-built cards. Fix: don't overwrite #panel-weigh's template on error, OR make initWeighTab defensive + rebuild panel-weigh template on retry before calling init()."
+}

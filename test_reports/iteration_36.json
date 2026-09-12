@@ -1,0 +1,29 @@
+{
+  "summary": "Retested the single failing bug from iteration_35.json (TEST 3B): retry recovery on morts-entry.html after farm-config network hang. Fix confirmed working — init()'s catch block now only overwrites #content, leaving #panel-weigh's static Weigh Birds template intact. Retry successfully re-runs init(), shed cards render, and Weigh Birds tab age-chip buttons remain interactive. Happy-path sanity load also passes.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_results": {
+    "TEST_3B_retry_recovery": {
+      "hang_farm_config_shows_retry": "PASS — data-testid='morts-retry-load' appeared after ~16s network hang",
+      "retry_click_renders_shed_cards": "PASS — data-testid='save-shed-1' visible after unroute + Retry click",
+      "no_re_triggered_error_ui": "PASS — no data-testid='morts-load-error' after retry",
+      "weigh_birds_tab_clickable": "PASS — tab switches to Weigh Birds panel",
+      "age_chip_21_present_and_responsive": "PASS — weigh-age-chip-21 clickable, class updates to 'age-chip active'",
+      "age_chip_28_responsive": "PASS — weigh-age-chip-28 clickable, active state updates (confirms DOM not destroyed)"
+    },
+    "sanity_happy_path": "PASS — normal load without route interception renders shed cards immediately"
+  },
+  "test_report_links": [],
+  "action_items": [],
+  "critical_code_review_comments": [],
+  "updated_files": [],
+  "success_rate": {"backend": "N/A (not tested)", "frontend": "100% (all TEST 3B sub-checks + sanity pass)"},
+  "seed_data_creation": "None",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "iteration_35 bug fully resolved. morts-entry.html retry flow no longer destroys #panel-weigh's static DOM. All prior passing tests from iteration_35 remain out of scope for further retesting per main agent instructions."
+}

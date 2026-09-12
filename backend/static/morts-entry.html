@@ -286,9 +286,16 @@
 
     let totalShedsGlobal = 20;
 
+    function fetchWithTimeout(url, options = {}, ms = 15000) {
+      const ctrl = new AbortController();
+      const t = setTimeout(() => ctrl.abort(), ms);
+      return fetch(url, { ...options, signal: ctrl.signal }).finally(() => clearTimeout(t));
+    }
+
     async function init() {
       try {
-        const cfgRes = await fetch("/api/farm-config?" + authQ, { credentials: "include" });
+        const cfgRes = await fetchWithTimeout("/api/farm-config?" + authQ, { credentials: "include" });
+        if (cfgRes.status === 401 || cfgRes.status === 403) throw Object.assign(new Error("auth"), { authError: true });
         if (!cfgRes.ok) throw new Error("auth");
         const cfg = await cfgRes.json();
         document.getElementById("farm-name").textContent = cfg.farmName || "Farm";
@@ -298,7 +305,7 @@
         // Prefill with anything already recorded today (either entered here before, or synced from BBM itself)
         let existing = {};
         try {
-          const morRes = await fetch("/api/integrations/morts?" + authQ + "&since=" + todayIso, { credentials: "include" });
+          const morRes = await fetchWithTimeout("/api/integrations/morts?" + authQ + "&since=" + todayIso, { credentials: "include" }, 8000);
           if (morRes.ok) {
             const data = await morRes.json();
             (data.entries || []).forEach(e => { if (e.date === todayIso) existing[e.shed] = e; });
@@ -364,10 +371,17 @@
 
         initWeighTab();
       } catch (e) {
-        document.getElementById("content").innerHTML =
-          '<div class="error">This link has expired or is invalid.<br/>Ask the farm owner for a fresh QR code.</div>';
-        document.getElementById("panel-weigh").innerHTML =
-          '<div class="error">This link has expired or is invalid.<br/>Ask the farm owner for a fresh QR code.</div>';
+        // Jason: "well bullet proof its meant to be." A dropped/weak connection on the
+        // shed floor used to look identical to an invalid QR link, with no way to retry
+        // without a full page reload. Now: distinguish the two and always offer a retry.
+        const msg = e && e.authError
+          ? '<div class="error">This link has expired or is invalid.<br/>Ask the farm owner for a fresh QR code.</div>'
+          : `<div class="error" data-testid="morts-load-error">📡 Couldn't load — check your signal.<br/>
+              <button data-testid="morts-retry-load" style="margin-top:10px;background:#2f6b45;color:#fff;border:none;padding:9px 20px;border-radius:9px;font-weight:700;">Retry</button>
+            </div>`;
+        document.getElementById("content").innerHTML = msg;
+        const retryBtns = document.querySelectorAll("[data-testid='morts-retry-load']");
+        retryBtns.forEach(btn => btn.addEventListener("click", () => init()));
       }
     }
 
