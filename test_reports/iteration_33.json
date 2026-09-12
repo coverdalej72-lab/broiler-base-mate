@@ -1,0 +1,20 @@
+{
+  "summary": "Verified BBM sync-button UX fix. (1) After owner magic-link login opening Program for farm 'default', top-right sync button data-testid='silo-sync-button' renders in normal (non-red) state with text '🔄just now'. (2) After clearing cookies and reloading, the app's top-level toast 'Your session expired — redirecting to log in…' fires and user is redirected to /landing — which is the acceptable alternative behavior per the request. No silent failure observed.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [],
+  "action_items": [],
+  "critical_code_review_comments": [],
+  "updated_files": [],
+  "success_rate": {"backend": "n/a", "frontend": "100%"},
+  "test_credentials": "Owner magic link used from request",
+  "seed_data_creation": "none",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Sync-button reconnect UX check passes. Two acceptable behaviors documented; observed the session-expired toast + redirect path (not the red 'silo-sync-disconnected' button). Console during expired-state reload shows expected 401s from API calls before redirect — not blocking.",
+  "rca of the issue": "n/a — no bug found"
+}
