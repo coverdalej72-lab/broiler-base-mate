@@ -1569,31 +1569,6 @@ async def _startup():
             {"slug": f["slug"]},
             {"$set": {"farmToken": secrets.token_urlsafe(24)}},
         )
-    # SEC-008 migration (2026-09-12, ticket #251797): backfill the new
-    # `ownerEmails` co-owner array from the legacy single `ownerEmail` on
-    # every farm that doesn't have it yet, then grant coverdalej72@gmail.com
-    # co-owner access to the "default" farm -- he'd been logging in with that
-    # address, which had no owner/invite record, while the farm's sole
-    # ownerEmail was appcovi2026@gmail.com. Both idempotent: re-running this
-    # on every startup is safe and a no-op once applied.
-    async for f in farms_col.find({"ownerEmails": {"$exists": False}}, {"slug": 1, "ownerEmail": 1}):
-        await farms_col.update_one(
-            {"slug": f["slug"]},
-            {"$set": {"ownerEmails": [f["ownerEmail"]] if f.get("ownerEmail") else []}},
-        )
-    await farms_col.update_one(
-        {"slug": "default"},
-        {"$addToSet": {"ownerEmails": "coverdalej72@gmail.com"}},
-    )
-    # Same ticket, follow-up (2026-09-13): he also actively logs in as
-    # doublebb@baqerifarming.com.au (confirmed by him directly -- "is my
-    # farm") on a third device, which owns an unrelated brand-new empty
-    # farm (slug "double-b") and had no link to his real farm data either.
-    # Idempotent, same as above.
-    await farms_col.update_one(
-        {"slug": "default"},
-        {"$addToSet": {"ownerEmails": "doublebb@baqerifarming.com.au"}},
-    )
     # Background scheduler — last-Friday-of-month auto-send
     asyncio.create_task(_maybe_send_monthly_reports())
     await _ensure_indexes()

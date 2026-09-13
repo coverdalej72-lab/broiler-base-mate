@@ -444,6 +444,13 @@ Jason Coverdale (Appcovi, 3rd-gen Aussie broiler grower on a Baiada contract) ne
 - The 3 other pre-seeded test farms (North Creek, Southridge, Eaglehawk) left untouched per Jason's request.
 - Existing QR codes (Reader + Mort Buddy) for `default` are unaffected — same `farmToken`, so no re-scan needed for the token itself; this fix is about login/ownership, not the QR mechanism.
 
+## Full account/data wipe (Aug 2026)
+- Jason: "still issues" with doublebb@baqerifarming.com.au after the ownership fix — asked to delete the account AND all its farm data entirely, then remake a fresh account/signup. Also asked to delete appcovi2026@gmail.com's 3 test farms.
+- Executed via `DELETE /api/admin/delete-user?email=doublebb@baqerifarming.com.au&confirm=...`: removed the `default` farm (ex-"Double B Farm") + all cascaded data (10 shed groups, 30 silos, 3 readings, feed program state/history, 1 EOB snapshot). No leftover `external_morts`/`external_weighins` found for it.
+- Manually deleted the 3 pre-seeded test farms (north-creek, southridge, eaglehawk) + all their cascaded data (shed groups, silos, feed program state/history) — did NOT touch `appcovi2026@gmail.com`'s own user/session record, so the admin/testing magic-link login still works.
+- Current DB state: `farms` collection is now completely empty. `appcovi2026@gmail.com` still logs in fine (role "admin", owns 0 farms). `doublebb@baqerifarming.com.au` no longer exists anywhere — clean slate for a fresh signup.
+- Next step is on Jason: sign up fresh via the real landing/checkout flow with `doublebb@baqerifarming.com.au` to create a brand new farm from scratch.
+
 ## Test credentials
 - Admin magic link: appcovi2026@gmail.com
 
