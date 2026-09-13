@@ -1,0 +1,32 @@
+{
+  "summary": "RE-TEST of iteration_41 fix: PASSED end-to-end. Moving readerQrUrl/readerQrLoading/openReaderQr from MortsInsightsPanel into the top-level App component successfully resolved the ReferenceError crash on Settings click. All 6 requested test steps now succeed. Both QR codes (Reader + Mort Buddy) encode farm+token and resolve correctly when opened directly.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "App.tsx is still >14,000 lines — extremely hard to maintain. Strongly recommend splitting into per-view files (SettingsModal, MortsInsightsPanel, ProgramView, etc.) so scope bugs like the iteration_41 crash cannot recur.",
+    "Consider adding a Playwright/Vitest smoke test that opens Settings after magic-link login (would have caught iteration_41 crash immediately in CI).",
+    "Reader QR (in App) and Staff QR (in MortsInsightsPanel) call the same /api/farm-token endpoint but use two independent state pairs (readerQrUrl/readerQrLoading vs qrUrl/qrLoading). Consider unifying into one shared hook (useFarmToken) — reduces duplication and reduces likelihood of another scope bug."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "N/A (not tested — frontend-only request)", "frontend": "100% (6/6 tests passed)"},
+  "test_credentials": "Owner magic link with OWNER_MAGIC_KEY, farm=default (Double B Farm)",
+  "seed_data_creation": "None — no test data written to DB. Only /api/farm-token GET calls (read-only, HMAC-derived token).",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Verified test procedure that works: 1) hit /api/auth/owner-magic?...&to=/ (redirects to /landing due to SPA landing logic — that's OK), 2) navigate to /?farm=default (loads Program SPA authenticated), 3) dismiss any Skip-tour button, 4) click [data-testid=open-settings-drawer], 5) confirm [data-testid=reader-qr-code] renders, 6) read the QR value via React fiber walk (walk cur[__reactFiber*].return chain looking for memoizedProps.value containing '/reader?farm='). Staff QR is under the 'Mort Buddy' tab in the top toolbar — [data-testid=morts-staff-qr-btn] opens modal with [data-testid=morts-staff-qr-url]. Both URLs open reader.html/morts-entry.html correctly in a fresh unauthenticated context (token in ?t= grants farm-scoped access).",
+  "verification_evidence": {
+    "test_1_settings_opens_no_crash": "PASS — Settings modal fully renders (body innerText 7032 chars, includes BILLING, TOTAL SHEDS, FARM NAME, FARM LOGO sections). No pageerror events, no 'not defined' ReferenceErrors. Screenshot: settings_open.png",
+    "test_2_reader_qr_renders_and_farm_token_fires": "PASS — [data-testid=reader-qr-code] present, [data-testid=reader-qr-retry] absent. Network captured GET /api/farm-token?farm=default → 200.",
+    "test_3_reader_qr_value_matches_pattern": "PASS — Extracted via React fiber walk: 'https://harvest-hub-634.preview.emergentagent.com/reader?farm=default&t=o3JM8FS-wuEDbZE634lWm_5m_GrZx9rq' — matches ${origin}/reader?farm=<slug>&t=<token>.",
+    "test_4_staff_qr_modal_and_url": "PASS — [data-testid=morts-staff-qr-modal] visible, [data-testid=morts-staff-qr-url] text = 'https://harvest-hub-634.preview.emergentagent.com/morts-entry?farm=default&t=o3JM8FS-wuEDbZE634lWm_5m_GrZx9rq' — matches ${origin}/morts-entry?farm=<slug>&t=<token>. Screenshot: staff_qr.png",
+    "test_5_reader_url_direct_navigation": "PASS — Navigated to reader URL in fresh context. Title: 'Broiler Base Mate'. Body shows 'Double B Farm · BROILER BASE MATE · READER' and full silo list (SHEDS 1&2, 3&4, 5&6 ... each with Silo A/B/C, Starter/Grower/Finisher/Withdrawal fields). No login/401. Screenshot: reader_scan.png",
+    "test_6_morts_entry_url_direct_navigation": "PASS — Title: 'Mort Buddy — Record Morts, Culls & Weights'. Body shows 'BROILER BASE MATE · MORT BUDDY / Double B Farm / Today · Sunday 13 Sept' + shed 1-13 with MORTS/CULLS input rows. No login/401. Screenshot: morts_scan.png"
+  },
+  "rca of the issue": "Original bug (iteration_41): scope bug — new openReaderQr/readerQrUrl/readerQrLoading hooks were declared inside MortsInsightsPanel child component but referenced in the top-level App component's Settings button onClick and Send-to-Phone QR JSX. React threw ReferenceError at render, unmounting the tree. Fix (verified this iteration at App.tsx lines 10194-10223): declarations moved into App() before its return, so App's Settings onClick (line 12423) and QR render block (lines 13916-13922) now resolve correctly. Build (dist/public/assets/index-BlKqXywq.js, mtime 20s after App.tsx) contains the fix. All 6 requested tests pass — the very frustrated user's P0 QR-linking issue is fully resolved."
+}

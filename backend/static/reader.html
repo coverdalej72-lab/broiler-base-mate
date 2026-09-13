@@ -705,8 +705,24 @@
       try { return new URLSearchParams(window.location.search).get("farm") || "default"; }
       catch { return "default"; }
     })();
+    // The farm access token (?t=) is the "scan-and-go" auth (SEC-006) that
+    // lets this page work without a login. Persist it per-farm in
+    // localStorage so it survives a reload/re-open of a link that only has
+    // ?farm= (e.g. a bookmarked or re-shared link) instead of silently
+    // falling back to session-cookie auth, which 403s unless this device is
+    // separately logged in as that farm's owner.
+    const FARM_TOKEN_KEY = "bbm-farm-token:" + FARM_SLUG;
+    const FARM_TOKEN = (() => {
+      try {
+        const fromUrl = new URLSearchParams(window.location.search).get("t");
+        if (fromUrl) { localStorage.setItem(FARM_TOKEN_KEY, fromUrl); return fromUrl; }
+        return localStorage.getItem(FARM_TOKEN_KEY) || "";
+      } catch { return ""; }
+    })();
     document.title = (FARM_SLUG !== "default" ? `[${FARM_SLUG}] ` : "") + "Broiler Base Mate";
     // Patch fetch so every /api/* call automatically carries ?farm=<slug>
+    // and, when we have one, the farm access token (as x-farm-token so it
+    // isn't logged in URLs/analytics).
     (function patchFetch() {
       const orig = window.fetch.bind(window);
       window.fetch = function(input, init) {
@@ -716,9 +732,15 @@
             const u = new URL(urlStr, window.location.origin);
             if (!u.searchParams.has("farm")) {
               u.searchParams.set("farm", FARM_SLUG);
-              urlStr = u.pathname + (u.search ? u.search : "");
-              if (typeof input === "string") input = urlStr;
-              else input = new Request(urlStr, input);
+            }
+            urlStr = u.pathname + (u.search ? u.search : "");
+            if (typeof input === "string") input = urlStr;
+            else input = new Request(urlStr, input);
+            if (FARM_TOKEN) {
+              init = Object.assign({}, init);
+              const h = new Headers(init.headers || (typeof input !== "string" && input.headers) || {});
+              if (!h.has("x-farm-token")) h.set("x-farm-token", FARM_TOKEN);
+              init.headers = h;
             }
           }
         } catch (e) { /* fall through to original */ }

@@ -1,0 +1,39 @@
+{
+  "summary": "CRITICAL BUG: The Settings → Send to Phone QR fix is broken. Clicking the Program's Settings gear button throws two ReferenceErrors ('openReaderQr is not defined' and 'readerQrLoading is not defined'), which crashes the entire React tree — after the click, the app unmounts and only the top-right Logout pill remains on the page. Tests 1, 2, and 3 all blocked because the Settings modal never opens and the QR never renders. Root cause identified: E1 declared the new state (readerQrUrl, readerQrLoading) and function (openReaderQr) INSIDE the MortsInsightsPanel component (defined line 5697, ends ~line 5934), but the Settings button onClick (line 12424) and the QR render site (lines 13911-13922) live in the top-level App component (starts line 10194). Those identifiers therefore don't exist in App's scope. The fix must be moved into the App component.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [
+      {
+        "component": "Program → Settings button (App component)",
+        "issue": "Uncaught ReferenceError: openReaderQr is not defined AND readerQrLoading is not defined. Clicking ⚙ Settings crashes the entire React app (body innerText drops to 30 chars, only bbm-logout testid remains). Settings modal never opens, QR never renders, /api/farm-token is never called.",
+        "selector": "button:has-text('⚙ Settings') at App.tsx:12424; QR render at App.tsx:13911-13922",
+        "priority": "CRITICAL"
+      }
+    ],
+    "integration_issues": [
+      {
+        "flow": "Send-to-Phone Silo Reader QR",
+        "issue": "TEST 1 FAIL — QR never appears (neither reader-qr-code nor reader-qr-retry rendered). TEST 2 FAIL — /api/farm-token?farm=default is never fired because openReaderQr() throws before it can run. TEST 3 BLOCKED — no token to test end-to-end reader URL with. Because the entire app unmounts on click, users cannot reach Settings at all — this is a regression that makes the desktop Program's Settings gear completely unusable.",
+        "affected_selectors": ["[data-testid=\"reader-qr-code\"]", "[data-testid=\"reader-qr-retry\"]", "button:has-text('Settings')"]
+      }
+    ],
+    "design_issues": []
+  },
+  "test_report_links": [],
+  "action_items": [
+    "Move `readerQrUrl`, `readerQrLoading`, `setReaderQrUrl`, `setReaderQrLoading` useState declarations, and the `openReaderQr` async function OUT of MortsInsightsPanel (lines ~5707-5830 in /app/silo/artifacts/feed-program/src/App.tsx) and INTO the top-level `App` component (starts line 10194) so that the Settings button's onClick (line 12424) and the Send-to-Phone QR render block (lines 13911-13922) can actually resolve those identifiers. Also ensure `farmSlug` is in scope where openReaderQr calls `/api/farm-token?farm=${farmSlug}` (App component already has farmSlug, so this should be fine after the move).",
+    "After moving, retest: (1) Settings modal opens without crash, (2) /api/farm-token?farm=default fires, (3) QR SVG renders with value = `${origin}/reader?farm=default&t=<token>`, (4) navigating directly to that URL loads the Reader app with the silo list."
+  ],
+  "critical_code_review_comments": [
+    "Function/state scope error: new openReaderQr/readerQrUrl/readerQrLoading were added inside the wrong React component (MortsInsightsPanel) but consumed inside App. TypeScript did not catch this because App.tsx is very large and there may be other same-named or shadowed identifiers, OR TS type-check is not strict/not running in CI.",
+    "App.tsx is >14,000 lines — extremely hard to maintain. Strong candidate for splitting into per-view files (SettingsModal, ProgramView, MortsInsightsPanel, DensityView, HistoryView etc.) so scope bugs like this become impossible.",
+    "Recommend adding a smoke test that opens Settings after login — this crash would have been caught immediately."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "N/A (not tested — frontend-only request)", "frontend": "0% (all 3 requested tests blocked by crash)"},
+  "seed_data_creation": "None",
+  "retest_needed": true,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Reproduction: 1) hit owner magic link, 2) skip tour, 3) click '⚙ Settings' — page.on('pageerror') fires with 'openReaderQr is not defined' and 'readerQrLoading is not defined'. App unmounts. Once E1 moves the three identifiers into the App component (line 10194+), retest Tests 1/2/3 as originally specified. For Test 2, use `page.on('response')` to catch `/api/farm-token?farm=default` and read the QR value via React fiber: document.querySelector('[data-testid=\"reader-qr-code\"]') then walk parents looking for `__reactProps` key and read `.value` — that returns the QRCodeSVG's `value` prop which is the encoded URL.",
+  "rca of the issue": "Scope bug. In /app/silo/artifacts/feed-program/src/App.tsx the new state hooks `const [readerQrUrl, setReaderQrUrl] = useState<string | null>(null); const [readerQrLoading, setReaderQrLoading] = useState(false);` and the async `openReaderQr` were placed inside the MortsInsightsPanel functional component (declared at line 5697, closes ~line 5934). However, the Settings gear button that calls `openReaderQr()` and the JSX that renders using `readerQrLoading`/`readerQrUrl` live inside the top-level App component (declared at line 10194, renders around lines 12424 and 13911-13922). At runtime, App's render throws ReferenceError on those identifiers, which unmounts the entire tree — leaving only the outer Logout pill. Mitigation: relocate those three declarations (and their setter equivalents) to be top-level within `App()` above its return statement, keeping the `authFetch`/`farmSlug` references valid."
+}

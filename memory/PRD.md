@@ -428,6 +428,14 @@ Jason Coverdale (Appcovi, 3rd-gen Aussie broiler grower on a Baiada contract) ne
   - One flagged "residual" case (Reader-simulated ON toggle not recovering) was investigated and is **not a bug** — the test used `{active:true, manualOverride:false}`, which hands control back to Farm Buddy's own age-based auto-toggle (a separate feature from earlier today); since that test shed is far past Day 24, Buddy correctly keeps a Grower-type silo off. The real Reader app always sends `manualOverride:true` on a manual toggle — confirmed via curl that this path persists correctly and isn't fought by Buddy.
   - Status: shipped in preview, **testing_agent-verified for the reported scenario, not yet user-confirmed live**.
 
+## Recent fixes (Aug 2026, cont'd)
+- 🚨 **P0 FIXED — Both phone QR codes (Reader + Mort Buddy) not linking to the Program** — Jason, very frustrated: "both qr code are not linking into the program... the mort buddy not linked and silo reader not linking why its the custom link the qr code."
+  - Root cause #1 (the actual QR link): the Settings → "Send to Phone" Reader QR was hardcoded to `${origin}/reader` with NO farm/token, so scans hit an unauthenticated generic URL instead of the grower's real farm.
+  - Root cause #2 (regression from the first fix attempt): the new `readerQrUrl`/`readerQrLoading`/`openReaderQr` were mistakenly declared inside the `MortsInsightsPanel` child component instead of the top-level `App()` component that actually consumes them (Settings button onClick + QR render JSX) — this threw `ReferenceError` and crashed/unmounted the ENTIRE Program the instant Settings was clicked (caught by testing_agent, iteration_41.json).
+  - Fix: moved `readerQrUrl`/`readerQrLoading`/`openReaderQr` into `App()` (~line 10207-10223 of `App.tsx`), fetching `/api/farm-token?farm=<slug>` and building `${origin}/reader?farm=<slug>&t=<token>`.
+  - ✅ Verified end-to-end via testing_agent (iteration_42.json, 6/6 pass): Settings opens with no crash; Reader QR renders and encodes farm+token; Mort Buddy Staff QR (Morts tab → 📱 Staff QR) encodes `${origin}/morts-entry?farm=<slug>&t=<token>`; both URLs opened directly (fresh, unauthenticated browser context, simulating a real scan) correctly load the farm-scoped Reader silo list and Mort Buddy shed list — no login/401.
+  - Status: **preview-tested and passing**, not yet confirmed by user's real phone. User must click **Deploy** to push this to production, then re-scan/re-open both QR codes on their actual device to confirm.
+
 ## Test credentials
 - Admin magic link: appcovi2026@gmail.com
 
