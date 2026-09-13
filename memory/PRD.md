@@ -437,6 +437,13 @@ Jason Coverdale (Appcovi, 3rd-gen Aussie broiler grower on a Baiada contract) ne
   - Status: **preview-tested and passing**, not yet confirmed by user's real phone. User must click **Deploy** to push this to production, then re-scan/re-open both QR codes on their actual device to confirm.
   - Follow-up refactor (same day): extracted a single shared `useFarmQrUrl(path)` hook (defined once, top of `App.tsx`) so both the Reader QR (`App`) and Mort Buddy Staff QR (`MortsInsightsPanel`) call the exact same fetch/scope logic instead of two hand-duplicated copies — removes the exact class of scope bug that caused the iteration_41 crash. Re-verified via screenshot smoke test: Settings opens with no console errors and `reader-qr-code` renders; Staff QR modal shows the correct `morts-entry?farm=default&t=...` URL.
 
+## Farm ownership correction (Aug 2026)
+- Jason clarified: his real production farm ("Double B Farm", slug `default`) was still owned in the DB by his `appcovi2026@gmail.com` TEST account, not his real farm email `doublebb@baqerifarming.com.au` — this is why logging in / QR behavior felt tied to the wrong account. `doublebb@baqerifarming.com.au` had zero farms of its own.
+- Fixed: updated `farms.default.ownerEmail` → `doublebb@baqerifarming.com.au`, and `ownerEmails` → `[doublebb@baqerifarming.com.au, coverdalej72@gmail.com]` (removed appcovi). All real data (sheds, readings, morts, farmToken/QR) untouched — only ownership changed. `appcovi2026@gmail.com` keeps oversight only via its separate SUPERUSER_EMAILS admin role (sees ALL farms), not as a farm owner.
+- Verified via `list_user_farms`: `doublebb@baqerifarming.com.au` → role "owner" of `default`; `appcovi2026@gmail.com` → role "admin" (sees all 4 farms incl. default, unaffected); `coverdalej72@gmail.com` → still co-owner.
+- The 3 other pre-seeded test farms (North Creek, Southridge, Eaglehawk) left untouched per Jason's request.
+- Existing QR codes (Reader + Mort Buddy) for `default` are unaffected — same `farmToken`, so no re-scan needed for the token itself; this fix is about login/ownership, not the QR mechanism.
+
 ## Test credentials
 - Admin magic link: appcovi2026@gmail.com
 

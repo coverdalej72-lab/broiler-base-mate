@@ -1585,6 +1585,15 @@ async def _startup():
         {"slug": "default"},
         {"$addToSet": {"ownerEmails": "coverdalej72@gmail.com"}},
     )
+    # Same ticket, follow-up (2026-09-13): he also actively logs in as
+    # doublebb@baqerifarming.com.au (confirmed by him directly -- "is my
+    # farm") on a third device, which owns an unrelated brand-new empty
+    # farm (slug "double-b") and had no link to his real farm data either.
+    # Idempotent, same as above.
+    await farms_col.update_one(
+        {"slug": "default"},
+        {"$addToSet": {"ownerEmails": "doublebb@baqerifarming.com.au"}},
+    )
     # Background scheduler — last-Friday-of-month auto-send
     asyncio.create_task(_maybe_send_monthly_reports())
     await _ensure_indexes()
