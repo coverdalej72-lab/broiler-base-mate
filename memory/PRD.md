@@ -435,6 +435,7 @@ Jason Coverdale (Appcovi, 3rd-gen Aussie broiler grower on a Baiada contract) ne
   - Fix: moved `readerQrUrl`/`readerQrLoading`/`openReaderQr` into `App()` (~line 10207-10223 of `App.tsx`), fetching `/api/farm-token?farm=<slug>` and building `${origin}/reader?farm=<slug>&t=<token>`.
   - ✅ Verified end-to-end via testing_agent (iteration_42.json, 6/6 pass): Settings opens with no crash; Reader QR renders and encodes farm+token; Mort Buddy Staff QR (Morts tab → 📱 Staff QR) encodes `${origin}/morts-entry?farm=<slug>&t=<token>`; both URLs opened directly (fresh, unauthenticated browser context, simulating a real scan) correctly load the farm-scoped Reader silo list and Mort Buddy shed list — no login/401.
   - Status: **preview-tested and passing**, not yet confirmed by user's real phone. User must click **Deploy** to push this to production, then re-scan/re-open both QR codes on their actual device to confirm.
+  - Follow-up refactor (same day): extracted a single shared `useFarmQrUrl(path)` hook (defined once, top of `App.tsx`) so both the Reader QR (`App`) and Mort Buddy Staff QR (`MortsInsightsPanel`) call the exact same fetch/scope logic instead of two hand-duplicated copies — removes the exact class of scope bug that caused the iteration_41 crash. Re-verified via screenshot smoke test: Settings opens with no console errors and `reader-qr-code` renders; Staff QR modal shows the correct `morts-entry?farm=default&t=...` URL.
 
 ## Test credentials
 - Admin magic link: appcovi2026@gmail.com
