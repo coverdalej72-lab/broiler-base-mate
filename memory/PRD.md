@@ -451,6 +451,11 @@ Jason Coverdale (Appcovi, 3rd-gen Aussie broiler grower on a Baiada contract) ne
 - Current DB state: `farms` collection is now completely empty. `appcovi2026@gmail.com` still logs in fine (role "admin", owns 0 farms). `doublebb@baqerifarming.com.au` no longer exists anywhere — clean slate for a fresh signup.
 - Next step is on Jason: sign up fresh via the real landing/checkout flow with `doublebb@baqerifarming.com.au` to create a brand new farm from scratch.
 
+## "Your Program Link" QR added to Settings (Aug 2026)
+- Jason: "every farm needs a different qr code to link there app to there program" — previously the Program's own login link/QR was only ever shown ONCE (on the signup/checkout success page); no permanent way to get it back.
+- Added a second QR block in Settings, right below "Send to Phone" (Reader QR): "Your Program Link" — uses the same shared `useFarmQrUrl` hook (path `/`), so it's guaranteed tied to exactly this logged-in farm's own token, no possibility of cross-farm mix-up. Shows QR + full URL text (`data-testid="program-qr-url"`) + a 📋 Copy Link button (`data-testid="program-qr-copy"`).
+- Verified via screenshot smoke test on a temp farm: both QR blocks render side-by-side in Settings with zero console errors; Program QR correctly encoded `${origin}/?farm=<slug>&t=<token>`. Temp test farm deleted after verification — DB back to 0 farms.
+
 ## Test credentials
 - Admin magic link: appcovi2026@gmail.com
 
