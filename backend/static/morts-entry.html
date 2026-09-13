@@ -251,8 +251,21 @@
     nameInput.addEventListener("input", () => { localStorage.setItem(NAME_KEY, nameInput.value); });
 
     const qs = new URLSearchParams(window.location.search);
-    const farm = qs.get("farm") || "default";
-    const token = qs.get("t") || "";
+    // Sep 2026 — Jason: reader.html had this exact bug when re-opened as an
+    // installed PWA (manifest start_url has no ?farm=), so persist the real
+    // slug too (not just the token) — same fix applied here for consistency.
+    const FARM_SLUG_KEY = "bbm-farm-slug";
+    const farm = (() => {
+      const fromUrl = qs.get("farm");
+      if (fromUrl) { try { localStorage.setItem(FARM_SLUG_KEY, fromUrl); } catch (_) {} return fromUrl; }
+      try { return localStorage.getItem(FARM_SLUG_KEY) || "default"; } catch { return "default"; }
+    })();
+    const TOKEN_KEY = "bbm-farm-token:" + farm;
+    const token = (() => {
+      const fromUrl = qs.get("t");
+      if (fromUrl) { try { localStorage.setItem(TOKEN_KEY, fromUrl); } catch (_) {} return fromUrl; }
+      try { return localStorage.getItem(TOKEN_KEY) || ""; } catch { return ""; }
+    })();
     const authQ = "farm=" + encodeURIComponent(farm) + (token ? "&t=" + encodeURIComponent(token) : "");
     const today = new Date();
     // Sep 2026 — Jason: "does he know where he lives in the world" — .toISOString()

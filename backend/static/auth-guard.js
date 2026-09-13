@@ -29,8 +29,16 @@
   // Preview environment: the /reader route is bootstrapped by the SPA which sets
   // __BBM_PAGE__ = "app" — so also detect reader from the URL path so guards work.
   const IS_READER_URL = /^\/reader(\/|$|\?)/.test(window.location.pathname);
+  // Sep 2026 — Jason: "installing the app taking long time [never finishes]".
+  // This used to hardcode "default" when the URL had no ?farm= — exactly the
+  // case on a re-opened installed PWA icon (manifest start_url has no query
+  // params). For any farm slug other than literally "default", that made
+  // SAVED_FARM_TOKEN below always fail its slug match, so HAS_FARM_TOKEN was
+  // always false and every re-open bounced to /landing before the page's own
+  // script even ran. Now falls back to the slug saved on the original scan,
+  // same pattern as the Program's own getActiveFarmSlug().
   const FARM_SLUG = (function () {
-    try { return new URLSearchParams(window.location.search).get("farm") || "default"; }
+    try { return new URLSearchParams(window.location.search).get("farm") || localStorage.getItem("bbm-farm-slug") || "default"; }
     catch { return "default"; }
   })();
   // SEC-006 scan-and-go: a valid ?t=<farmToken> in the URL (or saved from an

@@ -701,9 +701,22 @@
   <script>
     // ─── Multi-farm support ────────────────────────────────────────────
     // Read ?farm=slug from URL and route ALL /api/ calls through that farm.
+    // Sep 2026 — Jason: "installing the app taking long time [never finishes]".
+    // Root cause: the installed PWA's manifest start_url is a bare "/reader"
+    // (no ?farm=/&t=), so re-opening the home-screen icon always fell back
+    // to the hardcoded "default" slug — even when the real farm was e.g.
+    // "jason" — silently pointing every API call at the WRONG (or no) farm
+    // token and hanging forever on "Loading sheds…". Persist the real slug
+    // too (not just the token) so a re-open with no URL params still resolves
+    // to the farm that was actually scanned, same pattern as the Program's
+    // own getActiveFarmSlug().
+    const FARM_SLUG_KEY = "bbm-farm-slug";
     const FARM_SLUG = (() => {
-      try { return new URLSearchParams(window.location.search).get("farm") || "default"; }
-      catch { return "default"; }
+      try {
+        const fromUrl = new URLSearchParams(window.location.search).get("farm");
+        if (fromUrl) { localStorage.setItem(FARM_SLUG_KEY, fromUrl); return fromUrl; }
+        return localStorage.getItem(FARM_SLUG_KEY) || "default";
+      } catch { return "default"; }
     })();
     // The farm access token (?t=) is the "scan-and-go" auth (SEC-006) that
     // lets this page work without a login. Persist it per-farm in
@@ -715,7 +728,18 @@
     const FARM_TOKEN = (() => {
       try {
         const fromUrl = new URLSearchParams(window.location.search).get("t");
-        if (fromUrl) { localStorage.setItem(FARM_TOKEN_KEY, fromUrl); return fromUrl; }
+        if (fromUrl) {
+          localStorage.setItem(FARM_TOKEN_KEY, fromUrl);
+          // auth-guard.js (loaded just before this script) checks the FLAT
+          // "bbm-farm-token" key + "bbm-farm-slug", not this slug-scoped one —
+          // without also writing here, auth-guard.js always sees HAS_FARM_TOKEN
+          // = false on a bare re-open (e.g. the installed PWA icon, whose
+          // manifest start_url has no query params) and bounces to /landing
+          // BEFORE this script even runs. This was the actual "install never
+          // finishes loading" bug.
+          localStorage.setItem("bbm-farm-token", fromUrl);
+          return fromUrl;
+        }
         return localStorage.getItem(FARM_TOKEN_KEY) || "";
       } catch { return ""; }
     })();
@@ -1093,15 +1117,25 @@
         [gRes,pRes,fcRes] = await Promise.all([
           fetchWithTimeout("/api/shed-groups"), fetchWithTimeout("/api/readings/today"), fetchWithTimeout("/api/farm-config")
         ]);
+        // Sep 2026 — Jason: "installing the app taking long time [never finishes]".
+        // A missing/stale farm token (e.g. re-opening the installed home-screen
+        // icon) used to 401/403 here, then blindly parse the error body as
+        // shed data below and crash into a permanent "Loading sheds…" spinner
+        // with no visible error at all. Detect it explicitly instead.
+        if (gRes.status === 401 || gRes.status === 403) throw Object.assign(new Error("auth"), { authError: true });
+        if (!gRes.ok || !pRes.ok || !fcRes.ok) throw new Error("load failed");
       } catch (e) {
-        // Weak/dropped signal on a shed floor — don't hang on a blank screen forever.
-        // Jason: "well bullet proof its meant to be." Fail fast + give a visible retry.
         if (firstLoad) {
-          list.innerHTML = `<div style="color:var(--muted);text-align:center;padding:40px 16px;">
-            📡 Couldn't load — check your signal.<br/><br/>
-            <button data-testid="reader-retry-load" style="background:var(--green);color:#fff;border:none;padding:10px 22px;border-radius:10px;font-weight:700;">Retry</button>
-          </div>`;
-          list.querySelector("[data-testid='reader-retry-load']").addEventListener("click", () => loadAll().catch(()=>{}));
+          list.innerHTML = e && e.authError
+            ? `<div style="color:var(--muted);text-align:center;padding:40px 16px;">
+                This link has expired or is invalid.<br/>Ask the farm owner for a fresh QR code.
+              </div>`
+            : `<div style="color:var(--muted);text-align:center;padding:40px 16px;">
+                📡 Couldn't load — check your signal.<br/><br/>
+                <button data-testid="reader-retry-load" style="background:var(--green);color:#fff;border:none;padding:10px 22px;border-radius:10px;font-weight:700;">Retry</button>
+              </div>`;
+          const retryBtn = list.querySelector("[data-testid='reader-retry-load']");
+          if (retryBtn) retryBtn.addEventListener("click", () => loadAll().catch(()=>{}));
         }
         throw e;
       }
