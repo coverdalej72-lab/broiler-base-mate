@@ -471,6 +471,12 @@ Jason Coverdale (Appcovi, 3rd-gen Aussie broiler grower on a Baiada contract) ne
 - Fixed in `GET /api/integrations/morts`: re-attaches `tzinfo=timezone.utc` to `updatedAt` before returning, so the JSON now carries an explicit `+00:00` offset and every consumer (Mort Buddy, Program) parses/displays it correctly.
 - Verified via curl: `updatedAt` now returns `"...+00:00"` instead of a bare naive string. Test entry cleaned up after.
 
+## New user signup E11000 error — FIXED (Sep 2026)
+- Jason: "why is new user getting error message [E11000]" after appcovi2026@gmail.com tried a new signup.
+- Root cause: `/api/trial/start` (and the two Stripe checkout farm-creation paths) allocated a unique farm slug with a "check it's free, then insert" pattern that isn't atomic. A double-click on "Start Free Trial" (or any two near-simultaneous signups landing on the same slug) could both pass the free-slug check before either insert committed — the second `insert_one()` then threw a raw `pymongo.errors.DuplicateKeyError: E11000 duplicate key error ... index: slug_1`. Reproduced directly by firing 8-10 concurrent signup requests with the same farm name — got a real 500 with this exact error in the backend logs.
+- Fixed all 3 farm-creation sites (`/api/trial/start`, Stripe ops-bundle, Stripe single-farm subscription): now catch `DuplicateKeyError` and retry with the next candidate slug (up to 5 attempts) instead of ever letting it surface to the user.
+- Verified: re-ran 10 concurrent signup requests — all 10 now return `201` successfully with unique slugs, zero 500s, zero DuplicateKeyError in logs. Test farms cleaned up.
+
 ## Test credentials
 - Admin magic link: appcovi2026@gmail.com
 

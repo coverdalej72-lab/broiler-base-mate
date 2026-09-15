@@ -22,6 +22,7 @@ from starlette.responses import RedirectResponse
 from fastapi.responses import FileResponse, JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
 from motor.motor_asyncio import AsyncIOMotorClient
+from pymongo.errors import DuplicateKeyError
 from pydantic import BaseModel, Field
 
 load_dotenv()
@@ -3834,28 +3835,42 @@ async def start_free_trial(body: TrialStartRequest):
     if existing:
         slug = existing["slug"]
     else:
-        # New trial → allocate unique slug
+        # New trial → allocate unique slug. Sep 2026 — Jason: "new user getting
+        # error message [E11000]". The "check slug free, then insert" below is
+        # NOT atomic — a double-click on "Start Free Trial" (or any two
+        # near-simultaneous signups picking the same slug) can both pass the
+        # check before either insert lands, so the second insert_one() throws
+        # a raw pymongo DuplicateKeyError on farms.slug. Retry with the next
+        # candidate slug instead of ever letting that surface as a 500.
         base = _slugify(farm_name) or "my-farm"
         slug = base
         n = 2
         while await farms_col.find_one({"slug": slug}):
             slug = f"{base}-{n}"
             n += 1
-        await farms_col.insert_one({
-            "id": str(uuid.uuid4()),
-            "slug": slug,
-            "name": farm_name,
-            "ownerEmail": email,
-            "ownerName": name,
-            "tier": package_id,
-            "subscriptionStatus": "trialing",
-            "trialStartedAt": now,
-            "trialExpiresAt": trial_expires,
-            "createdAt": now,
-            "isDefault": False,
-            "source": "trial-signup",
-            "farmToken": secrets.token_urlsafe(24),  # SEC-006: bulletproof per-farm read-access token
-        })
+        for _attempt in range(5):
+            try:
+                await farms_col.insert_one({
+                    "id": str(uuid.uuid4()),
+                    "slug": slug,
+                    "name": farm_name,
+                    "ownerEmail": email,
+                    "ownerName": name,
+                    "tier": package_id,
+                    "subscriptionStatus": "trialing",
+                    "trialStartedAt": now,
+                    "trialExpiresAt": trial_expires,
+                    "createdAt": now,
+                    "isDefault": False,
+                    "source": "trial-signup",
+                    "farmToken": secrets.token_urlsafe(24),  # SEC-006: bulletproof per-farm read-access token
+                })
+                break
+            except DuplicateKeyError:
+                n += 1
+                slug = f"{base}-{n}"
+        else:
+            raise HTTPException(409, "Couldn't allocate a farm slug — please try again")
         await _seed_farm(slug, farm_name)
 
     # Fetch back to get farmToken for URL-building
@@ -4149,7 +4164,15 @@ async def _provision_purchase(session_id: str) -> Optional[dict]:
                 "stripeSessionId": session_id,
                 "farmToken": secrets.token_urlsafe(24),  # SEC-006: unique per-farm read token so each buyer's QR/link is theirs alone
             }
-            await farms_col.insert_one(doc)
+            for _attempt in range(5):
+                try:
+                    await farms_col.insert_one(doc)
+                    break
+                except DuplicateKeyError:
+                    n += 1
+                    doc["slug"] = slug = f"{base_slug}-{n}"
+            else:
+                raise HTTPException(409, "Couldn't allocate a farm slug — please try again")
             await _seed_farm(slug, name)
             farm_token = doc["farmToken"]
             _q = f"farm={slug}&t={farm_token}"
@@ -4176,7 +4199,15 @@ async def _provision_purchase(session_id: str) -> Optional[dict]:
             "stripeSessionId": session_id,
             "farmToken": secrets.token_urlsafe(24),  # SEC-006: unique per-farm read token so each buyer's QR/link is theirs alone
         }
-        await farms_col.insert_one(doc)
+        for _attempt in range(5):
+            try:
+                await farms_col.insert_one(doc)
+                break
+            except DuplicateKeyError:
+                n += 1
+                doc["slug"] = slug = f"{slug_base}-{n}"
+        else:
+            raise HTTPException(409, "Couldn't allocate a farm slug — please try again")
         await _seed_farm(slug, doc["name"])
         farm_token = doc["farmToken"]
         _q = f"farm={slug}&t={farm_token}"
