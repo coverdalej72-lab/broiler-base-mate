@@ -899,7 +899,21 @@ async def get_external_morts(request: Request, farm: str = Query(default=DEFAULT
     if since:
         q["date"] = {"$gte": since}
     cursor = external_morts_col.find(q, {"_id": 0}).sort("date", 1)
-    return {"entries": await cursor.to_list(2000)}
+    entries = await cursor.to_list(2000)
+    # Sep 2026 — Jason: "mort buddy clock is out time zone". `updatedAt` is
+    # written as a real UTC-aware datetime (datetime.now(timezone.utc)), but
+    # Mongo/BSON has no timezone concept and motor decodes it back as a NAIVE
+    # datetime — so it serialized to JSON with no "Z"/offset suffix (e.g.
+    # "2026-09-13T05:23:00"). Both the Mort Buddy staff page and the desktop
+    # "Recording Status" grid do `new Date(updatedAt).toLocaleTimeString()`,
+    # and per the JS spec a date-time string with NO timezone designator is
+    # parsed as LOCAL time, not UTC — silently shifting the displayed time by
+    # the browser's UTC offset. Re-attach UTC tzinfo before it's serialized.
+    for e in entries:
+        ua = e.get("updatedAt")
+        if isinstance(ua, datetime) and ua.tzinfo is None:
+            e["updatedAt"] = ua.replace(tzinfo=timezone.utc)
+    return {"entries": entries}
 
 
 @app.delete("/api/integrations/morts")

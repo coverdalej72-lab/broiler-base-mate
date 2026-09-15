@@ -465,6 +465,12 @@ Jason Coverdale (Appcovi, 3rd-gen Aussie broiler grower on a Baiada contract) ne
 - Fixed all three: `auth-guard.js` and `reader.html` now both fall back to a saved `bbm-farm-slug` from localStorage (not hardcoded "default"), `reader.html` also writes the flat `bbm-farm-token` key `auth-guard.js` actually reads (previously only wrote a slug-scoped key), and `loadAll()` now explicitly detects 401/403 and shows a clear "link expired" message instead of crashing. Applied the same slug-persistence fix to `morts-entry.html` for consistency (Mort Buddy is separately exempted from `auth-guard.js` entirely, so it wasn't affected by bug #1, but had the same underlying slug-default issue).
 - Verified end-to-end via screenshot smoke test on a temp farm (non-"default" slug): scanned the QR once (persists slug+token), then simulated the exact "re-open installed icon" scenario (bare `/reader`, no query params, same browser storage) — before the fix this bounced all the way to the marketing landing page; after the fix it loads the Reader instantly with zero console errors. Temp farm cleaned up after.
 
+## Mort Buddy clock timezone bug — FIXED (Sep 2026)
+- Jason: "mort buddy clock is out time zone" — the "Last by <name> · <time>" badge (Mort Buddy staff page + Program's desktop "Recording Status" grid, both read the same `/api/integrations/morts` endpoint) showed the wrong time.
+- Root cause: `updatedAt` is written as a real UTC-aware `datetime.now(timezone.utc)`, but Mongo/BSON has no timezone concept — motor decodes it back as a NAIVE Python datetime, so it serialized to JSON with no `Z`/offset suffix (e.g. `"2026-09-13T05:23:00"`). Per the JS spec, a date-time string with no timezone designator is parsed as LOCAL time, not UTC — so `new Date(updatedAt).toLocaleTimeString()` silently shifted the displayed time by the browser's UTC offset (e.g. +10h in Australia).
+- Fixed in `GET /api/integrations/morts`: re-attaches `tzinfo=timezone.utc` to `updatedAt` before returning, so the JSON now carries an explicit `+00:00` offset and every consumer (Mort Buddy, Program) parses/displays it correctly.
+- Verified via curl: `updatedAt` now returns `"...+00:00"` instead of a bare naive string. Test entry cleaned up after.
+
 ## Test credentials
 - Admin magic link: appcovi2026@gmail.com
 
