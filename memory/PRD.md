@@ -477,6 +477,12 @@ Jason Coverdale (Appcovi, 3rd-gen Aussie broiler grower on a Baiada contract) ne
 - Fixed all 3 farm-creation sites (`/api/trial/start`, Stripe ops-bundle, Stripe single-farm subscription): now catch `DuplicateKeyError` and retry with the next candidate slug (up to 5 attempts) instead of ever letting it surface to the user.
 - Verified: re-ran 10 concurrent signup requests — all 10 now return `201` successfully with unique slugs, zero 500s, zero DuplicateKeyError in logs. Test farms cleaned up.
 
+## Flock Forecast — edit/delete wrong weigh-ins — FIXED (Sep 2026)
+- Jason: "flock forecast staff put wrong age at 21 days on his phone app for weights i cant delete it in flock forecast" — clarified he wants to edit standard check-day weights (7/14/21/28/35/42/49/56) directly, sheds 1-6.
+- Root cause: there was no way to view/edit/delete an individual weigh-in from Flock Forecast at all — only the phone's camera/manual "log a NEW weight" flow existed (`BirdWeighView`), with no browse/edit/delete UI, and no backend DELETE endpoint for a single (shed, age) weigh-in (only Morts had that).
+- Added: `DELETE /api/integrations/weighins?farm=&shed=&age=` (mirrors the existing Morts "Clear Wrong Entries" pattern). Added a "✏️ EDIT WEIGH-INS (KG)" panel inside each shed's Flock Forecast card (expand a shed group via its "Expand" toggle) showing all 8 standard check-day boxes, prefilled with the current value; clearing a box wipes it locally AND calls the new DELETE endpoint so it can't silently reappear on the next phone sync (any device).
+- Verified end-to-end: pushed a wrong day-21 weigh-in via the same API the phone app uses, confirmed it appeared correctly in the new Shed 1 edit panel (`0.950`), cleared it via the UI, confirmed the input went blank AND the backend record was actually deleted (`GET .../weighins` → `entries: []`). Test farm/data cleaned up.
+
 ## Test credentials
 - Admin magic link: appcovi2026@gmail.com
 

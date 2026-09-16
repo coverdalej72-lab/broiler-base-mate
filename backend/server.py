@@ -989,6 +989,20 @@ async def get_external_weighins(request: Request, farm: str = Query(default=DEFA
     return {"entries": await cursor.to_list(2000)}
 
 
+@app.delete("/api/integrations/weighins")
+async def delete_external_weighin(request: Request, farm: str = Query(default=DEFAULT_FARM_ID), shed: int = Query(...), age: int = Query(...)):
+    """Delete one wrong bird-weight entry — Jason: "flock forecast staff put
+    wrong age at 21 days on his phone app for weights i cant delete it in
+    flock forecast". Mirrors the Morts "Clear Wrong Entries" control: the
+    farm owner can remove a single bad (shed, age) reading themselves. Also
+    clears the client-side "already applied" marker isn't possible from here
+    (that's per-browser localStorage), but deleting the source row means any
+    future sync — on any device — will simply have nothing to re-apply."""
+    await _require_farm_access(request, farm)   # SEC-001 — DESTRUCTIVE, must be gated
+    r = await external_weighins_col.delete_one({"farmId": farm, "shed": shed, "age": age})
+    return {"ok": True, "deleted": r.deleted_count}
+
+
 @app.get("/api/eob/batch-accuracy")
 async def get_batch_accuracy(request: Request, farm: str = Query(default=DEFAULT_FARM_ID)):
     """Predicted-vs-actual EOB accuracy for every locked batch on this farm.
