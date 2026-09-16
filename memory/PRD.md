@@ -483,6 +483,11 @@ Jason Coverdale (Appcovi, 3rd-gen Aussie broiler grower on a Baiada contract) ne
 - Added: `DELETE /api/integrations/weighins?farm=&shed=&age=` (mirrors the existing Morts "Clear Wrong Entries" pattern). Added a "✏️ EDIT WEIGH-INS (KG)" panel inside each shed's Flock Forecast card (expand a shed group via its "Expand" toggle) showing all 8 standard check-day boxes, prefilled with the current value; clearing a box wipes it locally AND calls the new DELETE endpoint so it can't silently reappear on the next phone sync (any device).
 - Verified end-to-end: pushed a wrong day-21 weigh-in via the same API the phone app uses, confirmed it appeared correctly in the new Shed 1 edit panel (`0.950`), cleared it via the UI, confirmed the input went blank AND the backend record was actually deleted (`GET .../weighins` → `entries: []`). Test farm/data cleaned up.
 
+## Battery-style silo gauges on Shed tabs (Sep 2026)
+- Jason shared an ad reference: battery-shaped green/amber/red fill gauges per silo. Asked for this inside each Shed tab ("1 & 2", "3 & 4"...), colour based on simple % remaining, no WiFi icon.
+- Replaced the plain rectangular bars in the "🌾 Silo Levels (live)" sidebar widget (`shed-side-silo-panel`, visible on every Shed spreadsheet tab) with small SVG battery icons: green ≥50%, amber 20-49%, red <20% (fill % of a 25t assumed silo capacity, same reference already used elsewhere in the app). Also applied the same battery style to the equivalent silo widget inside Flock Forecast's expanded per-shed card for visual consistency.
+- Verified via screenshot: seeded silo A/B/C at 20t/8t/3t on a real trial farm → batteries rendered green/amber/red respectively with correct kg/tonnes labels. Test farm cleaned up after.
+
 ## Test credentials
 - Admin magic link: appcovi2026@gmail.com
 
