@@ -494,6 +494,12 @@ Jason Coverdale (Appcovi, 3rd-gen Aussie broiler grower on a Baiada contract) ne
 - Added a small green/grey signal-bars icon above each battery: green = a reading was saved TODAY for that silo (live), grey = no reading today (stale/offline), with a hover tooltip. Applied to both the Shed-tab sidebar panel and the matching Flock Forecast battery panel for consistency.
 - Verified via screenshot on a real trial farm: posted a real reading for Silo A only → A rendered green battery + green WiFi bars + "18.0t"; B/C rendered empty batteries + grey WiFi bars + "—", all in the new green theme, spreadsheet table unchanged. Test data cleaned up.
 
+## Shed-tab mortality sidebar showing zero — FIXED (Sep 2026)
+- Jason: "JUST FIX THE MORTALITY ON THE SHED TABS ON SIDE BARS" — the graph side panel next to Shed 1&2-style spreadsheet tabs always showed Mortality = 0.
+- Root cause: `ShedGrowthSidePanel`'s `readMorts` only read the "End of Batch" sheet col 24, which is ONLY populated when a weight-sheet xlsx is uploaded at batch end — always 0 mid-batch, even though the Morts tab / Mort Buddy staff entries and the spreadsheet's own cells had real numbers.
+- Fix: `ShedGrowthSidePanel` now takes `mortsLog`/`cullsLog` props, sums logged entries per shed number (same MAX-of-sources pattern already used by `EobInfoPanel`/`farmBuddySheds`), taking `Math.max(eobColValue, loggedTotal)` so it never under-counts. Wired through at the call site (App.tsx ~13103).
+- Verified: build passed; created isolated `e1-verify-test` farm, seeded an `external_morts` entry (shed 1, 7 morts) via the same path Mort Buddy uses, confirmed the Shed 1 sidebar box showed "7 (0.0%)" instead of "0", then deleted the test farm + entry. Preview-tested only — not yet confirmed by Jason on his own farm data.
+
 ## Test credentials
 - Admin magic link: appcovi2026@gmail.com
 
