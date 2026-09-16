@@ -488,6 +488,12 @@ Jason Coverdale (Appcovi, 3rd-gen Aussie broiler grower on a Baiada contract) ne
 - Replaced the plain rectangular bars in the "🌾 Silo Levels (live)" sidebar widget (`shed-side-silo-panel`, visible on every Shed spreadsheet tab) with small SVG battery icons: green ≥50%, amber 20-49%, red <20% (fill % of a 25t assumed silo capacity, same reference already used elsewhere in the app). Also applied the same battery style to the equivalent silo widget inside Flock Forecast's expanded per-shed card for visual consistency.
 - Verified via screenshot: seeded silo A/B/C at 20t/8t/3t on a real trial farm → batteries rendered green/amber/red respectively with correct kg/tonnes labels. Test farm cleaned up after.
 
+## Shed tab silo panel — green theme, bigger, WiFi status (Sep 2026)
+- Jason: "I DONT LIKE THE PURPLE can we make a little bigger but so not effecting the excel" + wanted the WiFi live/offline icon added.
+- Recoloured the entire Shed-tab sidebar (`shed-growth-side-panel`: Farm Buddy tip boxes, placed/mortality stat boxes, growth chart, and the silo battery panel) from purple to the app's green palette (`var(--pm-primary)` + light green fills/borders). Enlarged the battery icons (24×40 → 30×48) — safe because this sidebar is a fixed 340px column, completely decoupled from the spreadsheet table's width (confirmed no Excel layout change).
+- Added a small green/grey signal-bars icon above each battery: green = a reading was saved TODAY for that silo (live), grey = no reading today (stale/offline), with a hover tooltip. Applied to both the Shed-tab sidebar panel and the matching Flock Forecast battery panel for consistency.
+- Verified via screenshot on a real trial farm: posted a real reading for Silo A only → A rendered green battery + green WiFi bars + "18.0t"; B/C rendered empty batteries + grey WiFi bars + "—", all in the new green theme, spreadsheet table unchanged. Test data cleaned up.
+
 ## Test credentials
 - Admin magic link: appcovi2026@gmail.com
 
