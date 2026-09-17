@@ -514,6 +514,11 @@ Jason Coverdale (Appcovi, 3rd-gen Aussie broiler grower on a Baiada contract) ne
 - Also fixed while investigating (unrelated but found via deployment_agent): `POST /api/farms` and `DELETE /api/farms/{slug}` (ops-dashboard admin tools) had zero auth — now require admin session.
 - Verified: restarted backend, ran isolated + burst (5x) create/delete cycles against `/api/farms` — `error_log` count for this signature stayed flat (33 → 33) across all of them, vs. reliably incrementing before the fix.
 
+## Privacy wording — operational data ownership clarified (Sep 2026)
+- Jason: "we do not want to know silo read eob weights or morts batch number there data is theres" — the landing page's "What we collect" line listed silo readings/weights/mortalities/batch numbers/EOB reports the same way as account info, which read like BBM was claiming/collecting that data as its own.
+- Fixed in both places: `landing.html`'s footer Privacy Policy summary and the full `/privacy` policy (Section 3.2) now explicitly state this operational data is "your farm's data, not ours" — stored on the customer's behalf to run the Service, exportable/deletable any time. Matches the tone already used in the "Your farm data stays yours" trust box above it.
+- Not a legal review — still recommend a lawyer pass before relying on this for compliance.
+
 ## Test credentials
 - Admin magic link: appcovi2026@gmail.com
 
