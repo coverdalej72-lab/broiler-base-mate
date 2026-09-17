@@ -103,16 +103,39 @@ app.add_middleware(
 # SEO backup for DNS-level redirect. Semrush flagged https://www.broilerbasemate.com.au/
 # as uncrawlable — this middleware guarantees any request hitting the www host
 # gets 301'd to the apex, preserving link equity.
-@app.middleware("http")
-async def www_to_apex_redirect(request: Request, call_next):
-    host = (request.headers.get("host") or "").lower()
-    if host.startswith("www."):
-        apex = host[4:]
-        target = f"https://{apex}{request.url.path}"
-        if request.url.query:
-            target += f"?{request.url.query}"
-        return RedirectResponse(url=target, status_code=301)
-    return await call_next(request)
+#
+# Sep 2026 — Jason kept getting "🚨 BBM error [backend_500]: RuntimeError:
+# Response content longer than Content-Length" admin alert emails, constantly.
+# Root cause: this was a `@app.middleware("http")` (Starlette BaseHTTPMiddleware
+# under the hood), which wraps EVERY response — not just www ones — in an
+# anyio TaskGroup that breaks FastAPI's own Content-Length calculation on
+# streaming/file responses. hardening.py's rate limiter already documents +
+# avoids this exact bug with a pure-ASGI middleware; this one just hadn't been
+# converted yet, and was firing on ~40% of all logged backend errors. Rewritten
+# as pure ASGI (no response wrapping at all for the non-www passthrough case).
+class _WwwToApexRedirectASGI:
+    def __init__(self, inner):
+        self.inner = inner
+
+    async def __call__(self, scope, receive, send):
+        if scope["type"] == "http":
+            headers = dict(scope.get("headers") or [])
+            host = (headers.get(b"host") or b"").decode("latin-1").lower()
+            if host.startswith("www."):
+                apex = host[4:]
+                query = scope.get("query_string", b"").decode("latin-1")
+                target = f"https://{apex}{scope.get('path', '')}" + (f"?{query}" if query else "")
+                await send({
+                    "type": "http.response.start",
+                    "status": 301,
+                    "headers": [(b"location", target.encode("latin-1"))],
+                })
+                await send({"type": "http.response.body", "body": b""})
+                return
+        await self.inner(scope, receive, send)
+
+
+app.add_middleware(_WwwToApexRedirectASGI)
 
 # ─── Auth (Emergent Google Auth) ──────────────────────────────────────────
 # REMINDER: DO NOT HARDCODE THE URL, OR ADD ANY FALLBACKS OR REDIRECT URLS, THIS BREAKS THE AUTH
@@ -1931,7 +1954,14 @@ async def delete_silo(silo_id: str, request: Request):
     res = await silos_col.delete_one({"id": silo_id})
     if res.deleted_count == 0:
         raise HTTPException(404, "Silo not found")
-    return JSONResponse(content=None, status_code=204)
+    # Sep 2026 — was `JSONResponse(content=None, status_code=204)`, which
+    # always serializes to a 4-byte "null" body. HTTP 204 must have ZERO
+    # body, so uvicorn rejected it every single time with "RuntimeError:
+    # Response content longer than Content-Length" — logged + emailed to
+    # the admin on every delete across the whole app (readings, deliveries,
+    # photos, silos, farms), which is why Jason kept getting error emails
+    # "all the time". Plain empty Response is the correct 204.
+    return Response(status_code=204)
 
 
 # ── Readings ─────────────────────────────────────────────────────────────
@@ -2290,7 +2320,14 @@ async def delete_reading(reading_id: str, request: Request):
     res = await readings_col.delete_one({"id": reading_id})
     if res.deleted_count == 0:
         raise HTTPException(404, "Reading not found")
-    return JSONResponse(content=None, status_code=204)
+    # Sep 2026 — was `JSONResponse(content=None, status_code=204)`, which
+    # always serializes to a 4-byte "null" body. HTTP 204 must have ZERO
+    # body, so uvicorn rejected it every single time with "RuntimeError:
+    # Response content longer than Content-Length" — logged + emailed to
+    # the admin on every delete across the whole app (readings, deliveries,
+    # photos, silos, farms), which is why Jason kept getting error emails
+    # "all the time". Plain empty Response is the correct 204.
+    return Response(status_code=204)
 
 
 # ── Deliveries ───────────────────────────────────────────────────────────
@@ -2400,7 +2437,14 @@ async def delete_delivery(delivery_id: str, request: Request):
     res = await deliveries_col.delete_one({"id": delivery_id})
     if res.deleted_count == 0:
         raise HTTPException(404, "Delivery not found")
-    return JSONResponse(content=None, status_code=204)
+    # Sep 2026 — was `JSONResponse(content=None, status_code=204)`, which
+    # always serializes to a 4-byte "null" body. HTTP 204 must have ZERO
+    # body, so uvicorn rejected it every single time with "RuntimeError:
+    # Response content longer than Content-Length" — logged + emailed to
+    # the admin on every delete across the whole app (readings, deliveries,
+    # photos, silos, farms), which is why Jason kept getting error emails
+    # "all the time". Plain empty Response is the correct 204.
+    return Response(status_code=204)
 
 
 # ── Stubs (unused in standalone but called by silo-tracker) ───────────────
@@ -3422,7 +3466,14 @@ async def delete_photo(photo_id: str, request: Request):
     res = await photos_col.delete_one({"id": photo_id})
     if res.deleted_count == 0:
         raise HTTPException(404, "Photo not found")
-    return JSONResponse(content=None, status_code=204)
+    # Sep 2026 — was `JSONResponse(content=None, status_code=204)`, which
+    # always serializes to a 4-byte "null" body. HTTP 204 must have ZERO
+    # body, so uvicorn rejected it every single time with "RuntimeError:
+    # Response content longer than Content-Length" — logged + emailed to
+    # the admin on every delete across the whole app (readings, deliveries,
+    # photos, silos, farms), which is why Jason kept getting error emails
+    # "all the time". Plain empty Response is the correct 204.
+    return Response(status_code=204)
 
 
 @api.post("/scan-docket/auto")
@@ -4830,7 +4881,14 @@ async def delete_farm(slug: str, request: Request):
     await silos_col.delete_many({"farmId": slug})
     await farm_config_col.delete_many({"farmId": slug})
     await farms_col.delete_one({"slug": slug})
-    return JSONResponse(content=None, status_code=204)
+    # Sep 2026 — was `JSONResponse(content=None, status_code=204)`, which
+    # always serializes to a 4-byte "null" body. HTTP 204 must have ZERO
+    # body, so uvicorn rejected it every single time with "RuntimeError:
+    # Response content longer than Content-Length" — logged + emailed to
+    # the admin on every delete across the whole app (readings, deliveries,
+    # photos, silos, farms), which is why Jason kept getting error emails
+    # "all the time". Plain empty Response is the correct 204.
+    return Response(status_code=204)
 
 
 @app.post("/api/farms/{slug}/invite")
@@ -5202,7 +5260,6 @@ async def personalised_landing(slug: str):
     slug attached so the landing page can personalise the headline. Used for
     direct/non-browser access; the React SPA also has a /g/ shortcut in its
     bootloader for production where nginx falls back to the SPA."""
-    from fastapi.responses import RedirectResponse
     await _track_outreach_click(db, slug)
     return RedirectResponse(url=f"/landing?g={slug}", status_code=302)
 
