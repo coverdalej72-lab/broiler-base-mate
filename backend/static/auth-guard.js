@@ -156,12 +156,26 @@
 
     // Owner: can access pages, but only their own farms
     if (info.role === "owner") {
-      if (FARM_SLUG && FARM_SLUG !== "default" && !allSlugs.has(FARM_SLUG)) {
+      // Sep 2026 — Jason: "staff qr code but nothing coming back to main
+      // program." Root cause: this used to SKIP the mismatch check whenever
+      // FARM_SLUG resolved to the literal fallback "default" (no ?farm= in
+      // the URL and nothing cached in localStorage yet — e.g. a fresh
+      // browser/device, or cache cleared). That let an owner silently sit
+      // on a "default" farm they don't actually own/that may not exist,
+      // while their real farm (and their staff's QR, which always carries
+      // the correct farm=) was a totally different slug — so staff entries
+      // landed in the right place, but the owner was quietly looking at the
+      // wrong one and never knew it. Now "default" gets the exact same
+      // ownership check as any other slug.
+      if (FARM_SLUG && !allSlugs.has(FARM_SLUG)) {
         // Default to their first owned farm
         const slug = ownedSlugs.values().next().value || "default";
-        const params = new URLSearchParams(window.location.search);
-        params.set("farm", slug);
-        return bounceTo(window.location.pathname + "?" + params.toString());
+        if (slug !== FARM_SLUG) {
+          const params = new URLSearchParams(window.location.search);
+          params.set("farm", slug);
+          try { localStorage.setItem("bbm-farm-slug", slug); } catch (_) {}
+          return bounceTo(window.location.pathname + "?" + params.toString());
+        }
       }
       return;
     }

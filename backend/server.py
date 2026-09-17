@@ -4794,7 +4794,8 @@ async def list_farms(request: Request):
 
 
 @app.post("/api/farms", status_code=201)
-async def create_farm(body: CreateFarmBody):
+async def create_farm(body: CreateFarmBody, request: Request):
+    await _require_admin(request)  # ops-dashboard admin-only tool — was previously wide open
     slug = _slugify(body.slug or body.name)
     if not slug or slug in {"api", "reader", "landing", "ops-dashboard"}:
         raise HTTPException(400, "Invalid slug")
@@ -4814,7 +4815,8 @@ async def create_farm(body: CreateFarmBody):
 
 
 @app.delete("/api/farms/{slug}", status_code=204)
-async def delete_farm(slug: str):
+async def delete_farm(slug: str, request: Request):
+    await _require_admin(request)  # ops-dashboard admin-only tool — was previously wide open (destructive)
     if slug == DEFAULT_FARM_ID:
         raise HTTPException(400, "Cannot delete the default farm")
     f = await farms_col.find_one({"slug": slug})
