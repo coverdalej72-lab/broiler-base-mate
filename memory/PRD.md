@@ -579,6 +579,10 @@ Jason Coverdale (Appcovi, 3rd-gen Aussie broiler grower on a Baiada contract) ne
 - Verified: seeded + confirmed against a temp farm (7 today, 20 in 7d, correct bar colors), then cleaned up. `testing_agent` also passed 100% (backend + frontend), used pytest to confirm state PUT/GET + 409 corruption guard behavior unaffected.
 - Minor pre-existing anomaly noted by testing agent (unrelated to this session): `POST /api/farms` with a brand-new slug can silently no-op against the caller's existing farm instead of erroring — likely the intentional "strict 1 user = 1 farm" guard from Feb 28, 2026, but should return a clear 4xx instead of a silent 200. Backlog item, not a regression.
 
+## Weigh-in dot hover tooltip — exact gram gap vs standard (Sep 18, 2026)
+- Jason picked this from the suggested next-action list: replaced the plain native `<title>` tooltip on weigh-in dots with an instant custom tooltip showing "Day N · Xg actual / Standard: Yg / ±Zg (±P%) ahead/behind standard". Hover hit-area enlarged (invisible r=7 circle) so the small dots are easy to target.
+- Verified: build passed, hovered a seeded Day-18 dot (780g actual vs 789g standard) — tooltip showed "Day 18 · 780g actual / Standard: 789g / -9g (-1.1%) behind standard" instantly, positioned above the dot.
+
 ## Shed tab side panel — sticky + real weigh-in overlay (Sep 18, 2026)
 - Jason: "still alot of white area is there... anything else usefull we can put there on shed tabs dont effect the excel". Root cause: panel content (2 shed boxes + silo levels) is much shorter than the ~60-row table, so past day ~20 the panel scrolled away leaving blank white for the rest of the scroll.
 - `App.tsx` `ShedGrowthSidePanel`: panel root now `position: sticky; top: 0; alignSelf: flex-start"` — pins in view while the table scrolls (confirmed via scroll test: table showed rows 40-59, panel still showed Shed 3/4 boxes + Silo Levels).
