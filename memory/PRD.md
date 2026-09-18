@@ -560,6 +560,12 @@ Jason Coverdale (Appcovi, 3rd-gen Aussie broiler grower on a Baiada contract) ne
 - **Verified end-to-end**: temporarily reassigned "default"'s ownerEmail away from Jason and created a real second farm ("staff-qr-proof") owned by him; logged in fresh with no `?farm=` param — confirmed the app auto-corrected and loaded "staff-qr-proof" (his real farm), not "default". Reverted both changes immediately after (default back to appcovi2026@gmail.com, test farm deleted) — confirmed back to normal ("Double B Farm — default") afterward.
 - **Practical takeaway for Jason**: this is now self-healing going forward — any time you open the Program with no farm in the URL, it will always land you on your own real farm. Recommend generating a fresh Staff QR from Settings now that this is fixed, just to be certain the current one is scoped correctly, before the trial starts.
 
+## Settings QR codes reorganized (Sep 2026)
+- Jason: wants the Mort Buddy Staff QR added into Settings (next to the Silo Reader QR — his "manager QR for the silo app and mort buddy"), and the "Your Program Link" QR (full Program login) hidden — a QR granting full access is a risk if ever seen/forwarded/lost.
+- Settings now shows 2 QR codes: Silo Reader (unchanged) + Mort Buddy Staff QR (new, reuses the same `useFarmQrUrl("/morts-entry")` hook as the Mort Buddy tab's own Staff QR button — same farm+token link, just also surfaced in Settings).
+- "Your Program Link" section kept in code (not deleted) behind a `SHOW_PROGRAM_QR = false` flag per Jason's explicit request ("keep the code but hide it for now") — easy to re-enable later.
+- Verified: build passed, screenshot-confirmed both QR codes render in Settings and the Program Link section no longer appears (0 count in DOM query).
+
 ## Test credentials
 - Admin magic link: appcovi2026@gmail.com
 
