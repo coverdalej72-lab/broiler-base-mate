@@ -89,6 +89,7 @@ def _backend_base_url() -> str:
     """Public URL to use in email links (for tracking + landing pages)."""
     return (os.environ.get("PUBLIC_BACKEND_URL") or
             os.environ.get("FRONTEND_URL") or
+            os.environ.get("APP_PUBLIC_URL") or
             "https://broilerbasemate.com.au").rstrip("/")
 
 
