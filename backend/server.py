@@ -899,16 +899,22 @@ async def push_external_morts(req: ExternalMortsPushRequest, request: Request, f
     now = datetime.now(timezone.utc)
     upserted = 0
     for e in req.entries:
-        await external_morts_col.update_one(
-            {"farmId": farm, "date": e.date, "shed": e.shed},
-            {"$set": {
-                "farmId": farm, "date": e.date, "shed": e.shed,
-                "morts": max(0, e.morts), "culls": max(0, e.culls),
-                "source": req.source, "staffName": (e.staffName or "").strip()[:60] or None,
-                "updatedAt": now,
-            }},
-            upsert=True,
-        )
+        op = {"$set": {
+            "farmId": farm, "date": e.date, "shed": e.shed,
+            "morts": max(0, e.morts), "culls": max(0, e.culls),
+            "source": req.source, "staffName": (e.staffName or "").strip()[:60] or None,
+            "updatedAt": now,
+        }}
+        filt = {"farmId": farm, "date": e.date, "shed": e.shed}
+        try:
+            await external_morts_col.update_one(filt, op, upsert=True)
+        except DuplicateKeyError:
+            # Sep 2026 — scale readiness: concurrent staff saves for the exact
+            # same (farm, shed, date) can race Mongo's own upsert internals
+            # into a duplicate-key error (same class of bug fixed for farm
+            # creation). The document now exists either way — just retry as
+            # a plain update, no data lost.
+            await external_morts_col.update_one(filt, op, upsert=True)
         upserted += 1
     return {"ok": True, "upserted": upserted}
 
@@ -1680,6 +1686,30 @@ async def _ensure_indexes():
         )
         await eob_snapshots_col.create_index([("farmId", 1), ("lockedAt", -1)])
         await eob_snapshots_col.create_index([("id", 1)], unique=True, sparse=True)
+
+        # Sep 2026 — scale readiness pass: user_sessions is looked up by
+        # session_token on EVERY authenticated request (get_current_user in
+        # auth.py). Without an index this was a full collection scan per
+        # request — fine at a handful of users, but falls over hard once
+        # hundreds of staff/owners are logged in at once, since the
+        # collection also never shrank (no TTL cleanup of expired sessions).
+        # Both fixed here: unique index for O(1) lookup + a TTL index so
+        # Mongo auto-deletes sessions past their expires_at.
+        await db["user_sessions"].create_index([("session_token", 1)], unique=True)
+        await db["user_sessions"].create_index([("expires_at", 1)], expireAfterSeconds=0)
+        await db["user_sessions"].create_index([("user_id", 1)])
+
+        # external_morts — Mort Buddy staff writes + Program polling reads,
+        # filtered by farmId/date/shed on every sync; also enforces one row
+        # per (farm, shed, date) so concurrent staff saves can't duplicate.
+        await external_morts_col.create_index(
+            [("farmId", 1), ("shed", 1), ("date", 1)], unique=True,
+        )
+
+        # audit_log / error_log — admin dashboards sort by createdAt
+        await db["audit_log"].create_index([("createdAt", -1)])
+        await db["error_log"].create_index([("createdAt", -1)])
+        await db["error_log"].create_index([("signature", 1)])
     except Exception as e:  # pragma: no cover — never block startup on index errors
         import logging
         logging.getLogger("server").warning(f"Index creation skipped: {e}")

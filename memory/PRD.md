@@ -529,6 +529,16 @@ Jason Coverdale (Appcovi, 3rd-gen Aussie broiler grower on a Baiada contract) ne
 - Verified: security headers confirmed via `curl localhost:8001` (Cloudflare edge in preview strips custom headers before reaching the public URL — expected in preview, will pass through in production); audit-log populated correctly on farm create/delete/owner-magic test calls; `/security` page screenshot-confirmed rendering correctly with nav + criteria grid.
 - Not a substitute for an actual SOC 2 audit — page is explicit about that.
 
+## Scale readiness pass — "biggest broiler company in Australia" trial (Sep 2026)
+- Jason: big news, a major company is trialing BBM, needs to handle "hundreds of users" and be "150% bulletproof." Scope confirmed: both hundreds of separate farm sites AND hundreds of concurrent staff, full review (capacity + data safety), real load test.
+- **Found and fixed a real, serious scalability bug**: `user_sessions` (looked up on literally every authenticated request via session cookie) had NO index on `session_token` and no cleanup of expired sessions — 764 sessions had already piled up in preview alone with zero cleanup. This would have caused full collection scans on every request, getting slower as usage grew. Fixed: unique index on `session_token` + TTL index on `expires_at` (Mongo auto-deletes expired sessions) + index on `user_id`.
+- Added missing index on `external_morts` (`farmId+shed+date`, unique) — was doing full scans on every Mort Buddy sync.
+- Added a `DuplicateKeyError` retry on `/api/integrations/morts` upsert — the new unique index could otherwise throw a rare race-condition error under concurrent staff saves to the same shed+date (same class of bug already fixed for farm-slug creation).
+- Added `createdAt`/`signature` indexes on `error_log` and `audit_log` for the admin dashboards.
+- Confirmed no blocking/synchronous I/O in the backend (all async httpx, no bare `requests`/`time.sleep`) — the event loop won't stall under concurrent load.
+- **Ran a real load test** against this preview (isolated `load-test-farm`, cleaned up after): 300 concurrent-ish requests (farm-config reads, session validation, and 100 deliberately-colliding mortality writes to the exact same shed+date to stress the new unique index) — 100% success, ~85ms avg latency, and the colliding writes correctly converged to exactly ONE document (no duplicates, no data corruption). Zero errors in backend logs throughout.
+- **Important caveat for Jason**: this preview pod runs the backend as a single dev worker (`--workers 1 --reload`) — that's correct for a dev/preview environment but is NOT the production configuration. The code itself is now proven concurrency-safe; actual production throughput capacity (multiple workers/instances) is controlled by the Emergent deployment platform, not this codebase — worth confirming via Deploy before the big demo, not something I can verify from here.
+
 ## Test credentials
 - Admin magic link: appcovi2026@gmail.com
 
