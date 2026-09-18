@@ -566,6 +566,19 @@ Jason Coverdale (Appcovi, 3rd-gen Aussie broiler grower on a Baiada contract) ne
 - "Your Program Link" section kept in code (not deleted) behind a `SHOW_PROGRAM_QR = false` flag per Jason's explicit request ("keep the code but hide it for now") — easy to re-enable later.
 - Verified: build passed, screenshot-confirmed both QR codes render in Settings and the Program Link section no longer appears (0 count in DOM query).
 
+## Cloud-backup reliability banner + close-flush (Sep 18, 2026)
+- Jason approved: "bulletproof no gaps" — Feed Program cloud save was already debounced (2s) to `/api/feed-program/state`, but failures were silent and a tab close mid-debounce could drop the last edit.
+- `App.tsx`: `performFeedProgramSave()` now tracks a consecutive-failure count (`cloudSyncFailCountRef`) — after 2+ consecutive PUT failures, `cloudSyncWarning` state is set. A single transient blip does NOT show the banner (avoids false alarms).
+- New persistent red banner (`data-testid="cloud-sync-warning-banner"`) right below the header — NOT a dismissible toast — reading "Cloud backup isn't working right now — your edits are saved on this device only" + a "Retry now" button (`data-testid="cloud-sync-retry-button"`) that force-calls `performFeedProgramSave()`. Header also shows a small "⚠ Not backed up" indicator (`data-testid="header-cloud-sync-warning"`).
+- Close/hide flush: `beforeunload` + `visibilitychange` (hidden) + `pagehide` listeners force an immediate save with `fetch(..., { keepalive: true })` if a debounced save is still pending when the tab closes/hides.
+- Verified: Vite build passed, backend PUT/GET round-trip via curl on isolated temp farm, and `testing_agent` end-to-end (genuine dblclick cell edits → blocked network → banner appeared after 2 failures → Retry restored state → banner cleared). 100% pass, no bugs found.
+
+## Ops Dashboard — mortality trend panel added (Sep 18, 2026)
+- Jason approved Ops Manager v1 scope: silo/feed levels (already existed) + mortality trend per farm (new), explicitly no QR work needed here.
+- `/app/backend/static/ops-dashboard.html`: reuses the existing read-only `GET /api/integrations/morts?farm=<slug>&since=<date>` endpoint (no new backend endpoint). New 5th global KPI tile "Mortality (7 Days)" (`#kpi-mortality`) summing morts across all farms. Each farm card now has a "Mortality — last 14 days" panel (`data-testid="mortality-panel-<slug>"`) with Today/7-day totals (`mort-today-<slug>` / `mort-7d-<slug>`) and a 14-bar inline SVG sparkline (`mort-sparkline-<slug>`), colored gray(0)/green(1-2)/amber(3-9)/red(10+) per day.
+- Verified: seeded + confirmed against a temp farm (7 today, 20 in 7d, correct bar colors), then cleaned up. `testing_agent` also passed 100% (backend + frontend), used pytest to confirm state PUT/GET + 409 corruption guard behavior unaffected.
+- Minor pre-existing anomaly noted by testing agent (unrelated to this session): `POST /api/farms` with a brand-new slug can silently no-op against the caller's existing farm instead of erroring — likely the intentional "strict 1 user = 1 farm" guard from Feb 28, 2026, but should return a clear 4xx instead of a silent 200. Backlog item, not a regression.
+
 ## Test credentials
 - Admin magic link: appcovi2026@gmail.com
 
