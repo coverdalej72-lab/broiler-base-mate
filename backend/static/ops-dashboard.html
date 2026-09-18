@@ -156,6 +156,13 @@
   .silo__fill.amber { background: var(--warn); }
   .silo__fill.red   { background: var(--bad); }
 
+  /* Mortality trend panel */
+  .mortality-panel { background: var(--paper); border: 1px solid var(--line); border-radius: 10px; padding: 9px 12px; margin-bottom: 12px; }
+  .mortality-panel__head { display: flex; justify-content: space-between; align-items: center; font-size: 11px; font-weight: 800; color: var(--ink); margin-bottom: 6px; flex-wrap: wrap; gap: 6px; }
+  .mortality-panel__stats { font-size: 11px; color: var(--muted); font-weight: 700; }
+  .mortality-panel__stats b { color: var(--ink); }
+  .mortality-panel svg { display: block; width: 100%; height: 40px; }
+
   /* Alert banner */
   .alert { display: flex; align-items: flex-start; gap: 10px; padding: 10px 14px; border-radius: 10px; font-size: 13px; font-weight: 600; margin-bottom: 10px; line-height: 1.4; }
   .alert.critical { background: var(--alert-crit-bg); color: var(--alert-crit-fg); border: 1px solid var(--alert-crit-bd); }
@@ -317,6 +324,7 @@
     <div class="kpi good"> <div class="kpi__icon">📋</div><div class="kpi__label">Farms Reporting Today</div><div class="kpi__value" id="kpi-report">—</div><div class="kpi__sub" id="kpi-report-sub">of all your farms</div></div>
     <div class="kpi">      <div class="kpi__icon">🚚</div><div class="kpi__label">Deliveries This Week</div><div class="kpi__value" id="kpi-deliv">—</div>  <div class="kpi__sub" id="kpi-deliv-sub">scheduled + recent</div></div>
     <div class="kpi bad">  <div class="kpi__icon">🚨</div><div class="kpi__label">Critical Alerts</div><div class="kpi__value" id="kpi-alerts">—</div><div class="kpi__sub" id="kpi-alerts-sub">silos &lt;5t · low feed</div></div>
+    <div class="kpi">      <div class="kpi__icon">📉</div><div class="kpi__label">Mortality (7 Days)</div><div class="kpi__value" id="kpi-mortality">—</div><div class="kpi__sub" id="kpi-mortality-sub">birds, all farms</div></div>
   </div>
 
   <!-- Add farm (collapsible) -->
@@ -427,6 +435,42 @@
     return Math.floor(s / 86400) + "d ago";
   }
 
+  // ── Mortality trend — buckets Mort Buddy/Program morts entries into the
+  // last N calendar days (summed across every shed) so Ops can spot a spike
+  // at a glance without opening each farm's Program. Culls are tracked
+  // separately in the Program and intentionally excluded here — this is a
+  // mortality-only trend, not a total-losses figure.
+  function buildMortSeries(entries, days) {
+    const buckets = [];
+    const today = new Date();
+    for (let i = days - 1; i >= 0; i--) {
+      const d = new Date(today);
+      d.setDate(d.getDate() - i);
+      buckets.push({ date: d.toISOString().slice(0, 10), total: 0 });
+    }
+    const byDate = {};
+    buckets.forEach(b => { byDate[b.date] = b; });
+    (entries || []).forEach(e => {
+      const b = byDate[e.date];
+      if (b) b.total += Number(e.morts || 0);
+    });
+    return buckets;
+  }
+
+  function renderMortSparkline(buckets, slug) {
+    const max = Math.max(1, ...buckets.map(b => b.total));
+    const w = 260, h = 40, gap = 2;
+    const barW = (w - gap * (buckets.length - 1)) / buckets.length;
+    const bars = buckets.map((b, i) => {
+      const bh = Math.max(2, (b.total / max) * (h - 4));
+      const x = i * (barW + gap);
+      const y = h - bh;
+      const color = b.total === 0 ? "#cbd5d1" : b.total >= 10 ? "var(--bad)" : b.total >= 3 ? "var(--warn)" : "var(--good)";
+      return `<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${barW.toFixed(1)}" height="${bh.toFixed(1)}" rx="1.5" style="fill:${color}"><title>${b.date}: ${b.total} morts</title></rect>`;
+    }).join("");
+    return `<svg data-testid="mort-sparkline-${slug}" viewBox="0 0 ${w} ${h}" preserveAspectRatio="none">${bars}</svg>`;
+  }
+
   async function getJSON(url) {
     const res = await fetch(url, { credentials: "include" });
     if (!res.ok) throw new Error(`${url} → HTTP ${res.status}`);
@@ -455,19 +499,22 @@
           <p>Add your first farm above. Once placed, your Feed Program + mobile reader will sync instantly.</p>
         </div>`;
       // Reset KPI tiles
-      ["feed","report","deliv","alerts"].forEach(k => document.getElementById("kpi-"+k).textContent = "0");
+      ["feed","report","deliv","alerts","mortality"].forEach(k => document.getElementById("kpi-"+k).textContent = "0");
       return;
     }
 
     // Fetch per-farm details concurrently
+    const mortSinceDate = new Date(Date.now() - 13 * 86400 * 1000).toISOString().slice(0, 10);
     const farmDetails = await Promise.all(farms.map(async f => {
       const farmQS = "?farm=" + encodeURIComponent(f.slug);
-      const [today, config, deliveries] = await Promise.all([
+      const [today, config, deliveries, mortsResp] = await Promise.all([
         getJSON("/api/readings/today" + farmQS).catch(() => null),
         getJSON("/api/farm-config"    + farmQS).catch(() => null),
         getJSON("/api/deliveries"     + farmQS).catch(() => []),
+        getJSON("/api/integrations/morts" + farmQS + "&since=" + mortSinceDate).catch(() => ({ entries: [] })),
       ]);
-      return { farm: f, today, config, deliveries: Array.isArray(deliveries) ? deliveries : [] };
+      const mortBuckets = buildMortSeries((mortsResp && mortsResp.entries) || [], 14);
+      return { farm: f, today, config, deliveries: Array.isArray(deliveries) ? deliveries : [], mortBuckets };
     }));
 
     // Compute globals
@@ -475,9 +522,11 @@
     let farmsReported   = 0;
     let critAlerts      = 0;
     let weekDeliveries  = 0;
+    let mortality7d     = 0;
     const oneWeekAgo = Date.now() - 7 * 86400 * 1000;
     const oneWeekAhead = Date.now() + 7 * 86400 * 1000;
-    farmDetails.forEach(({ today, deliveries }) => {
+    farmDetails.forEach(({ today, deliveries, mortBuckets }) => {
+      mortality7d += mortBuckets.slice(-7).reduce((a, b) => a + b.total, 0);
       if (!today) return;
       let farmFeed = 0;
       let hasSaved = false;
@@ -505,13 +554,15 @@
     document.getElementById("kpi-deliv-sub").textContent  = "± 7 days from today";
     document.getElementById("kpi-alerts").textContent     = critAlerts;
     document.getElementById("kpi-alerts-sub").textContent = critAlerts > 0 ? "needs attention" : "all good";
+    document.getElementById("kpi-mortality").textContent     = mortality7d;
+    document.getElementById("kpi-mortality-sub").textContent = mortality7d > 0 ? `across ${farms.length} farm${farms.length === 1 ? "" : "s"}` : "no losses logged";
 
     // Render farm cards
-    const html = farmDetails.map(({ farm, today, config, deliveries }) => renderFarmCard(farm, today, config, deliveries)).join("");
+    const html = farmDetails.map(({ farm, today, config, deliveries, mortBuckets }) => renderFarmCard(farm, today, config, deliveries, mortBuckets)).join("");
     document.getElementById("farms-area").innerHTML = `<div class="farms-grid">${html}</div>`;
   }
 
-  function renderFarmCard(farm, today, config, deliveries) {
+  function renderFarmCard(farm, today, config, deliveries, mortBuckets) {
     const tier = TIER_INFO[(farm.tier || farm.planTier || "bronze").toLowerCase()] || TIER_INFO.bronze;
     const farmName = (config && config.farmName) || farm.name || "Farm";
     const sheds = (today && today.sheds) || [];
@@ -601,6 +652,14 @@
               <div class="next-delivery__head">🚚 Next delivery</div>
               <div class="next-delivery__body">${fmtDate(upcoming.deliveryDate || upcoming.date)} · ${upcoming.feedType || upcoming.feed_type || "Feed"} · ${upcoming.amountKg ? (upcoming.amountKg/1000).toFixed(1) + "t" : (upcoming.amount ? upcoming.amount + "t" : "")}</div>
             </div>` : ""}
+
+          <div class="mortality-panel" data-testid="mortality-panel-${farm.slug}">
+            <div class="mortality-panel__head">
+              <span>📉 Mortality — last 14 days</span>
+              <span class="mortality-panel__stats">Today: <b data-testid="mort-today-${farm.slug}">${mortBuckets[mortBuckets.length - 1].total}</b> · 7d: <b data-testid="mort-7d-${farm.slug}">${mortBuckets.slice(-7).reduce((a,b)=>a+b.total,0)}</b></span>
+            </div>
+            ${renderMortSparkline(mortBuckets, farm.slug)}
+          </div>
 
           <div class="sheds-list">
             ${shedsHtml || '<div class="center-box" style="padding:30px 10px;color:var(--muted);">No sheds configured yet — open the Reader to set up.</div>'}

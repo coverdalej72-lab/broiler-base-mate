@@ -4876,7 +4876,20 @@ async def list_farms(request: Request):
 
 @app.post("/api/farms", status_code=201)
 async def create_farm(body: CreateFarmBody, request: Request):
-    await _require_admin(request)  # ops-dashboard admin-only tool — was previously wide open
+    # Sep 2026 — this is ALSO the self-service "add a farm" action inside
+    # ops-dashboard.html, which real Ops Manager Pack customers use to manage
+    # their own bundle (see the "📊 Open Ops Dashboard" link in their welcome
+    # email) — not just Jason's admin tool. Admin-only was too strict and
+    # would have broken it for paying customers. A caller may create a farm
+    # for THEMSELVES (ownerEmail must match their own session email) or, if
+    # admin, for anyone.
+    user = await _user_from_request(request)
+    if not user:
+        raise HTTPException(401, "Authentication required")
+    farms_info = await _list_user_farms(db, user["email"])
+    is_self_service = (body.ownerEmail or "").strip().lower() == user["email"].strip().lower()
+    if farms_info.get("role") != "admin" and not is_self_service:
+        raise HTTPException(403, "You can only create farms under your own account")
     slug = _slugify(body.slug or body.name)
     if not slug or slug in {"api", "reader", "landing", "ops-dashboard"}:
         raise HTTPException(400, "Invalid slug")
@@ -4892,19 +4905,27 @@ async def create_farm(body: CreateFarmBody, request: Request):
     }
     await farms_col.insert_one(doc)
     await _seed_farm(slug, body.name)
-    admin = await _user_from_request(request)
-    await log_audit(db, actor=(admin or {}).get("email", "unknown"), action="farm.create", target=slug, meta={"name": body.name, "ownerEmail": body.ownerEmail}, request=request)
+    await log_audit(db, actor=user.get("email", "unknown"), action="farm.create", target=slug, meta={"name": body.name, "ownerEmail": body.ownerEmail}, request=request)
     return clean(doc)
 
 
 @app.delete("/api/farms/{slug}", status_code=204)
 async def delete_farm(slug: str, request: Request):
-    await _require_admin(request)  # ops-dashboard admin-only tool — was previously wide open (destructive)
+    # Sep 2026 — same self-service reasoning as create_farm above: an Ops
+    # Manager customer removing one of their OWN farms from ops-dashboard.html
+    # must keep working. Only admin OR the farm's own owner can delete it.
+    user = await _user_from_request(request)
+    if not user:
+        raise HTTPException(401, "Authentication required")
     if slug == DEFAULT_FARM_ID:
         raise HTTPException(400, "Cannot delete the default farm")
     f = await farms_col.find_one({"slug": slug})
     if not f:
         raise HTTPException(404, "Farm not found")
+    farms_info = await _list_user_farms(db, user["email"])
+    is_owner = (f.get("ownerEmail") or "").strip().lower() == user["email"].strip().lower()
+    if farms_info.get("role") != "admin" and not is_owner:
+        raise HTTPException(403, "You can only delete your own farms")
     # Cascade: delete this farm's data (only docs explicitly tagged with this slug — never touches default's untagged legacy data)
     await readings_col.delete_many({"farmId": slug})
     await deliveries_col.delete_many({"farmId": slug})
@@ -4913,8 +4934,7 @@ async def delete_farm(slug: str, request: Request):
     await silos_col.delete_many({"farmId": slug})
     await farm_config_col.delete_many({"farmId": slug})
     await farms_col.delete_one({"slug": slug})
-    admin = await _user_from_request(request)
-    await log_audit(db, actor=(admin or {}).get("email", "unknown"), action="farm.delete", target=slug, meta={"name": f.get("name")}, request=request)
+    await log_audit(db, actor=user.get("email", "unknown"), action="farm.delete", target=slug, meta={"name": f.get("name")}, request=request)
     # Sep 2026 — was `JSONResponse(content=None, status_code=204)`, which
     # always serializes to a 4-byte "null" body. HTTP 204 must have ZERO
     # body, so uvicorn rejected it every single time with "RuntimeError:
