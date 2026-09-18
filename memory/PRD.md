@@ -579,6 +579,12 @@ Jason Coverdale (Appcovi, 3rd-gen Aussie broiler grower on a Baiada contract) ne
 - Verified: seeded + confirmed against a temp farm (7 today, 20 in 7d, correct bar colors), then cleaned up. `testing_agent` also passed 100% (backend + frontend), used pytest to confirm state PUT/GET + 409 corruption guard behavior unaffected.
 - Minor pre-existing anomaly noted by testing agent (unrelated to this session): `POST /api/farms` with a brand-new slug can silently no-op against the caller's existing farm instead of erroring — likely the intentional "strict 1 user = 1 farm" guard from Feb 28, 2026, but should return a clear 4xx instead of a silent 200. Backlog item, not a regression.
 
+## Shed tab side panel — sticky + real weigh-in overlay (Sep 18, 2026)
+- Jason: "still alot of white area is there... anything else usefull we can put there on shed tabs dont effect the excel". Root cause: panel content (2 shed boxes + silo levels) is much shorter than the ~60-row table, so past day ~20 the panel scrolled away leaving blank white for the rest of the scroll.
+- `App.tsx` `ShedGrowthSidePanel`: panel root now `position: sticky; top: 0; alignSelf: flex-start"` — pins in view while the table scrolls (confirmed via scroll test: table showed rows 40-59, panel still showed Shed 3/4 boxes + Silo Levels).
+- Each shed's growth chart now overlays REAL weigh-ins as green-ringed dots (from `FLOCK_WEIGHIN_KEY` localStorage, same data as Flock Forecast) on top of the dashed standard curve — chart height auto-expands if a real weigh-in exceeds the standard line so dots never clip off the top. Legend "⚪ = actual weigh-ins" shown under the chart when any exist.
+- Verified: Vite build passed, screenshot-confirmed dots render at correct day/weight + sticky panel stays pinned across a 1400px scroll, regression-checked other shed tabs (1&2, 5&6) render fine with 0 console errors. Table/Excel layout completely untouched (table's own flex sizing unaffected by panel's `position: sticky`).
+
 ## Test credentials
 - Admin magic link: appcovi2026@gmail.com
 
