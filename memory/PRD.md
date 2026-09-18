@@ -553,6 +553,13 @@ Jason Coverdale (Appcovi, 3rd-gen Aussie broiler grower on a Baiada contract) ne
 - Left the separate "30+ sheds supported / 3 AI docket formats / SSL Encrypted / Stripe Verified / Cloud Backup / No Lock-in" strip untouched — those are true capability/policy claims, not fabricated live-usage numbers.
 - Verified: screenshot-confirmed new proof bar + trust section render correctly; "Start Free Trial" CTA still correctly scrolls to pricing/plans.
 
+## Staff QR mismatch — ROOT CAUSE CONFIRMED + FIXED (Sep 2026)
+- Closed the loop from earlier: Jason's own account (appcovi2026@gmail.com) is a SUPERUSER (`role: "admin"`), and `auth-guard.js`'s admin branch was an unconditional `if (info.role === "admin") return;` — zero farm-slug awareness. My earlier "owner" branch fixes never actually applied to his own account, since admin short-circuits before reaching that code entirely. This IS the real root cause: his own browser could silently default to a farm slug that wasn't his real farm, with no self-correction at all, while his Staff QR (generated wherever his browser happened to be at the time) pointed elsewhere.
+- Also fixed a related backend gap: `list_user_farms()` returned "owned" = ALL farms in the DB for admin (that's correct for support access), but that meant there was no way to tell "my own farm" from "any farm I can access" — so a naive self-correct fix would never trigger. Added `myOwnFarms` (true `ownerEmail` match) to `/api/auth/me` for admin users specifically.
+- `auth-guard.js` admin branch now: if there's no explicit `?farm=` in the URL and the admin owns at least one real farm themselves, snap to their own farm instead of trusting the ambient fallback. An explicit `?farm=X` (checking a customer's farm for support) is never touched.
+- **Verified end-to-end**: temporarily reassigned "default"'s ownerEmail away from Jason and created a real second farm ("staff-qr-proof") owned by him; logged in fresh with no `?farm=` param — confirmed the app auto-corrected and loaded "staff-qr-proof" (his real farm), not "default". Reverted both changes immediately after (default back to appcovi2026@gmail.com, test farm deleted) — confirmed back to normal ("Double B Farm — default") afterward.
+- **Practical takeaway for Jason**: this is now self-healing going forward — any time you open the Program with no farm in the URL, it will always land you on your own real farm. Recommend generating a fresh Staff QR from Settings now that this is fixed, just to be certain the current one is scoped correctly, before the trial starts.
+
 ## Test credentials
 - Admin magic link: appcovi2026@gmail.com
 

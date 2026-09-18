@@ -66,11 +66,18 @@ async def list_user_farms(db, email: str) -> dict:
     email_l = (email or "").lower()
     owned, invited = [], []
 
-    # Admin sees ALL farms (but classified as owned for permission purposes)
+    # Admin sees ALL farms (but classified as owned for permission purposes).
+    # Sep 2026 — "owned" here means "can access", not "actually owns" — that
+    # made it useless for self-correcting an admin who is ALSO a real farm
+    # owner (Jason) back to their own farm when their browser silently
+    # defaults to the wrong slug. `myOwnFarms` is the true ownerEmail match.
     if email_l in _admin_emails():
+        my_own = []
         async for f in db["farms"].find({}, {"_id": 0}):
             owned.append({"slug": f.get("slug"), "name": f.get("name"), "isDefault": bool(f.get("isDefault"))})
-        return {"owned": owned, "invited": [], "role": "admin"}
+            if (f.get("ownerEmail") or "").lower() == email_l:
+                my_own.append({"slug": f.get("slug"), "name": f.get("name"), "isDefault": bool(f.get("isDefault"))})
+        return {"owned": owned, "invited": [], "role": "admin", "myOwnFarms": my_own}
 
     # Owner of farms
     async for f in db["farms"].find({"ownerEmail": {"$regex": f"^{email_l}$", "$options": "i"}}, {"_id": 0}):

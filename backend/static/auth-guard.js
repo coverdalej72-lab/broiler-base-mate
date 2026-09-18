@@ -138,8 +138,37 @@
     window.__BBM_AUTH__ = info;
     window.__BBM_ALL_SLUGS__ = Array.from(allSlugs);
 
-    // Admin: full access
-    if (info.role === "admin") return;
+    // Shared "does this page even care which farm we're on" check — used by
+    // both the admin and owner branches below. None of these marketing/info
+    // pages should ever trigger a farm-slug bounce.
+    const INFO_PAGES = ["/landing", "/landing/success", "/terms", "/privacy", "/security", "/onboarding-guide", "/tools/fcr-calculator", "/tools/grower-payment-calculator", "/tools/silo-capacity-calculator", "/ross-308-growth-chart", "/cobb-500-growth-chart", "/vs/poultrylog"];
+    const CURRENT_PATH = window.location.pathname.replace(/\/$/, "") || "/";
+    const IS_INFO_PAGE = INFO_PAGES.indexOf(CURRENT_PATH) !== -1 || CURRENT_PATH.indexOf("/guides/") === 0;
+    const FARM_SCOPED_PATH = !IS_INFO_PAGE;
+
+    // Admin: full access to every farm (support/ops tooling) — BUT Jason's
+    // own account is also a real farm owner via SUPERUSER_EMAILS, and this
+    // used to `return` unconditionally with zero farm-slug awareness. That's
+    // very likely the actual "staff QR not coming back to the Program" bug:
+    // his own browser silently defaulting to "default" (or a stale cached
+    // slug) with NO self-correction at all, while his Staff QR (generated
+    // from whatever farm his browser happened to be on) pointed elsewhere.
+    // Fix: only when there's no EXPLICIT ?farm= in the URL (i.e. relying on
+    // the ambient fallback) and he owns at least one farm himself, snap to
+    // his own farm instead of trusting the fallback. An explicit ?farm=X in
+    // the URL (checking a customer's farm for support) is never touched.
+    if (info.role === "admin") {
+      const myOwnSlugs = new Set((info.myOwnFarms || []).map(f => f.slug));
+      const hasExplicitFarmParam = new URLSearchParams(window.location.search).has("farm");
+      if (FARM_SCOPED_PATH && !hasExplicitFarmParam && myOwnSlugs.size > 0 && !myOwnSlugs.has(FARM_SLUG)) {
+        const slug = myOwnSlugs.values().next().value;
+        const params = new URLSearchParams(window.location.search);
+        params.set("farm", slug);
+        try { localStorage.setItem("bbm-farm-slug", slug); } catch (_) {}
+        return bounceTo(window.location.pathname + "?" + params.toString());
+      }
+      return;
+    }
 
     // Operator-only (no owned farms): only allowed on /reader
     if (info.role === "operator") {
@@ -179,10 +208,6 @@
       // at "/", the post-login redirect target "/feed-program", /reader,
       // and any future app route) stays farm-scoped by default — safer than
       // an allowlist of just "/", which would have missed "/feed-program".
-      const INFO_PAGES = ["/landing", "/landing/success", "/terms", "/privacy", "/security", "/onboarding-guide", "/tools/fcr-calculator", "/tools/grower-payment-calculator", "/tools/silo-capacity-calculator", "/ross-308-growth-chart", "/cobb-500-growth-chart", "/vs/poultrylog"];
-      const CURRENT_PATH = window.location.pathname.replace(/\/$/, "") || "/";
-      const IS_INFO_PAGE = INFO_PAGES.indexOf(CURRENT_PATH) !== -1 || CURRENT_PATH.indexOf("/guides/") === 0;
-      const FARM_SCOPED_PATH = !IS_INFO_PAGE;
       if (FARM_SCOPED_PATH && FARM_SLUG && !allSlugs.has(FARM_SLUG)) {
         // Default to their first owned farm
         const slug = ownedSlugs.values().next().value || "default";
