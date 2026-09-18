@@ -19,6 +19,8 @@ import httpx
 from fastapi import APIRouter, HTTPException, Request, Response, Cookie, Header
 from fastapi.responses import RedirectResponse
 
+from hardening import log_audit
+
 # REMINDER: DO NOT HARDCODE THE URL, OR ADD ANY FALLBACKS OR REDIRECT URLS, THIS BREAKS THE AUTH
 EMERGENT_SESSION_URL = "https://demobackend.emergentagent.com/auth/v1/env/oauth/session-data"
 SESSION_TTL_DAYS = 30              # SEC-004: was 365 — down to 30 days for defence-in-depth
@@ -291,6 +293,10 @@ def build_router(db, app_url: Optional[str] = None) -> APIRouter:
             key=COOKIE_NAME, value=session_token, max_age=OWNER_MAGIC_TTL_DAYS * 86400,
             httponly=True, secure=True, samesite="none", path="/",
         )
+        try:
+            await log_audit(db, actor=owner_email, action="auth.owner_magic_login", target=safe_to, request=request)
+        except Exception:
+            pass
         return redirect
 
     return router

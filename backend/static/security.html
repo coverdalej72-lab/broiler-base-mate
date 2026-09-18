@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Security — Broiler Base Mate</title>
+<meta name="description" content="How Broiler Base Mate protects your farm data — practices built following SOC 2 Trust Services principles." />
+<link rel="icon" href="/api/static-asset/favicon.png" />
+<style>
+  :root { --navy:#0a1428; --navy-mid:#1e2f4d; --gold:#C9A227; --ink:#e8ecf3; --muted:#9aa8c4; --line:rgba(255,255,255,0.1); --green:#3fae66; }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; background: var(--navy); color: var(--ink);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif; line-height: 1.7; }
+  nav { display: flex; align-items: center; justify-content: space-between; padding: 18px 24px;
+    border-bottom: 1px solid var(--line); position: sticky; top: 0; background: rgba(10,20,40,0.92); backdrop-filter: blur(10px); z-index: 10; }
+  nav a.brand { color: #fff; font-weight: 900; text-decoration: none; font-size: 15px; letter-spacing: -0.2px; }
+  nav a.brand span { color: var(--gold); }
+  nav .doc-links { display: flex; gap: 10px; }
+  nav .doc-links a { color: var(--muted); font-size: 12px; font-weight: 700; text-decoration: none; padding: 6px 12px; border-radius: 99px; border: 1px solid var(--line); }
+  nav .doc-links a.active { color: var(--gold); border-color: rgba(201,162,39,0.4); background: rgba(201,162,39,0.08); }
+  main { max-width: 760px; margin: 0 auto; padding: 48px 24px 90px; }
+  header.doc-head { margin-bottom: 40px; }
+  header.doc-head .tag { color: var(--gold); font-size: 11px; font-weight: 800; letter-spacing: 2px; margin-bottom: 10px; }
+  h1 { font-size: 34px; font-weight: 900; letter-spacing: -0.5px; margin: 0 0 10px; color: #fff; }
+  .meta { color: var(--muted); font-size: 13px; }
+  h2 { color: var(--gold); font-size: 17px; font-weight: 800; margin: 38px 0 12px; letter-spacing: -0.1px; }
+  h3 { color: #d8dfee; font-size: 14px; font-weight: 800; margin: 22px 0 8px; }
+  p, li { color: #c3cbdc; font-size: 14.5px; }
+  p { margin: 0 0 14px; }
+  ul { margin: 0 0 14px; padding-left: 20px; }
+  li { margin-bottom: 6px; }
+  a.inline { color: var(--gold); text-decoration: none; }
+  a.inline:hover { text-decoration: underline; }
+  .contact-block { background: rgba(255,255,255,0.04); border: 1px solid var(--line); border-radius: 12px; padding: 16px 18px; margin: 8px 0 14px; }
+  .honesty-box { background: rgba(63,174,102,0.08); border: 1px solid rgba(63,174,102,0.35); border-radius: 12px; padding: 18px 20px; margin: 8px 0 24px; }
+  .honesty-box b { color: #cdeedd; }
+  .criteria-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin: 8px 0 24px; }
+  .criteria-card { background: rgba(255,255,255,0.04); border: 1px solid var(--line); border-radius: 12px; padding: 16px 18px; }
+  .criteria-card .name { color: var(--gold); font-weight: 800; font-size: 13px; margin-bottom: 6px; }
+  @media (max-width: 640px) { .criteria-grid { grid-template-columns: 1fr; } }
+  footer.doc-footer { border-top: 1px solid var(--line); margin-top: 50px; padding-top: 24px; color: var(--muted); font-size: 12px; text-align: center; }
+</style>
+</head>
+<body>
+  <nav>
+    <a class="brand" href="/landing" data-testid="security-nav-brand">🐔 Broiler <span>Base Mate</span></a>
+    <div class="doc-links">
+      <a href="/terms" data-testid="security-nav-terms">Terms</a>
+      <a href="/privacy" data-testid="security-nav-privacy">Privacy</a>
+      <a href="/security" class="active" data-testid="security-nav-security">Security</a>
+    </div>
+  </nav>
+  <main>
+    <header class="doc-head">
+      <div class="tag">TRUST &amp; SECURITY</div>
+      <h1>Security</h1>
+      <div class="meta">Last updated: 17 September 2026</div>
+    </header>
+
+    <div class="honesty-box" data-testid="security-honesty-box">
+      <p style="margin:0;"><b>We're not SOC 2 certified — and we won't pretend otherwise.</b> Appcovi is a small team, and a formal SOC 2 audit costs more than we can justify at our current size. What we <i>have</i> done is build Broiler Base Mate from day one following the same five SOC 2 Trust Services Criteria — Security, Availability, Confidentiality, Processing Integrity and Privacy — that a real audit would check. As we grow, pursuing formal SOC 2 Type II certification is on our roadmap.</p>
+    </div>
+
+    <div class="contact-block">
+      <p style="margin:0;"><b>Appcovi</b><br>432 Wheat Road, Beaufort SA 5550, Australia<br>Security contact: <a class="inline" href="mailto:appcovi2026@gmail.com">appcovi2026@gmail.com</a> · Phone: 0428 337 887</p>
+    </div>
+
+    <h2>Built following SOC 2's five Trust Services Criteria</h2>
+    <div class="criteria-grid">
+      <div class="criteria-card">
+        <div class="name">🔒 Security</div>
+        <p style="margin:0;">HTTPS/TLS everywhere, Google-account login (no passwords stored), httpOnly + secure session cookies, rate limiting on sensitive endpoints, and an internal audit trail of admin actions.</p>
+      </div>
+      <div class="criteria-card">
+        <div class="name">⚡ Availability</div>
+        <p style="margin:0;">Automated nightly encrypted backups with retention, daily health monitoring, and automatic error alerting so issues get caught early — usually before you'd notice.</p>
+      </div>
+      <div class="criteria-card">
+        <div class="name">🗂️ Confidentiality</div>
+        <p style="margin:0;">Strict per-farm data isolation enforced on every request — your account can only ever see your own farm's readings, weights, mortality and reports.</p>
+      </div>
+      <div class="criteria-card">
+        <div class="name">✅ Processing Integrity</div>
+        <p style="margin:0;">Server-side validation on data entry, global error logging so failures are caught and fixed rather than silently corrupting records.</p>
+      </div>
+      <div class="criteria-card" style="grid-column: 1 / -1;">
+        <div class="name">🙈 Privacy</div>
+        <p style="margin:0;">We only collect what's needed to run your account (email, name, farm name, subscription tier). Your farm's operational data — silo readings, weights, mortalities, batch numbers, EOB reports — is <b style="color:#cdeedd;">yours, not ours</b>. We never sell, share or rent it, and never use it to train third-party AI models. See our full <a class="inline" href="/privacy">Privacy Policy</a>.</p>
+      </div>
+    </div>
+
+    <h2>Concretely, what we do</h2>
+    <ul>
+      <li><b style="color:#c8d1c6;">No stored passwords:</b> sign-in uses Google OAuth (Emergent-managed) — there's no password database to ever be breached.</li>
+      <li><b style="color:#c8d1c6;">Encryption in transit:</b> every connection to Broiler Base Mate is HTTPS/TLS.</li>
+      <li><b style="color:#c8d1c6;">Encryption at rest:</b> your data is stored on MongoDB Atlas, which encrypts data at rest by default.</li>
+      <li><b style="color:#c8d1c6;">Session security:</b> session cookies are httpOnly (invisible to page scripts) and secure (HTTPS-only), with a 30-day expiry.</li>
+      <li><b style="color:#c8d1c6;">Access control:</b> role-based access (owner, invited operator, staff QR-link) — staff links are scoped to a single farm and a single function (e.g. logging mortality), never full account access.</li>
+      <li><b style="color:#c8d1c6;">Rate limiting:</b> sensitive endpoints (login, error reporting, outreach) are rate-limited to blunt automated abuse.</li>
+      <li><b style="color:#c8d1c6;">Audit trail:</b> admin-level actions (like creating or deleting a farm) are logged with who, what and when.</li>
+      <li><b style="color:#c8d1c6;">Automated backups:</b> a full encrypted backup runs every night, with a rolling retention window, and we get notified if a backup ever fails.</li>
+      <li><b style="color:#c8d1c6;">Error monitoring:</b> unexpected errors anywhere in the app are logged and flagged automatically, so problems get fixed fast.</li>
+      <li><b style="color:#c8d1c6;">Security headers:</b> HSTS, X-Frame-Options, X-Content-Type-Options and a restrictive Permissions-Policy are set on every response.</li>
+    </ul>
+
+    <h2>Sub-processors</h2>
+    <p>We use a short, deliberate list of providers to run the Service — never more than we need:</p>
+    <ul>
+      <li><b style="color:#c8d1c6;">Stripe</b> — subscription billing (PCI-DSS compliant; we never see full card numbers).</li>
+      <li><b style="color:#c8d1c6;">MongoDB Atlas</b> — encrypted database hosting.</li>
+      <li><b style="color:#c8d1c6;">Resend</b> — transactional emails only (welcome emails, EOB reports you request).</li>
+      <li><b style="color:#c8d1c6;">Google Gemini via Emergent Integrations</b> — optional AI docket/scale/mort-sheet scanning; images are processed on-demand and not retained by the provider.</li>
+    </ul>
+
+    <h2>Reporting a security issue</h2>
+    <p>Found a vulnerability? We'd genuinely rather hear about it from you first. Email <a class="inline" href="mailto:appcovi2026@gmail.com">appcovi2026@gmail.com</a> with details — we'll acknowledge within 2 business days and keep you posted as we fix it. Please don't test against other customers' farm data.</p>
+
+    <h2>Related documents</h2>
+    <p><a class="inline" href="/privacy">Privacy Policy</a> · <a class="inline" href="/terms">Terms of Service</a></p>
+
+    <footer class="doc-footer">© 2026 Appcovi. Broiler Base Mate is a trading name of Appcovi (ABN 13 659 165 642).</footer>
+  </main>
+</body>
+</html>

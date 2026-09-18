@@ -163,7 +163,7 @@ async def _require_admin(request: Request) -> dict:
 
 
 # ─── Production hardening (error logging, daily backups, etc.) ──────────
-from hardening import init_hardening, log_error  # noqa: E402
+from hardening import init_hardening, log_error, log_audit  # noqa: E402
 init_hardening(app, db, _require_admin)
 
 # ─── Farm Buddy AI advisor ───────────────────────────────────────────────
@@ -4862,6 +4862,8 @@ async def create_farm(body: CreateFarmBody, request: Request):
     }
     await farms_col.insert_one(doc)
     await _seed_farm(slug, body.name)
+    admin = await _user_from_request(request)
+    await log_audit(db, actor=(admin or {}).get("email", "unknown"), action="farm.create", target=slug, meta={"name": body.name, "ownerEmail": body.ownerEmail}, request=request)
     return clean(doc)
 
 
@@ -4881,6 +4883,8 @@ async def delete_farm(slug: str, request: Request):
     await silos_col.delete_many({"farmId": slug})
     await farm_config_col.delete_many({"farmId": slug})
     await farms_col.delete_one({"slug": slug})
+    admin = await _user_from_request(request)
+    await log_audit(db, actor=(admin or {}).get("email", "unknown"), action="farm.delete", target=slug, meta={"name": f.get("name")}, request=request)
     # Sep 2026 — was `JSONResponse(content=None, status_code=204)`, which
     # always serializes to a 4-byte "null" body. HTTP 204 must have ZERO
     # body, so uvicorn rejected it every single time with "RuntimeError:
@@ -5142,6 +5146,7 @@ async def api_page(page_name: str):
         "guides/broiler-grower-payment-explained": "guide-broiler-grower-payment.html",
         "terms": "terms.html",
         "privacy": "privacy.html",
+        "security": "security.html",
     }
     if page_name not in allowed:
         raise HTTPException(404, "Page not found")
@@ -5154,7 +5159,7 @@ async def api_page(page_name: str):
     html = html.replace("/reader-assets/", "/api/static-asset/")
     # SEO: allow crawlers + browsers to cache marketing pages for 5 minutes.
     # Ops/reader/admin stay uncached (auth-guarded, user-specific).
-    is_public = page_name in ("landing", "landing/success", "onboarding-guide", "tools/fcr-calculator", "tools/grower-payment-calculator", "tools/silo-capacity-calculator", "ross-308-growth-chart", "cobb-500-growth-chart", "vs/poultrylog", "guides/broiler-chicken-growth-stages", "guides/lower-broiler-fcr", "guides/broiler-chicken-mortality-rates", "guides/chicken-shed-silo-management", "guides/ross-308-vs-cobb-500", "guides/broiler-grower-payment-explained", "terms", "privacy")
+    is_public = page_name in ("landing", "landing/success", "onboarding-guide", "tools/fcr-calculator", "tools/grower-payment-calculator", "tools/silo-capacity-calculator", "ross-308-growth-chart", "cobb-500-growth-chart", "vs/poultrylog", "guides/broiler-chicken-growth-stages", "guides/lower-broiler-fcr", "guides/broiler-chicken-mortality-rates", "guides/chicken-shed-silo-management", "guides/ross-308-vs-cobb-500", "guides/broiler-grower-payment-explained", "terms", "privacy", "security")
     cache_hdr = "public, max-age=300, s-maxage=600" if is_public else "no-store"
     return Response(content=html, media_type="text/html; charset=utf-8",
                     headers={"Cache-Control": cache_hdr})
@@ -5251,6 +5256,12 @@ async def terms_page():
 async def privacy_page():
     """Public Privacy Policy page — linked from landing footer + trial signup."""
     return FileResponse(os.path.join(STATIC_DIR, "privacy.html"))
+
+
+@app.get("/security")
+async def security_page():
+    """Public Security page — SOC 2-aligned practices, linked from landing footer."""
+    return FileResponse(os.path.join(STATIC_DIR, "security.html"))
 
 
 # ─── Personalised landing pages from outreach links ───────────────────────

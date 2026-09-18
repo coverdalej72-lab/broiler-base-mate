@@ -519,6 +519,16 @@ Jason Coverdale (Appcovi, 3rd-gen Aussie broiler grower on a Baiada contract) ne
 - Fixed in both places: `landing.html`'s footer Privacy Policy summary and the full `/privacy` policy (Section 3.2) now explicitly state this operational data is "your farm's data, not ours" — stored on the customer's behalf to run the Service, exportable/deletable any time. Matches the tone already used in the "Your farm data stays yours" trust box above it.
 - Not a legal review — still recommend a lawyer pass before relying on this for compliance.
 
+## SOC 2-aligned Security page + hardening (Sep 2026)
+- Jason: "it needs to be soc 2 ready even tho i cant afford that we have to build trust." Scope confirmed via ask_human: public Security page (like Privacy) + concrete backend hardening, both quick-win and deep pass.
+- New public `/security` page (`security.html`, same nav/style as `/privacy` and `/terms`) — honest disclaimer up front ("not SOC 2 certified, no pretending otherwise") + practices mapped to the 5 SOC 2 Trust Services Criteria (Security, Availability, Confidentiality, Processing Integrity, Privacy), sub-processor list, and a responsible-disclosure contact. Linked from landing footer (new "🔐 Security" collapsible) and privacy.html/terms.html nav.
+- Backend hardening added to make the page's claims true:
+  - Security response headers (HSTS, X-Frame-Options, X-Content-Type-Options, Referrer-Policy, Permissions-Policy) via a new pure-ASGI `_SecurityHeadersASGI` middleware in `hardening.py` (never BaseHTTPMiddleware — see the Content-Length bug fixed earlier this session).
+  - New `log_audit()` + `audit_log` Mongo collection + `GET /api/admin/audit-log` — records admin/destructive actions (farm create/delete, owner-magic logins) with actor/action/target/ip/timestamp.
+  - Frontend routing fix: `/security` had to be added to `index.html`'s `STATIC` route-intercept array (same bootloader pattern as `/privacy`/`/terms`) — without it the SPA showed the landing hero instead of the security page.
+- Verified: security headers confirmed via `curl localhost:8001` (Cloudflare edge in preview strips custom headers before reaching the public URL — expected in preview, will pass through in production); audit-log populated correctly on farm create/delete/owner-magic test calls; `/security` page screenshot-confirmed rendering correctly with nav + criteria grid.
+- Not a substitute for an actual SOC 2 audit — page is explicit about that.
+
 ## Test credentials
 - Admin magic link: appcovi2026@gmail.com
 

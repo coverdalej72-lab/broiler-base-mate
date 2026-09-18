@@ -15,6 +15,10 @@ Wires three reliability nets into the FastAPI app:
   6. Rate limiter             — protects abusable endpoints (auth/exchange-session,
                                error-report, demo-request, outreach send) from
                                accidental floods or scraper-bot abuse.
+  7. log_audit() / GET /api/admin/audit-log — append-only trail of admin/destructive
+                               actions (farm create/delete, owner-magic logins).
+  8. Security response headers — HSTS, X-Frame-Options, X-Content-Type-Options,
+                               Referrer-Policy, Permissions-Policy on every response.
 
 Designed to be:
   • Zero new dependencies — uses asyncio + stdlib only.
@@ -175,6 +179,39 @@ async def log_error(
         log.exception("Could not email admin error alert")
 
 
+# ─── Audit log (SOC 2 "Security" criterion — who did what, when) ──────────
+
+async def log_audit(
+    db,
+    *,
+    actor: str,
+    action: str,
+    target: Optional[str] = None,
+    meta: Optional[dict] = None,
+    request: Optional[Request] = None,
+) -> None:
+    """Append-only trail of admin/destructive actions (farm create/delete,
+    owner-magic logins, etc.) — no cooldown, no email, just a durable record
+    an admin can review at /api/admin/audit-log."""
+    doc: dict[str, Any] = {
+        "actor":     actor,
+        "action":    action,
+        "target":    target,
+        "meta":      meta or {},
+        "createdAt": datetime.now(timezone.utc),
+    }
+    if request is not None:
+        try:
+            doc["ip"] = request.client.host if request.client else None
+            doc["ua"] = request.headers.get("user-agent", "")[:200]
+        except Exception:
+            pass
+    try:
+        await db["audit_log"].insert_one(doc)
+    except Exception:
+        log.exception("Could not write to audit_log collection")
+
+
 # ─── Backup ────────────────────────────────────────────────────────────────
 
 def _json_default(o):
@@ -308,6 +345,32 @@ def init_hardening(app: FastAPI, db, _require_admin) -> None:
 
     app.add_middleware(_RateLimitASGI)
 
+    # 0b) Security response headers — pure ASGI (see the Content-Length note
+    # above: never use @app.middleware("http")/BaseHTTPMiddleware here).
+    # Backs the public /security page's claims.
+    class _SecurityHeadersASGI:
+        def __init__(self, inner): self.inner = inner
+        async def __call__(self, scope, receive, send):
+            if scope["type"] != "http":
+                return await self.inner(scope, receive, send)
+
+            async def send_wrapper(message):
+                if message["type"] == "http.response.start":
+                    headers = message.setdefault("headers", [])
+                    extra = [
+                        (b"x-content-type-options", b"nosniff"),
+                        (b"x-frame-options", b"DENY"),
+                        (b"referrer-policy", b"strict-origin-when-cross-origin"),
+                        (b"permissions-policy", b"camera=(), microphone=(), geolocation=()"),
+                        (b"strict-transport-security", b"max-age=63072000; includeSubDomains; preload"),
+                    ]
+                    headers.extend(extra)
+                await send(message)
+
+            await self.inner(scope, receive, send_wrapper)
+
+    app.add_middleware(_SecurityHeadersASGI)
+
     # 1) Global exception handler — clean JSON 500 + log
     @app.exception_handler(Exception)
     async def _global_exc_handler(request: Request, exc: Exception):
@@ -347,6 +410,16 @@ def init_hardening(app: FastAPI, db, _require_admin) -> None:
     async def admin_error_log(request: Request, limit: int = 100):
         await _require_admin(request)
         rows = await db["error_log"].find().sort("createdAt", -1).limit(min(limit, 500)).to_list(length=limit)
+        for r in rows:
+            r.pop("_id", None)
+            if isinstance(r.get("createdAt"), datetime):
+                r["createdAt"] = r["createdAt"].isoformat()
+        return rows
+
+    @app.get("/api/admin/audit-log")
+    async def admin_audit_log(request: Request, limit: int = 200):
+        await _require_admin(request)
+        rows = await db["audit_log"].find().sort("createdAt", -1).limit(min(limit, 1000)).to_list(length=limit)
         for r in rows:
             r.pop("_id", None)
             if isinstance(r.get("createdAt"), datetime):
