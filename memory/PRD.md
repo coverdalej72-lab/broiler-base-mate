@@ -579,6 +579,11 @@ Jason Coverdale (Appcovi, 3rd-gen Aussie broiler grower on a Baiada contract) ne
 - Verified: seeded + confirmed against a temp farm (7 today, 20 in 7d, correct bar colors), then cleaned up. `testing_agent` also passed 100% (backend + frontend), used pytest to confirm state PUT/GET + 409 corruption guard behavior unaffected.
 - Minor pre-existing anomaly noted by testing agent (unrelated to this session): `POST /api/farms` with a brand-new slug can silently no-op against the caller's existing farm instead of erroring — likely the intentional "strict 1 user = 1 farm" guard from Feb 28, 2026, but should return a clear 4xx instead of a silent 200. Backlog item, not a regression.
 
+## Side panel bottom content unreachable — internal scroll fix (Sep 18, 2026)
+- Jason: sticky panel is fine, but on a shorter window couldn't see the Silo Levels / Feed Usage boxes at the bottom — they were clipped with no way to scroll to them.
+- Root cause: `maxHeight: "100vh"` was too generous — it's the FULL viewport height, not the space actually left below the header/toolbar/tab bars (~280px), so the panel's own `overflowY: auto` never kicked in even though the bottom boxes were genuinely off-screen.
+- Fix: `maxHeight` changed to `calc(100vh - 280px)`, matching the real available height below the fixed chrome above the table. Verified via screenshot at a short 900×700 window — panel now shows its own internal scrollbar and scrolling it reveals Silo Levels + Feed Usage panels that were previously unreachable.
+
 ## Feed spike/drop auto-flag in Farm Buddy tip (Sep 18, 2026)
 - Jason picked this from the suggested next-action list: Farm Buddy's per-shed tip now auto-flags an unusual FEED USAGE day, not just mortality/weight, using the same feedTrendBuckets data as the sparkline.
 - `App.tsx` `buddyTipForShed`: new check (priority just under the >5% mortality alert, above the weigh-in-behind-standard check) compares today's usage vs `feedTrendPrevAvg` (avg of the 7 days before today, excluding today). Flags "jumped" if today > 1.25× that average (leak/spill/appetite-change wording), or "dropped" if today < 0.6× that average (feeders/water/health wording). Needs 8+ days of real batch data to have a baseline — silent before then.
