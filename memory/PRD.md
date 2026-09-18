@@ -545,6 +545,14 @@ Jason Coverdale (Appcovi, 3rd-gen Aussie broiler grower on a Baiada contract) ne
 - Fix: replaced the narrow path check with an exclude-list of known marketing/informational pages (`/landing`, `/privacy`, `/terms`, `/security`, `/onboarding-guide`, tools/guides, growth-chart pages) — those skip the farm-mismatch check entirely; every other path (`/`, `/feed-program` — the actual post-login redirect target — `/reader`, and any future app route) stays farm-scoped by default, which is the safer direction to default in.
 - Verified end-to-end in one continuous browser session: login → lands cleanly on `/feed-program` with no stray `?farm=` bounce → clicked the real Logout button → lands cleanly on `/landing`. No glitches, no loops.
 
+## Landing page trust content — fabricated claims removed (Sep 2026)
+- Jason: "check the landing page it has to build trust" ahead of the big enterprise trial. Confirmed via ask_human: the hero proof-bar stats ("3,847 tonnes synced today", "100% uptime since launch", "Live Ingham's · Baiada · BPL detected") and the 3 named testimonials (Dave K., Sarah M., Jock B.) were placeholder/fabricated — real risk under Australian Consumer Law if a due-diligence team caught it, on top of just being bad trust practice.
+- Replaced hero proof-bar with only verifiable claims: 30-day free trial (no card), "3rd-gen — built by a working Aussie grower", "SOC 2 — aligned security practices" (links the honest /security page), and the founder's real direct phone number.
+- Replaced the "Clear Product Info" trust-kit badge with a "Security First / SOC 2-Aligned Practices" badge linking to `/security` (a Trust Kit slot, not just the small footer link).
+- Replaced the fake 3-review testimonials section entirely with an honest "Why growers can trust us" block (real grower story, direct founder contact, data-ownership/security link) + an explicit line: "Real testimonials will go here as paying customers come on board — we're not going to fake it in the meantime."
+- Left the separate "30+ sheds supported / 3 AI docket formats / SSL Encrypted / Stripe Verified / Cloud Backup / No Lock-in" strip untouched — those are true capability/policy claims, not fabricated live-usage numbers.
+- Verified: screenshot-confirmed new proof bar + trust section render correctly; "Start Free Trial" CTA still correctly scrolls to pricing/plans.
+
 ## Test credentials
 - Admin magic link: appcovi2026@gmail.com
 
