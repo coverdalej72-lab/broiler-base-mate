@@ -167,7 +167,23 @@
       // landed in the right place, but the owner was quietly looking at the
       // wrong one and never knew it. Now "default" gets the exact same
       // ownership check as any other slug.
-      if (FARM_SLUG && !allSlugs.has(FARM_SLUG)) {
+      //
+      // Sep 2026 (part 2) — Jason: "log in and out its a bit glitchy".
+      // __BBM_PAGE__ is hardcoded "app" for EVERY page this shell serves,
+      // including /landing, /privacy, /terms, /security etc — none of which
+      // care about farm context at all. The check above was firing there
+      // too, so logging in FROM /landing (the normal flow) could immediately
+      // bounce the freshly-logged-in owner to "/landing?farm=<realSlug>"
+      // instead of into their actual Program. Fix: only SKIP this check on
+      // known marketing/informational pages; everything else (the Program
+      // at "/", the post-login redirect target "/feed-program", /reader,
+      // and any future app route) stays farm-scoped by default — safer than
+      // an allowlist of just "/", which would have missed "/feed-program".
+      const INFO_PAGES = ["/landing", "/landing/success", "/terms", "/privacy", "/security", "/onboarding-guide", "/tools/fcr-calculator", "/tools/grower-payment-calculator", "/tools/silo-capacity-calculator", "/ross-308-growth-chart", "/cobb-500-growth-chart", "/vs/poultrylog"];
+      const CURRENT_PATH = window.location.pathname.replace(/\/$/, "") || "/";
+      const IS_INFO_PAGE = INFO_PAGES.indexOf(CURRENT_PATH) !== -1 || CURRENT_PATH.indexOf("/guides/") === 0;
+      const FARM_SCOPED_PATH = !IS_INFO_PAGE;
+      if (FARM_SCOPED_PATH && FARM_SLUG && !allSlugs.has(FARM_SLUG)) {
         // Default to their first owned farm
         const slug = ownedSlugs.values().next().value || "default";
         if (slug !== FARM_SLUG) {

@@ -539,6 +539,12 @@ Jason Coverdale (Appcovi, 3rd-gen Aussie broiler grower on a Baiada contract) ne
 - **Ran a real load test** against this preview (isolated `load-test-farm`, cleaned up after): 300 concurrent-ish requests (farm-config reads, session validation, and 100 deliberately-colliding mortality writes to the exact same shed+date to stress the new unique index) — 100% success, ~85ms avg latency, and the colliding writes correctly converged to exactly ONE document (no duplicates, no data corruption). Zero errors in backend logs throughout.
 - **Important caveat for Jason**: this preview pod runs the backend as a single dev worker (`--workers 1 --reload`) — that's correct for a dev/preview environment but is NOT the production configuration. The code itself is now proven concurrency-safe; actual production throughput capacity (multiple workers/instances) is controlled by the Emergent deployment platform, not this codebase — worth confirming via Deploy before the big demo, not something I can verify from here.
 
+## Login/logout "glitchy" — regression from earlier fix, now corrected (Sep 2026)
+- Jason: "log in and out its a bit glitchy" (found while testing daily ahead of the big trial).
+- Root cause: my earlier auth-guard.js fix (removing the "default" farm-slug exemption) didn't account for `__BBM_PAGE__` being hardcoded `"app"` on EVERY page this shell serves — including `/landing`, `/privacy`, `/terms`, `/security`, which don't care about farm context at all. That meant logging in FROM `/landing` (the real flow, via the "Login" modal → Google OAuth) could immediately bounce the freshly-authenticated owner to `/landing?farm=<realSlug>` instead of into their Program.
+- Fix: replaced the narrow path check with an exclude-list of known marketing/informational pages (`/landing`, `/privacy`, `/terms`, `/security`, `/onboarding-guide`, tools/guides, growth-chart pages) — those skip the farm-mismatch check entirely; every other path (`/`, `/feed-program` — the actual post-login redirect target — `/reader`, and any future app route) stays farm-scoped by default, which is the safer direction to default in.
+- Verified end-to-end in one continuous browser session: login → lands cleanly on `/feed-program` with no stray `?farm=` bounce → clicked the real Logout button → lands cleanly on `/landing`. No glitches, no loops.
+
 ## Test credentials
 - Admin magic link: appcovi2026@gmail.com
 
