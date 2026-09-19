@@ -579,6 +579,12 @@ Jason Coverdale (Appcovi, 3rd-gen Aussie broiler grower on a Baiada contract) ne
 - Verified: seeded + confirmed against a temp farm (7 today, 20 in 7d, correct bar colors), then cleaned up. `testing_agent` also passed 100% (backend + frontend), used pytest to confirm state PUT/GET + 409 corruption guard behavior unaffected.
 - Minor pre-existing anomaly noted by testing agent (unrelated to this session): `POST /api/farms` with a brand-new slug can silently no-op against the caller's existing farm instead of erroring — likely the intentional "strict 1 user = 1 farm" guard from Feb 28, 2026, but should return a clear 4xx instead of a silent 200. Backlog item, not a regression.
 
+## Mort Buddy — distinct green & gold theme + icon (Sep 19, 2026)
+- Jason: "need green and gold app for mort buddy so not the same the 2 mobile apps" — Mort Buddy shared the exact same icon file as Silo Reader AND used a navy-blue in-app theme, easy to mix up on a staff phone home screen.
+- New AI-generated hen/chicken icon (green + gold, flat vector) saved as `mort-buddy-icon-192.png`/`-512.png`/`-apple-touch-icon.png`/`-favicon.png` in `/app/backend/static/`, wired into `mort-buddy-manifest.json` and all icon refs in `morts-entry.html` (favicon, apple-touch-icon, header brand image, splash screen).
+- `morts-entry.html` theme recolored: `--bg`/`--panel`/`--line` navy→deep forest green, `--teal` accent replaced with `--gold` (#C9A227) for unit toggle/active tab/labels, all hardcoded navy hex values (`#142038`, `#1e2f4d`, `#0A1118`, etc.) replaced with matching greens. Semantic colors kept: red=Morts, orange=Culls, green=Save button (already green, unchanged).
+- Verified via screenshot: Mort Buddy now reads deep-green+gold with its own hen icon on both tabs (Morts & Culls, Weigh Birds); Silo Reader confirmed still its own separate navy/dark-blue look — the two apps are now visually unmistakable from each other. Backend healthy, all new icon assets return 200.
+
 ## Feed Usage sparkline reverted back to side panel (Sep 18, 2026)
 - Jason: the rotated gap-filler version "looks bad" — reverted, put back exactly where it was before that change.
 - `App.tsx`: removed the `shed-feed-trend-gap-filler` rotated widget and the Fragment wrapper; "Feed Usage — 14 days" is back inside `shed-growth-side-panel` (un-rotated, same as the original Sep 18 session). `SheetView`'s table width reverted to `width: "100%"` (stretchy, same as always) since the cap was only needed to make room for the gap widget.

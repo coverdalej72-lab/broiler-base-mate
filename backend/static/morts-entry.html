@@ -3,10 +3,10 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-  <meta name="theme-color" content="#0A1118" />
+  <meta name="theme-color" content="#0c1f14" />
   <link rel="manifest" href="/api/static-asset/mort-buddy-manifest.json" />
-  <link rel="icon" type="image/png" href="/api/static-asset/icon-192.png" />
-  <link rel="apple-touch-icon" href="/api/static-asset/icon-192.png" />
+  <link rel="icon" type="image/png" href="/api/static-asset/mort-buddy-favicon.png" />
+  <link rel="apple-touch-icon" href="/api/static-asset/mort-buddy-apple-touch-icon.png" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <meta name="apple-mobile-web-app-title" content="Mort Buddy" />
@@ -14,10 +14,13 @@
   <title>Mort Buddy — Record Morts, Culls &amp; Weights</title>
   <style>
     :root {
-      --bg: #0f1a2f; --panel: #1b2540; --line: #2a3a5c; --ink: #eef3fa; --muted: #8a99b8;
-      --red: #ef4444; --red-soft: #2a1a22; --orange: #f59e0b; --orange-soft: #2a2118;
-      --green: #2dbd5e; --green-600: #29a352; --teal: #22b8b0; --teal-soft: #142826;
-      --gold: #C9A227;
+      /* Sep 2026 — Jason: "need green and gold app for mort buddy so not
+         the same the 2 mobile apps" — was navy blue + teal, easy to confuse
+         with Silo Reader on a phone home screen. Recolored dark-green +
+         gold, distinct icon too (see mort-buddy-manifest.json). */
+      --bg: #0c1f14; --panel: #14311f; --line: #24492f; --ink: #f3f7ee; --muted: #8fae94;
+      --red: #ef4444; --red-soft: #2a1a1a; --orange: #f59e0b; --orange-soft: #2a2118;
+      --green: #2dbd5e; --green-600: #29a352; --gold: #C9A227; --gold-soft: #332a10;
     }
     * { box-sizing: border-box; }
     html, body { margin: 0; background: var(--bg); color: var(--ink);
@@ -26,7 +29,7 @@
     header { padding: 18px 16px 10px; text-align: center; border-bottom: 1px solid var(--line); }
     header .brand-row { display: flex; align-items: center; justify-content: center; gap: 7px; margin-bottom: 8px; }
     header .brand-row img { width: 22px; height: 22px; border-radius: 6px; }
-    header .brand-row span { font-size: 11px; font-weight: 800; letter-spacing: 1.5px; color: var(--teal); }
+    header .brand-row span { font-size: 11px; font-weight: 800; letter-spacing: 1.5px; color: var(--gold); }
     header .farm { font-weight: 800; font-size: 18px; }
     header .sub { font-size: 12px; color: var(--muted); margin-top: 3px; }
     .wrap { max-width: 520px; margin: 0 auto; padding: 14px 14px 90px; }
@@ -39,13 +42,13 @@
     .field label { display: block; font-size: 10px; letter-spacing: 1px; font-weight: 700; margin-bottom: 4px; }
     .field.morts label { color: var(--red); }
     .field.culls label { color: var(--orange); }
-    .field.weight label { color: var(--teal); }
+    .field.weight label { color: var(--gold); }
     .field.age label { color: var(--gold); }
     .field select, .field input { width: 100%; padding: 10px; border-radius: 8px; border: 1px solid var(--line); font-size: 16px;
-      text-align: center; font-weight: 700; color: var(--ink); background: #142038; }
+      text-align: center; font-weight: 700; color: var(--ink); background: #0f2417; }
     .field.morts input { background: var(--red-soft); }
     .field.culls input { background: var(--orange-soft); }
-    .field.weight input { background: var(--teal-soft); }
+    .field.weight input { background: var(--gold-soft); }
     .save-btn { background: var(--green); color: #fff; border: 0; border-radius: 8px; padding: 11px 16px;
       font-size: 13px; font-weight: 800; cursor: pointer; }
     .save-btn:disabled { opacity: 0.5; }
@@ -59,13 +62,13 @@
     .tabbar { display: flex; gap: 8px; margin-bottom: 14px; }
     .tab-btn { flex: 1; background: var(--panel); border: 1px solid var(--line); color: var(--muted);
       border-radius: 10px; padding: 11px 8px; font-size: 13px; font-weight: 800; cursor: pointer; }
-    .tab-btn.active { background: var(--teal-soft); border-color: var(--teal); color: var(--teal); }
+    .tab-btn.active { background: var(--gold-soft); border-color: var(--gold); color: var(--gold); }
     .panel { display: none; }
     .panel.active { display: block; }
     .unit-toggle { display: flex; border-radius: 8px; overflow: hidden; border: 1px solid var(--line); }
-    .unit-toggle button { flex: 1; background: #142038; border: 0; color: var(--muted); font-weight: 800;
+    .unit-toggle button { flex: 1; background: #0f2417; border: 0; color: var(--muted); font-weight: 800;
       font-size: 12px; padding: 10px 4px; cursor: pointer; }
-    .unit-toggle button.active { background: var(--teal); color: #06231f; }
+    .unit-toggle button.active { background: var(--gold); color: #1a1000; }
     .weigh-log-item { display: flex; justify-content: space-between; align-items: center; padding: 9px 4px;
       border-bottom: 1px solid var(--line); font-size: 13px; }
     .weigh-log-item:last-child { border-bottom: 0; }
@@ -73,7 +76,7 @@
     .weigh-log-item .w-meta { color: var(--muted); font-size: 11px; }
     .empty-log { text-align: center; color: var(--muted); font-size: 12px; padding: 10px; }
     .age-chip-row { display: flex; gap: 6px; flex-wrap: wrap; }
-    .age-chip { background: #142038; border: 1px solid var(--line); color: var(--muted); font-weight: 800;
+    .age-chip { background: #0f2417; border: 1px solid var(--line); color: var(--muted); font-weight: 800;
       font-size: 12px; padding: 9px 14px; border-radius: 99px; cursor: pointer; }
     .age-chip.active { background: var(--gold); color: #1a1000; border-color: var(--gold); }
     .weigh-shed-row { display: grid; grid-template-columns: 1fr auto; gap: 8px; align-items: end; }
@@ -94,12 +97,12 @@
 <script>
   try { if (window.navigator && window.navigator.standalone) document.body.classList.add("bbm-mb-standalone"); } catch (_) {}
 </script>
-<div id="mb-splash" style="position:fixed;inset:0;z-index:99999;background:#0A1118;color:#eef3fa;flex-direction:column;align-items:center;justify-content:center;gap:16px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;animation:bbm-mb-splash-fade 0.3s ease;">
-  <div style="width:74px;height:74px;border-radius:20px;background:radial-gradient(circle at 32% 28%, rgba(16,185,129,0.35), rgba(10,17,24,0) 70%);display:grid;place-items:center;animation:bbm-mb-splash-pulse 1.8s ease-in-out infinite;">
-    <img src="/api/static-asset/icon-192.png" alt="Mort Buddy" style="height:56px;width:56px;border-radius:14px;box-shadow:0 8px 24px rgba(0,0,0,0.4);" onerror="this.style.display='none'" />
+<div id="mb-splash" style="position:fixed;inset:0;z-index:99999;background:#0c1f14;color:#f3f7ee;flex-direction:column;align-items:center;justify-content:center;gap:16px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;animation:bbm-mb-splash-fade 0.3s ease;">
+  <div style="width:74px;height:74px;border-radius:20px;background:radial-gradient(circle at 32% 28%, rgba(201,162,39,0.35), rgba(12,31,20,0) 70%);display:grid;place-items:center;animation:bbm-mb-splash-pulse 1.8s ease-in-out infinite;">
+    <img src="/api/static-asset/mort-buddy-icon-192.png" alt="Mort Buddy" style="height:56px;width:56px;border-radius:14px;box-shadow:0 8px 24px rgba(0,0,0,0.4);" onerror="this.style.display='none'" />
   </div>
   <div style="font-weight:900;letter-spacing:0.5px;font-size:16px;">BBM MORT BUDDY</div>
-  <div style="font-size:11px;color:#10B981;letter-spacing:2px;font-weight:700;">SHED DIRECT</div>
+  <div style="font-size:11px;color:#C9A227;letter-spacing:2px;font-weight:700;">SHED DIRECT</div>
 </div>
 <script>
   (function () {
@@ -112,7 +115,7 @@
   })();
 </script>
   <header>
-    <div class="brand-row"><img src="/api/static-asset/icon-192.png" alt="" onerror="this.style.display='none'" /><span>BROILER BASE MATE · MORT BUDDY</span></div>
+    <div class="brand-row"><img src="/api/static-asset/mort-buddy-icon-192.png" alt="" onerror="this.style.display='none'" /><span>BROILER BASE MATE · MORT BUDDY</span></div>
     <div class="farm" id="farm-name">Loading…</div>
     <div class="sub" id="today-label"></div>
   </header>
@@ -120,7 +123,7 @@
     <div class="shed-card" id="name-card" style="margin-bottom:14px;">
       <div class="field" style="margin:0;">
         <label style="color:var(--green);">YOUR NAME</label>
-        <input type="text" id="staff-name" data-testid="staff-name-input" placeholder="e.g. Sarah" style="background:#142038;text-align:left;font-weight:600;" />
+        <input type="text" id="staff-name" data-testid="staff-name-input" placeholder="e.g. Sarah" style="background:#0f2417;text-align:left;font-weight:600;" />
       </div>
       <div style="font-size:11px;color:var(--muted);margin-top:8px;">So the farm owner knows who recorded what. Saved on this phone.</div>
     </div>
@@ -191,7 +194,7 @@
         if (!banner) {
           banner = document.createElement("div");
           banner.id = "bbm-offline-banner";
-          banner.style.cssText = "position:fixed;bottom:14px;left:50%;transform:translateX(-50%);z-index:9999;background:#1e2f4d;color:#fff;padding:8px 14px;border-radius:99px;font:600 12px system-ui,sans-serif;box-shadow:0 6px 22px rgba(0,0,0,.3);max-width:90vw;text-align:center;";
+          banner.style.cssText = "position:fixed;bottom:14px;left:50%;transform:translateX(-50%);z-index:9999;background:#173622;color:#fff;padding:8px 14px;border-radius:99px;font:600 12px system-ui,sans-serif;box-shadow:0 6px 22px rgba(0,0,0,.3);max-width:90vw;text-align:center;";
           banner.setAttribute("data-testid", "staff-offline-queue-banner");
           document.body.appendChild(banner);
         }
@@ -390,7 +393,7 @@
         const msg = e && e.authError
           ? '<div class="error">This link has expired or is invalid.<br/>Ask the farm owner for a fresh QR code.</div>'
           : `<div class="error" data-testid="morts-load-error">📡 Couldn't load — check your signal.<br/>
-              <button data-testid="morts-retry-load" style="margin-top:10px;background:#2f6b45;color:#fff;border:none;padding:9px 20px;border-radius:9px;font-weight:700;">Retry</button>
+              <button data-testid="morts-retry-load" style="margin-top:10px;background:#29a352;color:#fff;border:none;padding:9px 20px;border-radius:9px;font-weight:700;">Retry</button>
             </div>`;
         document.getElementById("content").innerHTML = msg;
         const retryBtns = document.querySelectorAll("[data-testid='morts-retry-load']");
