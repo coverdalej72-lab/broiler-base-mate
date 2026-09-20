@@ -1,0 +1,38 @@
+{
+  "summary": "Frontend-only test of Feed Program 'live Withdrawal recolor' feature on SheetView. Verified via /feed-program/?farm=default (owner magic-link session) that PATCHing Sheds-3&4 Silo A (id 8128f364-ec17-4008-9f70-6c08bd5434c2) to defaultFeedType='Withdrawal' turns ONLY the latest FEED ORDERED cell for silo letter A black (#000000 == rgb(0,0,0)), while all earlier deliveries for the same letter keep their original stage colours. Reverting to Grower/manualOverride=false correctly restores every row's original colour (including a pre-existing red/Finisher on the latest row). Regression: all 6 shed tabs (1&2, 3&4, 5&6, 7&8, 9&10, 11&12) render 65 rows each with 0 console errors; Mort Buddy tab loads cleanly.",
+  "test_scenario_details": {
+    "silo_tested": "Sheds 3&4 -> Silo A (id 8128f364-ec17-4008-9f70-6c08bd5434c2, shedGroupId b2b0122b-e4f8-4f43-97ba-e30e6e210083)",
+    "silo_A_ordered_rows_detected": [
+      {"data_row": 12, "value": "24000", "baseline_color": "rgb(112,48,160) purple/Starter", "after_withdrawal": "unchanged", "note": "row also has typed letter 'a' — correctly untouched because not the latest"},
+      {"data_row": 18, "value": "16000", "baseline_color": "rgb(0,176,240) blue/Grower", "after_withdrawal": "unchanged"},
+      {"data_row": 21, "value": "16000", "baseline_color": "rgb(0,176,240)", "after_withdrawal": "unchanged"},
+      {"data_row": 25, "value": "16000", "baseline_color": "rgb(0,176,240)", "after_withdrawal": "unchanged"},
+      {"data_row": 28, "value": "22000", "baseline_color": "rgb(0,176,240)", "after_withdrawal": "unchanged"},
+      {"data_row": 32, "value": "22000", "baseline_color": "rgb(0,176,240)", "after_withdrawal": "unchanged"},
+      {"data_row": 35, "value": "22000", "baseline_color": "rgb(255,0,0) red/Finisher (LATEST)", "after_withdrawal": "rgb(0,0,0) BLACK ✓", "after_revert": "rgb(255,0,0) restored ✓"}
+    ],
+    "propagation_delay_observed": "~30s (matches the 30-second /api/readings/today polling interval in App.tsx line ~11599). Note: the first quick 4s poll re-check FAILED because the interval hadn't elapsed — this is expected behaviour, not a bug, but worth mentioning as UX consideration (staff clicking 'Withdrawal' on the phone app may wait up to 30s to see the desktop repaint).",
+    "regression_tabs": {"1&2": "65 rows OK", "5&6": "65 rows OK", "7&8": "65 rows OK", "9&10": "65 rows OK", "11&12": "65 rows OK"},
+    "console_errors": 0
+  },
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "App.tsx is now 14,655 lines — well beyond the 700-line guideline. Consider splitting SheetView / cell-colour logic / silo-sync-poll into separate modules for future maintainability (not blocking this feature).",
+    "The 30s /api/readings/today poll is the only path that refreshes liveSiloConfig. When staff change a silo to Withdrawal via the phone reader, desktop Feed Program can lag up to 30s before the black recolour appears. If real-time is desired, consider SSE or reducing poll to 5-10s (may increase DB load — trade-off documented at line ~11598)."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "n/a (frontend-only test as requested)", "frontend": "100% (7/7 scenarios pass — baseline capture, PATCH-to-Withdrawal, latest-row-black assertion, 6-earlier-rows-unchanged assertion, revert PATCH, full colour restoration, 5 regression tabs + Mort Buddy)"},
+  "test_credentials": "owner_magic_link consumed successfully; session cookie established; farm_slug=default; silo state cleaned up (defaultFeedType=Grower, manualOverride=false confirmed via GET /api/silos)",
+  "seed_data_creation": "None. Test used existing default farm and existing Sheds-3&4 Silo A. Override was applied then reverted; final GET confirms silo back to original Grower/false state.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Feature is verified working end-to-end. Key gotcha: MUST wait ≥30s after PATCHing /api/silos before checking Feed Program repaint — the polling interval is 30s (App.tsx line ~11599). Don't be misled by a quick <10s recheck showing 'no change' — that's the poll cadence, not a bug. When testing similar live-repaint scenarios, poll or wait accordingly. Silo A of Sheds 3&4 (id 8128f364-ec17-4008-9f70-6c08bd5434c2) currently has 7 FEED ORDERED rows at data-rows 12/18/21/25/28/32/35 with mixed Starter/Grower/Finisher colours — a good fixture for future feed-stage-colour regression tests.",
+  "rca of the issue": "No bug found. Feature works as specified in the review request. During iteration, first pass appeared to fail because I only waited 4s after PATCH — the frontend polls /api/readings/today every 30s (App.tsx:11599) to refresh liveSiloConfig which feeds siloToggle, so ≥30s wait is required. After waiting 35s, the latest ORDERED row (data-row 35, value 22000, previously red/Finisher) correctly turned rgb(0,0,0) while all 6 earlier same-letter deliveries kept their original purple/blue colours. Revert PATCH + 35s wait restored every row perfectly."
+}
