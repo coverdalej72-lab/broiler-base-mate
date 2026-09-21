@@ -622,6 +622,10 @@ Jason Coverdale (Appcovi, 3rd-gen Aussie broiler grower on a Baiada contract) ne
 - Jason picked this from the suggested next-action list: replaced the plain native `<title>` tooltip on weigh-in dots with an instant custom tooltip showing "Day N · Xg actual / Standard: Yg / ±Zg (±P%) ahead/behind standard". Hover hit-area enlarged (invisible r=7 circle) so the small dots are easy to target.
 - Verified: build passed, hovered a seeded Day-18 dot (780g actual vs 789g standard) — tooltip showed "Day 18 · 780g actual / Standard: 789g / -9g (-1.1%) behind standard" instantly, positioned above the dot.
 
+## Install App button removed from Program header (Sep 21, 2026)
+- Jason: "see this install app in main take it out." Removed `<InstallAppButton />` + its import from the desktop Program header (`App.tsx`). Component file (`components/InstallAppButton.tsx`) left in place, unused, in case it's wanted back later.
+- Verified via build + screenshot: header no longer shows "Install App", layout unaffected, no console errors. Small/isolated change — self-tested.
+
 ## Mort Buddy tab — removed duplicate Staff QR button; AI Camera confirmed already gone (Sep 21, 2026)
 - Jason: a staff member scanning the Mort Buddy QR landed on the landing page — confusing since there were 2 places to get the Staff QR (Mort Buddy tab's own "📱 Staff QR" button, and Settings). Asked to keep only the Settings one.
 - Root cause of the "went to landing page" confusion is most likely an old/stale QR (e.g. from before the farm token existed, or a plain `origin` link with no `?farm=&t=` — that pattern hits the SPA's `/` → `/landing` redirect). Both the tab button and Settings button generated the IDENTICAL `useFarmQrUrl("/morts-entry")` URL, so there was no code bug in the QR itself — just a confusing duplicate entry point. Removed the `📱 Staff QR` button + modal from `MortsInsightsPanel` (Mort Buddy tab); Settings' QR (added earlier, Sep 2026) is now the only source. **Recommended**: have the staff member scan a freshly-opened QR from Settings to rule out a stale/old QR being the actual cause.
