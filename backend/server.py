@@ -46,6 +46,7 @@ farms_col = db["farms"]
 eob_snapshots_col = db["eob_snapshots"]
 external_morts_col = db["external_morts"]
 external_weighins_col = db["external_weighins"]
+mort_shed_assignments_col = db["mort_shed_assignments"]
 
 DEFAULT_FARM_ID = "default"
 
@@ -956,6 +957,44 @@ async def delete_external_morts_by_date(request: Request, farm: str = Query(defa
     await _require_farm_access(request, farm)   # SEC-001 — DESTRUCTIVE, must be gated
     r = await external_morts_col.delete_many({"farmId": farm, "date": date})
     return {"ok": True, "deleted": r.deleted_count}
+
+
+# ─── Mort Buddy — daily "who's doing what shed" staff assignments ─────────
+# Jason: "so staff know what sheds they have to do... set in the program and
+# they will know on their app." Assignments change daily, so this is a
+# lightweight per-day overwrite (not a permanent roster) — the owner sets
+# today's shed→staff-name list in the Mort Buddy tab each morning, and the
+# staff member's Mort Buddy page pins their matching sheds to the top once
+# they type the same name. Matching is by typed name, not login, since
+# staff never get an account — same "no login" model as everything else here.
+# The "day" is ALWAYS the farm's own AEST day, computed server-side via
+# aest_today() — never trust a client-computed date here. This is the exact
+# "Mort Buddy clock is out time zone" bug class already hit once before
+# (see get_external_morts): a browser in a non-AEST timezone would otherwise
+# save/read a different calendar day than the shed floor is actually on.
+class MortShedAssignmentsPayload(BaseModel):
+    assignments: Dict[str, str]   # shed number (as string) -> staff name
+
+
+@app.get("/api/mort-buddy/assignments")
+async def get_mort_shed_assignments(request: Request, farm: str = Query(default=DEFAULT_FARM_ID)):
+    await _require_farm_access(request, farm)   # SEC-006 read isolation
+    d = aest_today()
+    doc = await mort_shed_assignments_col.find_one({"farmId": farm, "date": d}, {"_id": 0})
+    return {"date": d, "assignments": (doc or {}).get("assignments", {})}
+
+
+@app.put("/api/mort-buddy/assignments")
+async def set_mort_shed_assignments(payload: MortShedAssignmentsPayload, request: Request, farm: str = Query(default=DEFAULT_FARM_ID)):
+    await _require_farm_access(request, farm)
+    d = aest_today()
+    cleaned = {str(k): (v or "").strip()[:60] for k, v in payload.assignments.items() if (v or "").strip()}
+    await mort_shed_assignments_col.update_one(
+        {"farmId": farm, "date": d},
+        {"$set": {"farmId": farm, "date": d, "assignments": cleaned, "updatedAt": datetime.now(timezone.utc)}},
+        upsert=True,
+    )
+    return {"ok": True, "date": d, "assignments": cleaned}
 
 
 # ─── External Weigh-Ins Integration — "Weigh Birds" tab on the same Staff

@@ -34,6 +34,10 @@
     header .sub { font-size: 12px; color: var(--muted); margin-top: 3px; }
     .wrap { max-width: 520px; margin: 0 auto; padding: 14px 14px 90px; }
     .shed-card { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 14px; margin-bottom: 10px; }
+    .shed-card.pinned { border: 2px solid var(--gold); background: var(--gold-soft); order: -1; }
+    .shed-card .pin-badge { display: none; font-size: 10px; font-weight: 800; color: var(--gold); letter-spacing: 0.4px; margin-top: 2px; }
+    .shed-card.pinned .pin-badge { display: block; }
+    #content { display: flex; flex-direction: column; }
     .shed-card .head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
     .shed-card .head .num { font-size: 17px; font-weight: 900; }
     .shed-card .head .saved-badge { font-size: 11px; color: var(--green); font-weight: 700; opacity: 0; transition: opacity .2s; }
@@ -333,13 +337,14 @@
         for (let s = 1; s <= totalSheds; s++) {
           const card = document.createElement("div");
           card.className = "shed-card";
+          card.dataset.shed = String(s);
           const preM = existing[s]?.morts ?? "";
           const preC = existing[s]?.culls ?? "";
           const lastBy = existing[s]?.staffName
             ? `<div style="font-size:10px;color:var(--muted);margin-top:2px;">Last by ${existing[s].staffName}${existing[s].updatedAt ? " · " + new Date(existing[s].updatedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : ""}</div>`
             : "";
           card.innerHTML = `
-            <div class="head"><span class="num">Shed ${s}${lastBy}</span><span class="saved-badge" data-badge="${s}">✓ Saved</span></div>
+            <div class="head"><span class="num">Shed ${s}${lastBy}<div class="pin-badge">📌 Your shed today</div></span><span class="saved-badge" data-badge="${s}">✓ Saved</span></div>
             <div class="fields">
               <div class="field morts"><label>MORTS</label><input type="number" inputmode="numeric" min="0" data-morts="${s}" data-testid="morts-input-${s}" value="${preM}" /></div>
               <div class="field culls"><label>CULLS</label><input type="number" inputmode="numeric" min="0" data-culls="${s}" data-testid="culls-input-${s}" value="${preC}" /></div>
@@ -347,6 +352,28 @@
             </div>`;
           content.appendChild(card);
         }
+
+        // Jason: "so staff know what sheds they have to do and set in the
+        // program and they will know on there app" — pin the sheds assigned
+        // to whatever name is typed above (matched case/whitespace-insensitive)
+        // to the top, without hiding the rest, per Jason's own choice.
+        let todaysAssignments = {};
+        try {
+          const asgRes = await fetchWithTimeout("/api/mort-buddy/assignments?" + authQ, { credentials: "include" }, 8000);
+          if (asgRes.ok) todaysAssignments = (await asgRes.json()).assignments || {};
+        } catch (_) { /* pinning is best-effort, never blocks entry */ }
+
+        const norm = (v) => (v || "").trim().toLowerCase();
+        function applyAssignmentPins() {
+          const typed = norm(nameInput.value);
+          content.querySelectorAll(".shed-card").forEach(card => {
+            const s = card.dataset.shed;
+            const isMine = !!typed && norm(todaysAssignments[s]) === typed;
+            card.classList.toggle("pinned", isMine);
+          });
+        }
+        applyAssignmentPins();
+        nameInput.addEventListener("input", applyAssignmentPins);
 
         content.querySelectorAll("[data-save]").forEach(btn => {
           btn.addEventListener("click", async () => {
