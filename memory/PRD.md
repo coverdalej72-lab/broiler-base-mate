@@ -622,6 +622,14 @@ Jason Coverdale (Appcovi, 3rd-gen Aussie broiler grower on a Baiada contract) ne
 - Jason picked this from the suggested next-action list: replaced the plain native `<title>` tooltip on weigh-in dots with an instant custom tooltip showing "Day N · Xg actual / Standard: Yg / ±Zg (±P%) ahead/behind standard". Hover hit-area enlarged (invisible r=7 circle) so the small dots are easy to target.
 - Verified: build passed, hovered a seeded Day-18 dot (780g actual vs 789g standard) — tooltip showed "Day 18 · 780g actual / Standard: 789g / -9g (-1.1%) behind standard" instantly, positioned above the dot.
 
+## Landing page — added real Mort Buddy screenshot, updated stale copy (Sep 21, 2026)
+- Jason asked if there's anything else on the landing page like Mort Buddy screenshots — audit found Card 6 ("Morts & Culls") was a mocked-up stat illustration, not a real screenshot (unlike Feed Program/Silo Reader cards), and its copy still said "No separate app, no extra login" — outdated since Mort Buddy is now its own green/gold branded staff PWA.
+- Took a real Mort Buddy screenshot using a throwaway isolated demo farm ("Sample Farm", deleted immediately after) — never used Jason's real farm name/data in the public asset. Saved as `/app/backend/static/screenshot-mortbuddy.jpg`, served via `/api/static-asset/screenshot-mortbuddy.jpg`.
+- Rebuilt Card 6 in `landing.html` to match the existing phone-mockup style (bezel frame) used by the Silo Reader card, with copy describing Mort Buddy as its own staff app that rolls into the desktop Morts & Culls dashboard.
+- Card 3 (AI Weigh Birds feature grid) was checked and left as-is — it describes the phone Silo Reader app's camera features, unaffected by the earlier removal of AI Camera from the desktop Mort Buddy tab.
+- Verified via screenshot: new card renders correctly with phone bezel, "Sample Farm" placeholder data, updated copy.
+- **Housekeeping note (not yet actioned)**: found ~8 leftover stale test farm docs in Mongo (`north-creek`, `southridge`, `eaglehawk`, `trial-test-farm`, `diag-farm`, `redirect-test-farm-2`, `nudge-test-farm`, `iso-test-farm`, `gmail-live-test-farm`) from earlier testing sessions that were apparently never cleaned up. Flagging for a future cleanup pass — not touched this session since out of scope for this task.
+
 ## Landing page copy fix — "3rd-Gen" removed, replaced with "16 years" (Sep 21, 2026)
 - Jason: "im not 3 rd gen aussie grower just been doing for 16 years" — the "3rd-Gen" claim was inaccurate.
 - Replaced every "3rd-generation" / "3rd-Gen" / "third-generation" mention across `landing.html` (JSON-LD, hero lede, proof-bar stat, testimonials, FAQ, pricing CTA), `cobb-500-growth-chart.html`, `ross-308-growth-chart.html`, `tools-fcr-calculator.html`, `tools-grower-payment-calculator.html`, `vs-poultrylog.html`, and the Feed Program SPA's SEO splash (`silo/artifacts/feed-program/index.html`) with "16 years' experience" / "16-year Aussie grower" phrasing.
