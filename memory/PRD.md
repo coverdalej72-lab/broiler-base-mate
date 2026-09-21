@@ -622,6 +622,11 @@ Jason Coverdale (Appcovi, 3rd-gen Aussie broiler grower on a Baiada contract) ne
 - Jason picked this from the suggested next-action list: replaced the plain native `<title>` tooltip on weigh-in dots with an instant custom tooltip showing "Day N · Xg actual / Standard: Yg / ±Zg (±P%) ahead/behind standard". Hover hit-area enlarged (invisible r=7 circle) so the small dots are easy to target.
 - Verified: build passed, hovered a seeded Day-18 dot (780g actual vs 789g standard) — tooltip showed "Day 18 · 780g actual / Standard: 789g / -9g (-1.1%) behind standard" instantly, positioned above the dot.
 
+## Landing page copy fix — "3rd-Gen" removed, replaced with "16 years" (Sep 21, 2026)
+- Jason: "im not 3 rd gen aussie grower just been doing for 16 years" — the "3rd-Gen" claim was inaccurate.
+- Replaced every "3rd-generation" / "3rd-Gen" / "third-generation" mention across `landing.html` (JSON-LD, hero lede, proof-bar stat, testimonials, FAQ, pricing CTA), `cobb-500-growth-chart.html`, `ross-308-growth-chart.html`, `tools-fcr-calculator.html`, `tools-grower-payment-calculator.html`, `vs-poultrylog.html`, and the Feed Program SPA's SEO splash (`silo/artifacts/feed-program/index.html`) with "16 years' experience" / "16-year Aussie grower" phrasing.
+- Verified via screenshot: hero lede reads "...Built by a 16-year Aussie grower who got fed up with paper", proof-bar stat now shows "16 Yrs / built by a working Aussie grower", zero remaining "3rd-gen" hits across all static pages (grep-verified).
+
 ## Install App button removed from Program header (Sep 21, 2026)
 - Jason: "see this install app in main take it out." Removed `<InstallAppButton />` + its import from the desktop Program header (`App.tsx`). Component file (`components/InstallAppButton.tsx`) left in place, unused, in case it's wanted back later.
 - Verified via build + screenshot: header no longer shows "Install App", layout unaffected, no console errors. Small/isolated change — self-tested.
