@@ -1,0 +1,23 @@
+{
+  "summary": "Full end-to-end test of the new Mort Buddy daily shed→staff assignments feature. Backend: 10/10 pytest tests pass covering GET/PUT auth (401 without token/session), read/write persistence with server-side aest_today() date, trim+drop-empty, 60-char truncation, overwrite semantics, empty-object clear, bad payload rejection (422), and regression on /api/integrations/morts. Frontend Desktop (Program → Mort Buddy → Morts & Culls): card renders with data-testid='mort-shed-assignments', 12 shed inputs with data-testid='mort-shed-assignment-input-<N>', Save button starts disabled (dirty-check), enables on edit, saves successfully, shows '✓ Saved 11:07 PM' indicator (data-testid='mort-shed-assignments-saved'), and returns to disabled state (clean). Reload persistence verified — values still populated after full page reload and re-navigation. Frontend Phone (/morts-entry): typing 'MICK ' (uppercase + trailing space) correctly pinned Sheds 1 & 2 (order:-1, gold badge visible); typing 'dave' lowercase pinned Shed 3 with '📌 Your shed today' badge visible; typing 'Random Casual' left ALL sheds unpinned (safe fallback); clearing the name field left all sheds unpinned. All non-pinned sheds remained fully visible and usable below. Timezone regression check confirmed — GET immediately after PUT returned the same server-side AEST date (2026-09-22) with identical assignments. Test data cleaned up via PUT with empty assignments object.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_report_links": [
+    "/app/backend/tests/test_mort_shed_assignments.py",
+    "/app/test_reports/pytest/mort_assignments.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "Nice defensive design: 60-char server-side name truncation and empty-string filtering in PUT handler prevents junk data. Client-side dirty check + Saved indicator UX is clean.",
+    "aest_today() used consistently for BOTH GET and PUT — regression from earlier client-date bug is not present.",
+    "Minor: App.tsx is ~6000 lines; MortsInsightsPanel could be extracted into its own module for maintainability (not this PR's scope)."
+  ],
+  "updated_files": ["/app/backend/tests/test_mort_shed_assignments.py"],
+  "success_rate": {"backend": "100%", "frontend": "100%"},
+  "test_credentials": "owner_magic_link and farmToken from request used; test_credentials.md not required for this feature.",
+  "seed_data_creation": "Temporary shed assignments {1:TEST_Bob, 2:TEST_Bob, 3:TEST_Sue} plus prior test names (Mick/Dave) — ALL cleaned up via PUT {assignments:{}} at end of both browser sessions and via pytest module teardown. Verified via GET returning empty {}.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "test_mort_shed_assignments.py can be re-run standalone (pytest backend/tests/test_mort_shed_assignments.py -v). It self-cleans. If adding tests, note: /api/integrations/morts requires payload shape {entries:[{shed,morts,culls,date}], source} — 422s otherwise. Farm token _JDgeoWnHPi5RTiW5WDmZYxou8tpxqDo works for both GET & PUT (no session cookie needed for API-level testing).",
+  "rca of the issue": "N/A — no bugs found. Feature works exactly as specified across all 8 test scenarios in the review request."
+}
