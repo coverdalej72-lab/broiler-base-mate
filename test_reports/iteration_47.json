@@ -1,0 +1,26 @@
+{
+  "summary": "Full backend + frontend validation of the new MTEC Flock Record Card reconcile feature on the Mort Buddy tab. All 7 backend tests pass (non-PDF rejected, background job returns jobId <1s, poll → done in ~50s, 12 sheds parsed, dates 2026-09-07→2026-09-21 correct, shed-1 total = 673 matches PDF, fix hard-overwrites an inflated pre-existing 999 morts DOWN to real MTEC value, GET returns source='mtec-reconcile'). Frontend Playwright run confirmed: MTEC Reconcile card renders below Today's Shed Assignments, upload triggers 'Uploading…' + scan-loading indicator (proving background-job pattern is intact, no regression to 60s-blocking POST), completion shows 'Checked 2026-09-07 → 2026-09-21 across 12 sheds' + 'Upload another' link, all 12 shed rows present, initially all mismatched with BBM=0, clicking Fix on shed 1 flips the row to '✓ Matches / MTEC 673 · BBM 673' and the S1 row in the Morts & Culls calendar grid below is populated (screenshot verified 10/20 for one visible day, matching PDF). Other Program tabs (Batch Results, Flock Forecast, History) load with 0 console errors.",
+  "backend_issues": { "critical": [], "minor": [] },
+  "frontend_issues": { "ui_bugs": [], "integration_issues": [], "design_issues": [] },
+  "test_report_links": [
+    "/app/backend/tests/test_mtec_reconcile.py",
+    "/app/test_reports/pytest/mtec_reconcile.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "server.py: mtec_scan_start writes the uploaded PDF to a tempfile then hands it off to a fire-and-forget asyncio.create_task — no bounded concurrency / job queue. Under abuse or a slow Gemini upstream, many concurrent 15MB scans could balloon memory and open file handles. Consider a per-farm concurrency lock or Semaphore(N).",
+    "server.py:_run_mtec_scan_job — on any Gemini/parse exception the raw exception str is stored in job['error'] and returned to the client. Sanitize or map to a generic message to avoid leaking internals via /api/mort-buddy/mtec-scan/{job_id}.",
+    "App.tsx fixShedFromMtec direct-overwrite of mortsLog/cullsLog is a deliberate deviation from the max-merge poll — worth a code comment referencing this design decision so a future refactor doesn't 're-unify' it and silently break correct-down.",
+    "External endpoint POST /api/integrations/morts still accepts arbitrary source strings from clients (source='mtec-reconcile' is enforced only by the caller); a client could spoof audit provenance. Low-severity, but consider validating source against an allow-list on this write path."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_mtec_reconcile.py"
+  ],
+  "success_rate": { "backend": "100%", "frontend": "100%" },
+  "test_credentials": "owner_magic_link + farm_token 'default' / '_JDgeoWnHPi5RTiW5WDmZYxou8tpxqDo' from review request; /app/memory/test_credentials.md not read (feature does not touch email/password auth flows).",
+  "seed_data_creation": "Test seeded and then removed all external_morts rows for farm=default across 2026-09-07 → 2026-09-21 (including a temporary shed-2 morts=999 row to validate correct-down behavior). Also deleted 3 mtec_scan_jobs docs for farmId='default' via mongosh. Post-test verification confirms 0 remaining test rows in that date range.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Feature: MTEC Reconcile on Mort Buddy tab. Backend endpoints: POST /api/mort-buddy/mtec-scan (multipart, returns {jobId} immediately) and GET /api/mort-buddy/mtec-scan/{job_id} (poll → status: processing|done|error). Response 'done' shape: {status, dateRange:[start,end], sheds:[{shed, mtecTotal, bbmTotal, matches, mismatchDays:[{date, mtecMorts, mtecCulls, bbmMorts, bbmCulls}]}]}. Note the reviewer originally said startDate/endDate — actual field is dateRange (array). Fix action reuses POST /api/integrations/morts with source='mtec-reconcile'. Background-job pattern is REQUIRED — do NOT let this regress to a single blocking request (Cloudflare 60s hard cutoff → 502). Real Gemini call costs money and takes 40-70s per PDF; keep test count low. Cleanup script: DELETE /api/integrations/morts?date=YYYY-MM-DD for each date in scan range + mongosh delete mtec_scan_jobs by farmId.",
+  "rca of the issue": "N/A — no issues found. Only nit: response uses `dateRange` array while review request called it `startDate`/`endDate`; test was adjusted."
+}

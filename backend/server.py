@@ -1099,9 +1099,14 @@ RULES:
             "result": {"dateRange": [all_dates[0], all_dates[-1]], "sheds": result_sheds},
             "finishedAt": datetime.now(timezone.utc),
         }})
-    except Exception as e:
+    except ValueError as e:
         await mtec_scan_jobs_col.update_one({"_id": job_id}, {"$set": {
-            "status": "error", "error": str(e) or "Farm Buddy couldn't read that PDF",
+            "status": "error", "error": str(e),
+            "finishedAt": datetime.now(timezone.utc),
+        }})
+    except Exception:
+        await mtec_scan_jobs_col.update_one({"_id": job_id}, {"$set": {
+            "status": "error", "error": "Farm Buddy couldn't read that PDF — try a clearer scan/export",
             "finishedAt": datetime.now(timezone.utc),
         }})
     finally:
