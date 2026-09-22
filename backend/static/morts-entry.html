@@ -198,13 +198,15 @@
         if (!banner) {
           banner = document.createElement("div");
           banner.id = "bbm-offline-banner";
-          banner.style.cssText = "position:fixed;bottom:14px;left:50%;transform:translateX(-50%);z-index:9999;background:#173622;color:#fff;padding:8px 14px;border-radius:99px;font:600 12px system-ui,sans-serif;box-shadow:0 6px 22px rgba(0,0,0,.3);max-width:90vw;text-align:center;";
+          banner.style.cssText = "position:fixed;bottom:14px;left:50%;transform:translateX(-50%);z-index:9999;background:#173622;color:#fff;padding:9px 16px;border-radius:99px;font:600 12px system-ui,sans-serif;box-shadow:0 6px 22px rgba(0,0,0,.3);max-width:92vw;text-align:center;cursor:pointer;";
           banner.setAttribute("data-testid", "staff-offline-queue-banner");
+          banner.title = "Tap to retry now";
+          banner.addEventListener("click", () => drainQueue());
           document.body.appendChild(banner);
         }
         const onl = navigator.onLine !== false;
         banner.textContent = onl
-          ? `🔄 Syncing ${q.length} saved item${q.length === 1 ? "" : "s"}…`
+          ? `🔄 Syncing ${q.length} saved item${q.length === 1 ? "" : "s"}… (tap to retry now)`
           : `📡 Offline — ${q.length} item${q.length === 1 ? "" : "s"} queued, will sync when back online`;
       } else if (banner) {
         banner.remove();
@@ -242,15 +244,59 @@
       const headers = Object.assign({}, item.headers || {}, { "x-bbm-skip-queue": "1" });
       try {
         const r = await window.fetch(item.url, { method: item.method, headers, body: item.body, credentials: "include" });
-        if (r.status >= 500) { updateOfflineBanner(); return; }
-        q.shift(); saveQueue(q); updateOfflineBanner();
+        if (r.ok) {
+          q.shift(); saveQueue(q); updateOfflineBanner();
+          if (q.length) setTimeout(drainQueue, 200);
+          return;
+        }
+        if (r.status >= 500) { updateOfflineBanner(); return; } // server hiccup — keep retrying
+        // Sep 2026 — Jason: "well they save but nothing coming into mort buddy
+        // program" — this WAS the bug: any 4xx (e.g. an expired/bad request)
+        // on a background retry used to be treated as "sent" and silently
+        // discarded, because only >=500 was checked. A 4xx will never succeed
+        // by retrying, so drop it from the queue but keep it VISIBLE as a lost
+        // entry instead of vanishing with no trace.
+        q.shift(); saveQueue(q);
+        pushLostItem(item, "Save rejected (" + r.status + ")");
+        updateOfflineBanner();
+        updateLostBanner();
         if (q.length) setTimeout(drainQueue, 200);
       } catch (_) { updateOfflineBanner(); }
+    }
+    const LOST_KEY = "bbm-staff-lost-items";
+    function loadLost() { try { return JSON.parse(localStorage.getItem(LOST_KEY) || "[]"); } catch { return []; } }
+    function pushLostItem(item, reason) {
+      const lost = loadLost();
+      lost.push({ url: item.url, ts: Date.now(), reason });
+      localStorage.setItem(LOST_KEY, JSON.stringify(lost));
+    }
+    function updateLostBanner() {
+      const lost = loadLost();
+      let banner = document.getElementById("bbm-lost-banner");
+      if (lost.length) {
+        if (!banner) {
+          banner = document.createElement("div");
+          banner.id = "bbm-lost-banner";
+          banner.setAttribute("data-testid", "staff-lost-items-banner");
+          banner.style.cssText = "position:fixed;top:0;left:0;right:0;z-index:10000;background:#7a1f1f;color:#fff;padding:10px 14px;font:700 12.5px system-ui,sans-serif;text-align:center;cursor:pointer;";
+          banner.addEventListener("click", () => { localStorage.removeItem(LOST_KEY); updateLostBanner(); });
+          document.body.prepend(banner);
+        }
+        banner.textContent = `⚠️ ${lost.length} entr${lost.length === 1 ? "y" : "ies"} didn't save — please re-enter (tap to dismiss)`;
+      } else if (banner) {
+        banner.remove();
+      }
     }
     window.addEventListener("online", () => { updateOfflineBanner(); drainQueue(); });
     window.addEventListener("offline", () => { updateOfflineBanner(); });
     setInterval(drainQueue, 30000);
-    setTimeout(() => { updateOfflineBanner(); drainQueue(); }, 1500);
+    setTimeout(() => { updateOfflineBanner(); updateLostBanner(); drainQueue(); }, 1500);
+    // Sep 2026 — Jason: "well it needs to work" — iOS Safari pauses timers
+    // (the 30s setInterval above) once the tab is backgrounded/locked, so a
+    // staff member who saves then locks their phone could sit queued far
+    // longer than 30s. Force a drain the moment the tab is visible again.
+    document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") drainQueue(); });
+    window.addEventListener("pageshow", () => drainQueue());
 
     const NAME_KEY = "bbm-staff-name";
     const nameInput = document.getElementById("staff-name");
