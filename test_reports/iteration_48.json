@@ -1,0 +1,24 @@
+{
+  "summary": "Frontend-only regression test of morts-entry.html offline-queue fix. All four requested behaviors verified: (A) A queued item with a bad token that returns 4xx is discarded from bbm-staff-offline-queue AND recorded in bbm-staff-lost-items, with the red top banner data-testid='staff-lost-items-banner' showing '⚠️ 1 entry didn't save — please re-enter (tap to dismiss)'. Tapping the banner clears both the localStorage lost list and removes the banner. (B) Genuine offline simulation via page.context.set_offline(True) with a Save click queues the request; the bottom pill data-testid='staff-offline-queue-banner' shows 'Offline — 1 item queued'; upon going back online and tapping the pill, drainQueue() runs and the item is successfully drained (queue emptied, no entry appears in lost-items because the real API accepted it). (C) Happy path: filling name + culls + Save on shed 2 produced 'Saved' text (green badge), no red lost banner appears, and localStorage stays clean. (D) Weigh Birds tab within morts-entry.html loads and renders shed inputs without JS errors. (E) Code inspection confirmed presence of `visibilitychange` and `pageshow` listeners calling drainQueue(), r.ok success check, r.status>=500 keep-retry, else discard+record path, and updateLostBanner/pushLostItem/LOST_KEY definitions (lines 266-293 of morts-entry.html). No console or page errors on load. Cleaned up 2 real test entries via DELETE /api/integrations/morts?farm=default&date=2026-09-22 (returned {ok:true,deleted:2}).",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "Fix is correct and minimal: r.ok gate for success, >=500 for keep-retry, else discard-and-record, matching the reported symptom's root cause exactly.",
+    "Lost-items list stores only {url, ts, reason} not the body payload — intentional and lightweight (banner is a count-based prompt to re-enter). Users cannot recover the original numbers from the banner; they must re-key. Acceptable per design (impossible-to-miss prompt is the goal), but worth mentioning: if desired, storing the body would let a future 'restore last lost entries' UX exist.",
+    "visibilitychange + pageshow drain-on-resume addresses iOS Safari's setInterval pause while backgrounded — good hardening.",
+    "Bottom offline pill is now clickable (drainQueue on click) with a clear cursor/pointer style would help discoverability, but functionally works."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "n/a", "frontend": "100%"},
+  "test_credentials": "Farm QR token _JDgeoWnHPi5RTiW5WDmZYxou8tpxqDo (farm=default). No login required by design.",
+  "seed_data_creation": "Created 2 temporary morts entries during offline-queue drain (TEST_OFFLINE_Sarah shed 1, TEST_HAPPY_Bob shed 2) on farm=default date=2026-09-22. Both DELETED via DELETE /api/integrations/morts?farm=default&date=2026-09-22 → {ok:true,deleted:2}. external_morts is clean.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "morts-entry.html offline queue fix is verified live. Key selectors: data-testid='staff-lost-items-banner' (top red), 'staff-offline-queue-banner' (bottom pill), 'staff-name-input', 'morts-input-N', 'culls-input-N', 'save-shed-N', 'tab-morts-culls', 'tab-weigh-birds'. LocalStorage keys: 'bbm-staff-offline-queue' (queued requests), 'bbm-staff-lost-items' (discarded 4xx). To force a 4xx test, inject a queued entry with a bad ?t= token. Farm 'default' is Jason's real farm — always clean up via DELETE /api/integrations/morts?farm=default&date=<YYYY-MM-DD>&t=_JDgeoWnHPi5RTiW5WDmZYxou8tpxqDo."
+}
