@@ -16,7 +16,7 @@ from datetime import datetime, timedelta, timezone
 from typing import Annotated, Any, Dict, List, Optional
 
 from dotenv import load_dotenv
-from fastapi import APIRouter, FastAPI, HTTPException, Query, Request
+from fastapi import APIRouter, FastAPI, File, HTTPException, Query, Request, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.responses import RedirectResponse
 from fastapi.responses import FileResponse, JSONResponse, Response
@@ -47,6 +47,7 @@ eob_snapshots_col = db["eob_snapshots"]
 external_morts_col = db["external_morts"]
 external_weighins_col = db["external_weighins"]
 mort_shed_assignments_col = db["mort_shed_assignments"]
+mtec_scan_jobs_col = db["mtec_scan_jobs"]
 
 DEFAULT_FARM_ID = "default"
 
@@ -995,6 +996,153 @@ async def set_mort_shed_assignments(payload: MortShedAssignmentsPayload, request
         upsert=True,
     )
     return {"ok": True, "date": d, "assignments": cleaned}
+
+
+# ─── MTEC Flock Record Card reconcile — Jason: "the mtec system has morts and
+# culls on it can we add a upload into bbm program ai farm buddy can match
+# the numbers... for better feed planning correct numbers of birds left".
+# Farm Buddy reads the uploaded integrator PDF (Gemini native-PDF support),
+# extracts each shed's day-by-day Morts/Culled, and compares it against
+# what's already in BBM (`external_morts_col`, the same store the Mort Buddy
+# staff app writes to). Nothing is changed automatically — the Program shows
+# the mismatches and the owner clicks "Fix" per shed, which just replays the
+# MTEC numbers through the EXISTING `/api/integrations/morts` upsert (no new
+# write path needed, same idempotent (farm,date,shed) overwrite staff already use).
+#
+# Run as a background job + poll, NOT a single request/response — a 12-page
+# card takes 40-60s for Gemini to read, and the preview ingress (Cloudflare)
+# hard-cuts any request at 60s with a 502, discovered by testing this exact
+# call against the real PDF. Uploading kicks off the job and returns a
+# jobId in well under a second; the frontend polls the GET below.
+async def _run_mtec_scan_job(job_id: str, farm: str, tmp_path: str):
+    try:
+        from emergentintegrations.llm.chat import LlmChat, UserMessage, FileContentWithMimeType
+        system_msg = """You are extracting structured data from an Australian poultry integrator's
+"Flock Record Card" PDF (MTEC system). It has one page per shed. Each page has a daily table with
+columns similar to: Trans Date (DD/MM/YYYY), Post, Status, Age, Morts, Culled, Culled Reason(s),
+Morts Culls, Cum Mort%, Temp Low, Temp High, Weight, Feed Inv, Notes. There is also a Shed Total row.
+
+Return ONLY a JSON object, no markdown fences, in this exact shape:
+{
+  "sheds": [
+    {
+      "shed": 1,
+      "days": [
+        {"date": "2026-09-08", "morts": 10, "culls": 10}
+      ]
+    }
+  ]
+}
+
+RULES:
+- "shed" is the integer shed number (from the page's "Shed:" header, e.g. "Shed: 01" -> 1).
+- Convert every "Trans Date" from DD/MM/YYYY to ISO "YYYY-MM-DD".
+- "morts" = the Morts column value for that row. "culls" = the Culled column value for that row.
+- Skip rows with no date or where both Morts and Culled are blank/zero AND it's not a real logged day.
+- Include EVERY shed page found in the document, and every dated row on each page.
+- Do not include the Shed Total or Farm Total rows as a "day" entry.
+- If a value is illegible, use 0 rather than guessing.
+"""
+        chat = LlmChat(
+            api_key=os.environ["EMERGENT_LLM_KEY"],
+            session_id=f"mtec-scan-{job_id}",
+            system_message=system_msg,
+        ).with_model("gemini", "gemini-2.5-flash")
+
+        pdf_file = FileContentWithMimeType(file_path=tmp_path, mime_type="application/pdf")
+        msg = UserMessage(text="Extract every shed's daily Morts/Culls table as JSON, per the schema.", file_contents=[pdf_file])
+        text = str(await chat.send_message(msg)).strip()
+
+        if text.startswith("```"):
+            text = text.strip("`")
+            if text.lower().startswith("json"):
+                text = text[4:]
+        import json as _json
+        start, end = text.find("{"), text.rfind("}")
+        if start == -1 or end == -1:
+            raise ValueError("Farm Buddy couldn't read that PDF — try a clearer scan/export")
+        extracted = _json.loads(text[start:end + 1])
+
+        mtec_sheds = extracted.get("sheds") or []
+        all_dates = sorted({d.get("date") for s in mtec_sheds for d in (s.get("days") or []) if d.get("date")})
+        if not all_dates:
+            raise ValueError("No shed/day data found in that PDF")
+
+        bbm_rows = await external_morts_col.find(
+            {"farmId": farm, "date": {"$gte": all_dates[0], "$lte": all_dates[-1]}}, {"_id": 0}
+        ).to_list(5000)
+        bbm_lookup = {(r["shed"], r["date"]): r for r in bbm_rows}
+
+        result_sheds = []
+        for s in mtec_sheds:
+            shed_num = s.get("shed")
+            mismatch_days = []
+            mtec_total = 0
+            bbm_total = 0
+            for d in (s.get("days") or []):
+                date = d.get("date")
+                mtec_m, mtec_c = int(d.get("morts") or 0), int(d.get("culls") or 0)
+                mtec_total += mtec_m + mtec_c
+                bbm_row = bbm_lookup.get((shed_num, date))
+                bbm_m, bbm_c = (bbm_row.get("morts", 0), bbm_row.get("culls", 0)) if bbm_row else (0, 0)
+                bbm_total += bbm_m + bbm_c
+                if mtec_m != bbm_m or mtec_c != bbm_c:
+                    mismatch_days.append({"date": date, "mtecMorts": mtec_m, "mtecCulls": mtec_c, "bbmMorts": bbm_m, "bbmCulls": bbm_c})
+            result_sheds.append({
+                "shed": shed_num, "mtecTotal": mtec_total, "bbmTotal": bbm_total,
+                "matches": len(mismatch_days) == 0, "mismatchDays": mismatch_days,
+            })
+        result_sheds.sort(key=lambda x: x["shed"] or 0)
+
+        await mtec_scan_jobs_col.update_one({"_id": job_id}, {"$set": {
+            "status": "done",
+            "result": {"dateRange": [all_dates[0], all_dates[-1]], "sheds": result_sheds},
+            "finishedAt": datetime.now(timezone.utc),
+        }})
+    except Exception as e:
+        await mtec_scan_jobs_col.update_one({"_id": job_id}, {"$set": {
+            "status": "error", "error": str(e) or "Farm Buddy couldn't read that PDF",
+            "finishedAt": datetime.now(timezone.utc),
+        }})
+    finally:
+        if os.path.exists(tmp_path):
+            os.remove(tmp_path)
+
+
+@app.post("/api/mort-buddy/mtec-scan")
+async def mtec_scan_start(request: Request, farm: str = Query(default=DEFAULT_FARM_ID), file: UploadFile = File(...)):
+    await _require_farm_access(request, farm)
+    if (file.content_type or "") not in ("application/pdf", "application/octet-stream") and not (file.filename or "").lower().endswith(".pdf"):
+        raise HTTPException(400, "Please upload the Flock Record Card as a PDF")
+    if not os.environ.get("EMERGENT_LLM_KEY"):
+        raise HTTPException(503, "LLM key not configured")
+
+    raw = await file.read()
+    if len(raw) > 15 * 1024 * 1024:
+        raise HTTPException(400, "PDF too large (max 15MB)")
+
+    import tempfile
+    with tempfile.NamedTemporaryFile(suffix=".pdf", delete=False) as tmp:
+        tmp.write(raw)
+        tmp_path = tmp.name
+
+    job_id = uuid.uuid4().hex
+    await mtec_scan_jobs_col.insert_one({"_id": job_id, "farmId": farm, "status": "processing", "createdAt": datetime.now(timezone.utc)})
+    asyncio.create_task(_run_mtec_scan_job(job_id, farm, tmp_path))
+    return {"ok": True, "jobId": job_id}
+
+
+@app.get("/api/mort-buddy/mtec-scan/{job_id}")
+async def mtec_scan_poll(job_id: str, request: Request, farm: str = Query(default=DEFAULT_FARM_ID)):
+    await _require_farm_access(request, farm)
+    job = await mtec_scan_jobs_col.find_one({"_id": job_id, "farmId": farm})
+    if not job:
+        raise HTTPException(404, "Scan job not found")
+    if job["status"] == "done":
+        return {"status": "done", **job["result"]}
+    if job["status"] == "error":
+        return {"status": "error", "error": job.get("error")}
+    return {"status": "processing"}
 
 
 # ─── External Weigh-Ins Integration — "Weigh Birds" tab on the same Staff
